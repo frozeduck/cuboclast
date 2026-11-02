@@ -225,4 +225,62 @@ public class AudioHelper {
         }
         playBuffer(buf);
     }
+
+    // Allarme Boss Fight & Transizione di Fase
+    public static void playBossAlert() {
+        if (!soundEnabled) return;
+        int n = (int) (SAMPLE_RATE * 0.35f);
+        short[] buf = new short[n];
+        for (int i = 0; i < n; i++) {
+            float t = (float) i / SAMPLE_RATE;
+            float freq = (t < 0.17f) ? 180f : 140f;
+            float buzz = (float) Math.sin(2.0 * Math.PI * freq * t) + (float) Math.sin(4.0 * Math.PI * freq * t) * 0.5f;
+            float decay = (float) Math.exp(-t * 5.0);
+            buf[i] = (short) (buzz * decay * 27000);
+        }
+        playBuffer(buf);
+    }
+
+    // Raccolta Scheggia Quantica (Crystalline Ding)
+    public static void playShardCollect() {
+        if (!soundEnabled) return;
+        int n = (int) (SAMPLE_RATE * 0.12f);
+        short[] buf = new short[n];
+        for (int i = 0; i < n; i++) {
+            float t = (float) i / SAMPLE_RATE;
+            float decay = (float) Math.exp(-t * 22.0);
+            buf[i] = (short) (Math.sin(2.0 * Math.PI * 1760.0 * t) * decay * 22000);
+        }
+        playBuffer(buf);
+    }
+
+    // Reroll delle carte reliquia (Whoosh pneumatico)
+    public static void playReroll() {
+        if (!soundEnabled) return;
+        int n = (int) (SAMPLE_RATE * 0.14f);
+        short[] buf = new short[n];
+        Random rnd = new Random();
+        for (int i = 0; i < n; i++) {
+            float t = (float) i / SAMPLE_RATE;
+            float decay = (float) Math.exp(-t * 18.0);
+            float f = 600f - t * 2500f;
+            float s = (float) Math.sin(2.0 * Math.PI * f * t) * 0.6f + (rnd.nextFloat() - 0.5f) * 0.4f;
+            buf[i] = (short) (s * decay * 25000);
+        }
+        playBuffer(buf);
+    }
+
+    // Fanfara di Risonanza Elementale (Combo di Famiglia sbloccata)
+    public static void playResonanceFanfare() {
+        if (!soundEnabled) return;
+        int n = (int) (SAMPLE_RATE * 0.32f);
+        short[] buf = new short[n];
+        for (int i = 0; i < n; i++) {
+            float t = (float) i / SAMPLE_RATE;
+            float f = (t < 0.08f) ? 440f : ((t < 0.16f) ? 554.37f : ((t < 0.24f) ? 659.25f : 880f));
+            float decay = (float) Math.exp(-(t % 0.08f) * 14.0);
+            buf[i] = (short) (Math.sin(2.0 * Math.PI * f * t) * decay * 28000);
+        }
+        playBuffer(buf);
+    }
 }

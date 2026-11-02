@@ -1,6 +1,6 @@
 # CuboClast (Android APK · Verticale · Minimalist Roguelike Peggle)
 
-**CuboClast** è un videogioco arcade d'azione e strategia con fisica pinball nativo per **Android**, progettato da zero per essere giocato in **orientamento verticale (portrait)** con una sola mano. Combina la fisica cinetica e la soddisfazione dei rimbalzi stile *Peggle* con la distruzione progressiva di **cubetti geometrici** e una profonda stratificazione di **build roguelike** basate su reliquie sinergiche ed effetti a catena.
+**CuboClast** è un videogioco arcade d'azione e strategia con fisica pinball nativo per **Android**, progettato da zero per essere giocato in **orientamento verticale (portrait)** con una sola mano. Combina la fisica cinetica e la soddisfazione dei rimbalzi stile *Peggle* con la distruzione progressiva di **cubetti geometrici**, boss fight dinamiche a fasi, **5 Archetipi Core** e un profondo sistema di **sinergie di set categorizzate**.
 
 L'estetica è rigorosamente **minimalista e geometrica**: tonalità scure deep-space, linee vettoriali al neon ad alto contrasto (Ciano, Magenta, Ambra, Smeraldo, Zaffiro), particelle geometriche affilate e un sistema di **sintesi audio procedurale pentatonica** che suona note crescenti all'accumularsi dei rimbalzi, offrendo un game feel inebriante senza appesantire il dispositivo.
 
@@ -8,31 +8,50 @@ L'estetica è rigorosamente **minimalista e geometrica**: tonalità scure deep-s
 
 ## ⚡ Download e Release
 
-* **[Scarica l'APK v0.2.0 su GitHub Release](https://github.com/frozeduck/cuboclast/releases/tag/v0.2.0)** · [Repository GitHub](https://github.com/frozeduck/cuboclast)
+* **[Scarica l'APK v0.3.0 su GitHub Release](https://github.com/frozeduck/cuboclast/releases/tag/v0.3.0)** · [Repository GitHub](https://github.com/frozeduck/cuboclast)
 * **Server locale di download**: [http://192.168.1.200:8144](http://192.168.1.200:8144) (file: `cuboclast-latest-debug.apk`)
 
 ---
 
-## 🌟 Novità v0.2.0: Ribilanciamento & Game Feel Peggle
+## 🌟 Novità v0.3.0: Archetipi, Risonanze di Set, Boss a Fasi & Endless Loop
 
-1. **Obiettivi "Cubi Core" & CuboClast FEVER!**:
-   * Non è più necessario distruggere il 100% di tutti i cubetti del settore: il livello richiede di abbattere i **Cubi Core** (contrassegnati da bordo dorato e aura radiosa pulsante).
-   * Distrutti tutti i Core si attiva il **CuboClast FEVER**: tutti i cubetti residui vengono polverizzati in una spettacolare reazione a catena con fuochi d'artificio, fanfara audio e bonus punti per le sfere rimaste!
-2. **Economia Munizioni Più Generosa (8 Sfere Iniziali)**:
-   * Si inizia con **8 sfere** (invece di 5) e a ogni settore superato la riserva viene ricaricata ad almeno 8 sfere (+2 bonus).
-3. **Sfera Extra per Punteggio del Tiro (Fever Ball)**:
-   * Raggiungendo 6.000, 18.000 e 36.000 punti in un singolo colpo si guadagna automaticamente **+1 Sfera Extra** con chime trionfale.
-4. **Soccorso "Mercy Refund"**:
-   * Se un tiro sfortunato o accidentale cade senza colpire almeno 2 cubetti, la sfera viene automaticamente **rimborsata** ("MERCY REFUND! +1 Sfera"), eliminando le morti premature.
-5. **Traiettoria di Mira Predittiva a 2 Segmenti con Rimbalzo**:
-   * Il mirino traccia con precisione chirurgica non solo il raggio iniziale verso il primo cubetto o parete, ma calcola anche la normale di impatto e il **vettore di riflessione**, mostrando esattamente dove rimbalzerà la sfera con reticolo d'impatto e pallini al neon.
-6. **Cestello Allargato & Attrazione Magnetica Naturale**:
-   * Cestello allargato a 220px (290px con reliquia magnetica) con imbuto gravitazionale che risucchia dolcemente le sfere che cadono in prossimità.
-7. **Draft Reliquia Iniziale al Lancio**:
-   * La partita inizia offrendo subito 3 reliquie di partenza per impostare immediatamente l'archetipo della build roguelike (es. Kinetic Surge, Multiball Reactor, Fulmine a Catena).
-8. **Scalabilità HP Ricalibrata**:
-   * Settore 1: cubi a 1 HP (one-shot istantaneo con schegge ovunque).
-   * Danno cumulativo naturale (+1 danno ogni 3 rimbalzi nello stesso colpo).
+### 1. 🛡️ 5 Archetipi Core Iniziali (Definiscono l'Intera Run)
+All'avvio di ogni partita scegli il tuo **Nucleo di Potere**:
+* ⚡ **Volt Overcharge (Elettrico)**: Tutti i fulmini e le scariche infliggono +50% di danno e si propagano a +1 bersaglio extra. Inizia con *Fulmine a Catena*.
+* 💥 **Pyro Detonator (Esplosivo)**: Raggio di tutte le esplosioni aumentato del +40%, i cubi esplosivi infliggono +3 danni extra. Inizia con *Sfera Bomba*.
+* 🌀 **Swarm Matrix (Multiball)**: Le mini-sfere rimbalzano 1 volta se cadono nel vuoto e hanno il +25% di probabilità di replicarsi. Inizia con *Reattore Multiball*.
+* 🛡️ **Kinetic Titan (Cinetico)**: Cestello maggiorato fin dall'inizio (260px) con forte imbuto magnetico e +1 danno base su ogni rimbalzo. Inizia con *Kinetic Surge*.
+* ❄️ **Crystal Singularity (Criogenico)**: Ogni impatto congela i cubetti; i cubi congelati subiscono il doppio del danno (2x) e rilasciano schegge di ghiaccio.
+
+### 2. 🔮 4 Famiglie di Reliquie & Sinergie di Set (Risonanze Combo)
+Le reliquie sono categorizzate in 4 famiglie elementali:
+* ⚡ **ELETTRICO**: *Fulmine a Catena*, *Scarica di Tensione*, *Bobina Tesla*, *Impulso EMP*.
+* 💥 **ESPLOSIVO**: *Sfera Bomba*, *Schegge Taglienti*, *Carica a Grappolo*, *Supernova*.
+* 🌀 **MULTIBALL**: *Reattore Multiball*, *Duplicazione Quantica*, *Tempesta di Scissione*, *Micro-Sciame*.
+* 🛡️ **CINETICO**: *Kinetic Surge*, *Cestello Magnetico*, *Massa Inerziale*, *Rete di Sicurezza*, *Sfera Perforante*, *Iper-Velocità*, *Sovraccarico Critico*.
+
+**Bonus di Risonanza Set (Combo Attive)**:
+* **Combo 2x (Tier 1)**: +25% di efficacia agli effetti della famiglia (es. fulmini a più bersagli, esplosioni più ampie).
+* **Maestria 3x (Tier 2)**: Effetti sovraccarichi (es. mini-sfere ereditano il 100% del danno della sfera madre, catene di fulmini infinite con critico).
+
+### 3. 👑 Boss Fight Dinamiche a 3 Fasi con Meccaniche Attive
+I Boss del Settore 5 (*The Monolith*) e Settore 10 (*The Omega Tesseract*) non sono blocchi passivi:
+* **Fase 1 (100% - 66% HP)**: Satelliti difensivi orbitanti che deflettono i colpi e proteggono il nucleo.
+* **Fase 2 (66% - 33% HP)**: Satelliti convertiti in mine e **Impulso EMP Repulsivo**: ogni 7 secondi il boss rilascia un'onda d'urto che devia le traiettorie delle sfere!
+* **Fase 3 (33% - 0% HP) - ENRAGE**: Il Boss entra in sovraccarico, pulsa di cremisi e inizia a scendere verso il basso riducendo l'area di gioco!
+
+### 4. 💎 Meta-Progressione Permanente (Archivio Quantico)
+* Durante le partite si raccolgono **Schegge Quantiche ◆** (+1 per cubo, +5 per cubo Core, +50 per Boss).
+* Nel negozio permanente tra le run è possibile potenziare:
+  * *Capacità del Serbatoio* (+1 Sfera iniziale per settore).
+  * *Calibrazione Cestello* (+15px di ampiezza iniziale).
+  * *Manipolazione Quantica* (+1 Reroll del draft per settore).
+  * *Sblocco Archetipi Segreti* (*Crystal Singularity* a 100 ◆).
+* Salvataggio offline automatico e persistente con `SharedPreferences`.
+
+### 5. ♾️ Modalità Endless Loop (Oltre il Settore 10)
+* Dopo aver sconfitto l'Omega Tesseract al Settore 10, puoi scegliere di continuare nel **Loop Infinito**:
+* I settori proseguono (11, 12, 13...) con difficoltà scalata all'infinito e formazioni d'élite, permettendo di spingere la propria build a livelli cosmici con decine di mini-sfere, fulmini e detonazioni simultanee!
 
 ---
 
@@ -48,37 +67,11 @@ L'estetica è rigorosamente **minimalista e geometrica**: tonalità scure deep-s
              │        \         /          │
              │     [BOMBA]   [SPLIT]       │  <- Cubetti speciali (Esplosioni, Multiball)
              │        \         /          │
-             │          \     /            │
-             │         [===BOSS===]        │  <- Settori Boss con barre a fasi
+             │    (●) [===BOSS===] (●)     │  <- Satelliti orbitanti & 3 Fasi attive
              │                             │
              │        [ CESTELLO ]         │  <- Attrazione magnetica e recupero sfere!
              └─────────────────────────────┘
 ```
-
-### 1. Tipologie di Cubetti & Formazioni
-* ★ **Cubo Core (Radiant Amber Gold)**: l'obiettivo fondamentale per superare il settore e scatenare il Fever.
-* 🟦 **Cubo Standard (Neon Cyan)**: blocco geometrico base con HP calibrati.
-* 🟧 **Cubo Esplosivo (Neon Orange)**: all'esaurimento degli HP detona un'onda d'urto ad area (`250px`).
-* 🟪 **Cubo Splitter (Neon Purple)**: quando viene colpito genera **2 mini-sfere extra**.
-* 🟨 **Cubo Cinetico (Electric Yellow)**: spinge la sfera al +35% di velocità e conferisce bonus danno.
-* 🟩 **Cubo Schermo / Prisma (Emerald Green)**: emette una barriera che dimezza i danni subiti dai cubi alleati.
-* 🔷 **Cubo Corazzato (Deep Cobalt)**: dotato di corazza balistica rinforzata.
-* 👑 **Boss Gigante (The Monolith & The Omega Tesseract)**: colossi a blocchi multipli con oltre 60-130 HP e satelliti rotanti.
-
-### 2. Sinergie Roguelike (Relic Deckbuilding)
-1. **Kinetic Surge**: Ogni rimbalzo consecutivo prima di toccare il fondo aumenta il danno della sfera di **+1**.
-2. **Fulmine a Catena**: Ogni 2 rimbalzi scarica saette elettriche su 2 cubi distanti per 3 danni.
-3. **Reattore Multiball**: Distruggere qualsiasi cubo ha il 30% di probabilità di generare una mini-sfera supplementare.
-4. **Schegge Taglienti**: I cubi frantumati scagliano 4 schegge a croce che perforano e danneggiano le linee adiacenti.
-5. **Sfera Perforante**: La sfera disintegra e attraversa direttamente tutti i cubi con 2 o meno HP senza rimbalzare.
-6. **Sovraccarico Critico**: 30% di probabilità di infliggere danno triplo (x3) con lampo bianco e scuotimento dello schermo.
-7. **Supernova**: Quando una sfera cade sul fondo o entra nel cestello, proietta un pilastro energetico verso l'alto.
-8. **Cestello Magnetico**: Il cestello di cattura è largo 290px ed esercita forte attrazione gravitazionale.
-9. **Iper-Velocità**: Aumenta del 25% la velocità delle sfere e aggiunge +1 danno base permanente a ogni impatto.
-10. **Sfera Bomba**: All'8° rimbalzo consecutivo innesca un'esplosione nucleare ad area da 10 danni.
-11. **Eco Prismatico**: Ogni 4 colpi messi a segno libera una pulsazione circolare.
-12. **Massa Inerziale**: Infligge +4 danni extra contro cubi Corazzati e Boss.
-13. **Rete di Sicurezza**: Un campo di forza sul fondo respinge verso l'alto la prima sfera caduta in ogni settore.
 
 ---
 
@@ -87,8 +80,9 @@ L'estetica è rigorosamente **minimalista e geometrica**: tonalità scure deep-s
 Tutte le frequenze sonore sono sintetizzate in tempo reale a latenza zero tramite **`AudioTrack` PCM a 16-bit**:
 * **Scala Pentatonica Crescente**: ogni rimbalzo suona una nota che sale (C4, D4, E4, G4, A4, C5, D5, E5, G5, A5, C6...).
 * **CuboClast Fever Fanfare**: fanfara festosa al completamento degli obiettivi Core.
-* **Chime Sfera Extra**: accordo brillante quando si raggiunge la soglia punteggio del tiro.
-* **Basso Dinamico di Frantumazione & Decadimento Haptic**: feedback tattile sincronizzato sul dispositivo.
+* **Allarme Boss & Transizione di Fase**: klaxon profondo a due toni.
+* **Chime Risonanza Elementale**: accordo brillante quando si attiva una combo di set.
+* **Suono Raccolta Scheggia ◆**: tintinnio cristallino.
 
 ---
 

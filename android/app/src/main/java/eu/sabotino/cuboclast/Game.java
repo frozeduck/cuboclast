@@ -2,7 +2,9 @@ package eu.sabotino.cuboclast;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 public class Game {
@@ -13,10 +15,12 @@ public class Game {
     public static final float GRAVITY = 980f;
 
     public enum State {
+        ARCHETYPE_SELECT,
         AIMING,
         BALL_IN_PLAY,
         FEVER,
         RELIC_DRAFT,
+        SHOP,
         GAME_OVER,
         VICTORY
     }
@@ -31,25 +35,100 @@ public class Game {
         BOSS
     }
 
-    public enum RelicType {
-        KINETIC_SURGE("Kinetic Surge", "Ogni rimbalzo aumenta il danno della sfera di +1 per quel tiro."),
-        CHAIN_LIGHTNING("Fulmine a Catena", "Ogni 2 rimbalzi scaglia un fulmine su 2 cubi casuali per 3 danni."),
-        SHRAPNEL_BURST("Schegge Taglienti", "I cubi distrutti proiettano 4 schegge geometriche perforanti."),
-        MULTIBALL_REACTOR("Reattore Multiball", "Distruggere un cubo ha il 30% di probabilita di generare una mini-sfera."),
-        PIERCING_RAIL("Sfera Perforante", "La sfera disintegra i cubi con 2 o meno HP senza rimbalzare."),
-        CRITICAL_OVERDRIVE("Sovraccarico Critico", "30% di probabilita di colpo critico (danno x3 e onda d'urto)."),
-        SUPERNOVA("Supernova", "Quando una sfera cade sul fondo, scatena un fascio d'energia verso l'alto."),
-        MAGNETIC_BASKET("Cestello Magnetico", "Il cestello e piu largo (290px) e cattura le sfere con forte attrazione."),
-        HYPER_VELOCITY("Iper-Velocita", "Le sfere viaggiano il 25% piu veloci e infliggono +1 danno base."),
-        BOUNCING_BOMB("Sfera Bomba", "All'8° rimbalzo la sfera genera una massiccia detonazione ad area."),
-        PRISMATIC_ECHO("Eco Prismatico", "Ogni 4 cubi colpiti attiva un'onda d'urto ad anello."),
-        HEAVY_MASS("Massa Inerziale", "Infligge +4 danni extra contro i cubi corazzati e i boss."),
-        SAFETY_NET("Rete di Sicurezza", "Un campo di forza respinge la prima sfera caduta in ogni settore.");
+    public enum RelicFamily {
+        ELECTRIC("Elettrico", 0xFF00E5FF),
+        EXPLOSIVE("Esplosivo", 0xFFFF6B00),
+        MULTIBALL("Multiball", 0xFFA855F7),
+        KINETIC("Cinetico", 0xFFFFE600);
+
+        public final String label;
+        public final int color;
+
+        RelicFamily(String label, int color) {
+            this.label = label;
+            this.color = color;
+        }
+    }
+
+    public enum Archetype {
+        VOLT_OVERCHARGE(
+                "Volt Overcharge",
+                "I fulmini infliggono +50% danno e si propagano a +1 bersaglio extra. Rilascia scariche elettrostatiche.",
+                RelicFamily.ELECTRIC,
+                0xFF00E5FF
+        ),
+        PYRO_DETONATOR(
+                "Pyro Detonator",
+                "Raggio di tutte le esplosioni aumentato del +40%. I cubi esplosivi infliggono +3 danni extra.",
+                RelicFamily.EXPLOSIVE,
+                0xFFFF6B00
+        ),
+        SWARM_MATRIX(
+                "Swarm Matrix",
+                "Le mini-sfere rimbalzano 1 volta se cadono nel vuoto e hanno il +25% di probabilita di replicarsi.",
+                RelicFamily.MULTIBALL,
+                0xFFA855F7
+        ),
+        KINETIC_TITAN(
+                "Kinetic Titan",
+                "Inizia con cestello maggiorato (260px), forte imbuto magnetico e +1 danno base naturale.",
+                RelicFamily.KINETIC,
+                0xFFFFE600
+        ),
+        CRYSTAL_SINGULARITY(
+                "Crystal Singularity",
+                "Ogni impatto applica congelamento; i cubi congelati subiscono il doppio del danno e rilasciano schegge.",
+                RelicFamily.ELECTRIC,
+                0xFF38BDF8
+        );
 
         public final String title;
         public final String description;
+        public final RelicFamily family;
+        public final int color;
 
-        RelicType(String title, String description) {
+        Archetype(String title, String description, RelicFamily family, int color) {
+            this.title = title;
+            this.description = description;
+            this.family = family;
+            this.color = color;
+        }
+    }
+
+    public enum RelicType {
+        // --- ELETTRICO ---
+        CHAIN_LIGHTNING(RelicFamily.ELECTRIC, "Fulmine a Catena", "Ogni 2 rimbalzi scaglia un fulmine su 2 cubi per 3 danni."),
+        VOLT_DISCHARGE(RelicFamily.ELECTRIC, "Scarica di Tensione", "Ogni 4 cubi colpiti rilascia un arco voltaico circolare."),
+        TESLA_COIL(RelicFamily.ELECTRIC, "Bobina Tesla", "Il cestello emette scariche verso i cubi più vicini quando si muove."),
+        EMP_BURST(RelicFamily.ELECTRIC, "Impulso EMP", "All'inizio del settore disattiva gli scudi nemici per 10 secondi."),
+
+        // --- ESPLOSIVO ---
+        BOUNCING_BOMB(RelicFamily.EXPLOSIVE, "Sfera Bomba", "All'8° rimbalzo la sfera genera una massiccia detonazione ad area."),
+        SHRAPNEL_BURST(RelicFamily.EXPLOSIVE, "Schegge Taglienti", "I cubi distrutti proiettano 4 schegge geometriche perforanti."),
+        CLUSTER_CHARGE(RelicFamily.EXPLOSIVE, "Carica a Grappolo", "Le esplosioni rilasciano 3 micro-bombe ad impatto."),
+        SUPERNOVA(RelicFamily.EXPLOSIVE, "Supernova", "Quando una sfera cade sul fondo, scatena un fascio d'energia verso l'alto."),
+
+        // --- MULTIBALL ---
+        MULTIBALL_REACTOR(RelicFamily.MULTIBALL, "Reattore Multiball", "Distruggere un cubo ha il 30% di probabilita di generare una mini-sfera."),
+        QUANTUM_DUPLICATION(RelicFamily.MULTIBALL, "Duplicazione Quantica", "Al 10° rimbalzo duplica la sfera in campo."),
+        SPLIT_STORM(RelicFamily.MULTIBALL, "Tempesta di Scissione", "I cubi Splitter generano 3 mini-sfere invece di 2."),
+        MICRO_SWARM(RelicFamily.MULTIBALL, "Micro-Sciame", "La sfera e accompagnata da 2 micro-orbi orbitanti protettivi."),
+
+        // --- CINETICO ---
+        KINETIC_SURGE(RelicFamily.KINETIC, "Kinetic Surge", "Ogni rimbalzo aumenta il danno della sfera di +1 per quel tiro."),
+        CRITICAL_OVERDRIVE(RelicFamily.KINETIC, "Sovraccarico Critico", "30% di probabilita di colpo critico (danno x3 e onda d'urto)."),
+        MAGNETIC_BASKET(RelicFamily.KINETIC, "Cestello Magnetico", "Il cestello e piu largo (290px) e cattura le sfere con forte attrazione."),
+        HEAVY_MASS(RelicFamily.KINETIC, "Massa Inerziale", "Infligge +4 danni extra contro i cubi corazzati e i boss."),
+        SAFETY_NET(RelicFamily.KINETIC, "Rete di Sicurezza", "Un campo di forza respinge la prima sfera caduta in ogni settore."),
+        PIERCING_RAIL(RelicFamily.KINETIC, "Sfera Perforante", "La sfera disintegra i cubi con 2 o meno HP senza rimbalzare."),
+        HYPER_VELOCITY(RelicFamily.KINETIC, "Iper-Velocita", "Le sfere viaggiano il 25% piu veloci e infliggono +1 danno base.");
+
+        public final RelicFamily family;
+        public final String title;
+        public final String description;
+
+        RelicType(RelicFamily family, String title, String description) {
+            this.family = family;
             this.title = title;
             this.description = description;
         }
@@ -66,7 +145,7 @@ public class Game {
         public int bounces = 0;
         public float baseDamage = 1f;
         public final List<float[]> trail = new ArrayList<>();
-        public float kineticCharge = 0f;
+        public boolean hasSavedOnce = false; // Per abilità Swarm Matrix
 
         public Ball(float x, float y, float vx, float vy) {
             this.x = x;
@@ -81,11 +160,12 @@ public class Game {
         public int hp;
         public int maxHp;
         public CubeType type;
-        public boolean isCore = false; // Cubo bersaglio necessario per superare il livello
+        public boolean isCore = false;
         public float wobble = 0f;
         public float hitFlash = 0f;
         public boolean isAlive = true;
         public float shieldPulse = 0f;
+        public boolean isFrozen = false;
 
         public Cube(float x, float y, float w, float h, int hp, CubeType type, boolean isCore) {
             this.x = x;
@@ -100,6 +180,19 @@ public class Game {
 
         public float centerX() { return x + width / 2f; }
         public float centerY() { return y + height / 2f; }
+    }
+
+    public static class BossSatellite {
+        public float angle;
+        public float distance = 250f;
+        public boolean isAlive = true;
+        public int hp = 8;
+        public float width = 50f;
+        public float height = 50f;
+
+        public BossSatellite(float angle) {
+            this.angle = angle;
+        }
     }
 
     public static class Basket {
@@ -167,13 +260,17 @@ public class Game {
     }
 
     // --- Stato Globale del Gioco ---
-    public State state = State.AIMING;
+    public State state = State.ARCHETYPE_SELECT;
+    public Archetype currentArchetype = null;
+    public final GameProgression progression;
+
     public int currentLevel = 1;
     public int maxLevel = 10;
+    public boolean isEndless = false;
     public int score = 0;
     public int highScore = 0;
-    public int ballsRemaining = 8; // Più generoso: 8 sfere iniziali
-    public int ballsInShotCount = 0;
+    public int quantumShardsRun = 0; // Schegge quantiche accumulate nella run
+    public int ballsRemaining = 8;
     public int totalCubesDestroyed = 0;
     public int currentCombo = 0;
     public float aimAngle = (float) Math.PI / 2f;
@@ -184,6 +281,14 @@ public class Game {
     public int currentShotCubesHit = 0;
     public int ballsCaughtInCurrentShot = 0;
     private int nextFreeBallThreshold = 6000;
+    public int rerollsAvailable = 1;
+
+    // Boss fight stato & fasi
+    public Cube activeBoss = null;
+    public int bossPhase = 1; // 1: Normale con satelliti, 2: Sovraccarico impulsi, 3: Enrage discesa
+    public float bossPulseTimer = 0f;
+    public float bossDescentY = 0f;
+    public final List<BossSatellite> bossSatellites = new ArrayList<>();
 
     // Timer FEVER
     public float feverTimer = 0f;
@@ -212,36 +317,58 @@ public class Game {
         void onFreeBall();
         void onFever();
         void onMercyRefund();
+        void onBossPhaseChange(int newPhase);
+        void onShardCollect();
+        void onResonanceUnlocked(RelicFamily family, int tier);
+        void onReroll();
     }
     public GameEventListener listener = null;
 
     public Game() {
+        this(new GameProgression());
+    }
+
+    public Game(GameProgression progression) {
+        this.progression = progression;
         initGame();
     }
 
     public void initGame() {
         currentLevel = 1;
+        isEndless = false;
         score = 0;
-        ballsRemaining = 8;
+        quantumShardsRun = 0;
         activeRelics.clear();
         totalCubesDestroyed = 0;
+        rerollsAvailable = 1 + progression.upgradeRerolls;
 
-        // Proponi subito una scelta di reliquia iniziale per iniziare con una build!
-        prepareStarterRelicDraft();
+        // Inizia dalla selezione dell'Archetipo Core della run!
+        state = State.ARCHETYPE_SELECT;
     }
 
-    public void prepareStarterRelicDraft() {
-        draftChoices.clear();
-        List<RelicType> starters = new ArrayList<>();
-        starters.add(RelicType.KINETIC_SURGE);
-        starters.add(RelicType.MULTIBALL_REACTOR);
-        starters.add(RelicType.CHAIN_LIGHTNING);
-        starters.add(RelicType.MAGNETIC_BASKET);
-        Collections.shuffle(starters, random);
-        for (int i = 0; i < 3; i++) {
-            draftChoices.add(starters.get(i));
+    public void selectArchetype(Archetype archetype) {
+        currentArchetype = archetype;
+        // Equipaggia subito la reliquia iniziale corrispondente
+        switch (archetype) {
+            case VOLT_OVERCHARGE:
+                activeRelics.add(RelicType.CHAIN_LIGHTNING);
+                break;
+            case PYRO_DETONATOR:
+                activeRelics.add(RelicType.BOUNCING_BOMB);
+                break;
+            case SWARM_MATRIX:
+                activeRelics.add(RelicType.MULTIBALL_REACTOR);
+                break;
+            case KINETIC_TITAN:
+                activeRelics.add(RelicType.KINETIC_SURGE);
+                break;
+            case CRYSTAL_SINGULARITY:
+                activeRelics.add(RelicType.PIERCING_RAIL);
+                break;
         }
-        state = State.RELIC_DRAFT;
+
+        if (listener != null) listener.onRelicChosen();
+        initLevel(1);
     }
 
     public void initLevel(int level) {
@@ -250,26 +377,47 @@ public class Game {
         balls.clear();
         shards.clear();
         floatingTexts.clear();
+        bossSatellites.clear();
+        activeBoss = null;
+        bossPhase = 1;
+        bossDescentY = 0f;
+        bossPulseTimer = 0f;
         currentCombo = 0;
         safetyNetAvailable = activeRelics.contains(RelicType.SAFETY_NET);
 
-        // Ricarica sfere: garantiti almeno 8 colpi a ogni nuovo settore!
-        if (ballsRemaining < 8) {
-            ballsRemaining = 8;
+        // Calcolo sfere garantite con meta-upgrade
+        int baseBalls = 8 + progression.upgradeExtraBalls;
+        if (ballsRemaining < baseBalls) {
+            ballsRemaining = baseBalls;
         }
 
-        // Calibrazione larghezza cestello
-        basket.width = activeRelics.contains(RelicType.MAGNETIC_BASKET) ? 290f : 220f;
+        // Calcolo larghezza cestello con archetipo e reliquie
+        float baseWidth = 220f + (progression.upgradeBasketWidth * 15f);
+        if (currentArchetype == Archetype.KINETIC_TITAN) baseWidth += 30f;
+        if (activeRelics.contains(RelicType.MAGNETIC_BASKET)) baseWidth += 50f;
+        basket.width = baseWidth;
 
         generateLevelGrid(level);
         state = State.AIMING;
     }
 
-    public void restartGame() {
-        if (score > highScore) {
-            highScore = score;
+    // Calcolo delle Risonanze di Set (Combo attive)
+    public Map<RelicFamily, Integer> getActiveResonances() {
+        Map<RelicFamily, Integer> counts = new HashMap<>();
+        for (RelicFamily f : RelicFamily.values()) {
+            counts.put(f, 0);
         }
-        initGame();
+        for (RelicType r : activeRelics) {
+            counts.put(r.family, counts.get(r.family) + 1);
+        }
+        return counts;
+    }
+
+    public int getResonanceTier(RelicFamily family) {
+        int count = getActiveResonances().get(family);
+        if (count >= 3) return 2; // MAESTRIA
+        if (count >= 2) return 1; // Sinergia Tier 1
+        return 0;
     }
 
     public int getRemainingCoreCubes() {
@@ -294,7 +442,7 @@ public class Game {
 
     private void generateLevelGrid(int level) {
         float startY = 320f;
-        int rows = Math.min(3 + level, 7);
+        int rows = Math.min(3 + (level > 10 ? 6 : level), 7);
         int cols = 9;
         float cubeWidth = 84f;
         float cubeHeight = 56f;
@@ -303,14 +451,14 @@ public class Game {
         float totalGridW = cols * cubeWidth + (cols - 1) * paddingX;
         float startX = (VIRTUAL_WIDTH - totalGridW) / 2f;
 
-        // Bilanciamento HP dolce:
-        // Livello 1: 1 HP (1 colpo = distruzione istantanea!)
-        // Livello 2: 1-2 HP
-        // Livello 3: 2-3 HP
-        // Livello 4: 2-4 HP
         int baseHp = Math.max(1, (level <= 1) ? 1 : (1 + (level - 2)));
+        if (level > 10) {
+            // Endless scaling
+            baseHp += (level - 10) * 2;
+        }
 
-        if (level == 5 || level == 10) {
+        // Livelli Boss: Settore 5, 10, 15, 20...
+        if (level % 5 == 0) {
             generateBossLevel(level, startX, startY, cols, cubeWidth, cubeHeight, paddingX, paddingY);
             return;
         }
@@ -322,7 +470,6 @@ public class Game {
             for (int c = 0; c < cols; c++) {
                 boolean placeCube = false;
                 if (level == 1) {
-                    // Formazione a rombo aperta e facile
                     placeCube = (r == 0 && (c >= 2 && c <= 6))
                             || (r == 1 && (c == 1 || c == 3 || c == 5 || c == 7))
                             || (r == 2 && (c >= 2 && c <= 6))
@@ -359,7 +506,6 @@ public class Game {
                     cubeHp = baseHp + 1;
                 }
 
-                // Assegna stato di Cubo Core Obiettivo
                 boolean isCore = false;
                 if (coresAssigned < coreBudget && (type == CubeType.NORMAL || random.nextFloat() < 0.5f)) {
                     isCore = true;
@@ -370,7 +516,6 @@ public class Game {
             }
         }
 
-        // Assicura che ci siano almeno 6 cubi Core
         if (coresAssigned < 6) {
             for (Cube c : cubes) {
                 if (!c.isCore) {
@@ -387,27 +532,25 @@ public class Game {
         float bossH = 180f;
         float bossX = (VIRTUAL_WIDTH - bossW) / 2f;
         float bossY = startY + 120f;
-        int bossHp = (level == 5) ? 60 : 130;
+        int bossHp = (level == 5) ? 65 : (level == 10 ? 140 : 180 + (level - 10) * 20);
 
-        // Il Boss è il Cubo Core principale
-        Cube boss = new Cube(bossX, bossY, bossW, bossH, bossHp, CubeType.BOSS, true);
-        cubes.add(boss);
+        activeBoss = new Cube(bossX, bossY, bossW, bossH, bossHp, CubeType.BOSS, true);
+        cubes.add(activeBoss);
 
-        int orbitCubes = (level == 5) ? 6 : 10;
-        float orbitRadius = 250f;
-        for (int i = 0; i < orbitCubes; i++) {
-            double angle = (2 * Math.PI / orbitCubes) * i;
-            float ox = boss.centerX() + (float) Math.cos(angle) * orbitRadius - cubeWidth / 2f;
-            float oy = boss.centerY() + (float) Math.sin(angle) * orbitRadius - cubeHeight / 2f;
-            CubeType type = (i % 2 == 0) ? CubeType.SPLITTER : CubeType.EXPLOSIVE;
-            cubes.add(new Cube(ox, oy, cubeWidth, cubeHeight, 2, type, false));
+        int satelliteCount = (level == 5) ? 6 : 8;
+        for (int i = 0; i < satelliteCount; i++) {
+            float ang = (float) (2 * Math.PI / satelliteCount) * i;
+            bossSatellites.add(new BossSatellite(ang));
         }
 
+        // Cubi cinetici superiori per rimbalzi
         for (int c = 1; c < cols - 1; c += 2) {
             float cx = startX + c * (cubeWidth + paddingX);
             float cy = startY;
             cubes.add(new Cube(cx, cy, cubeWidth, cubeHeight, 1, CubeType.KINETIC, false));
         }
+
+        if (listener != null) listener.onBossPhaseChange(1);
     }
 
     public void setAimAngle(float touchX, float touchY) {
@@ -427,7 +570,6 @@ public class Game {
         if (state != State.AIMING || ballsRemaining <= 0) return false;
 
         ballsRemaining--;
-        ballsInShotCount = 1;
         currentCombo = 0;
         currentShotScore = 0;
         currentShotCubesHit = 0;
@@ -444,6 +586,9 @@ public class Game {
 
         Ball b = new Ball(CANNON_X, CANNON_Y + 25f, vx, vy);
         if (activeRelics.contains(RelicType.HYPER_VELOCITY)) {
+            b.baseDamage += 1f;
+        }
+        if (currentArchetype == Archetype.KINETIC_TITAN) {
             b.baseDamage += 1f;
         }
         balls.add(b);
@@ -463,6 +608,11 @@ public class Game {
         }
 
         basket.update(dt);
+
+        // Aggiorna Boss AI se presente
+        if (activeBoss != null && activeBoss.isAlive) {
+            updateBoss(dt);
+        }
 
         // Aggiorna particelle schegge
         for (int i = shards.size() - 1; i >= 0; i--) {
@@ -502,16 +652,64 @@ public class Game {
             }
         }
 
-        // Gestione animazione FEVER
         if (state == State.FEVER) {
             updateFever(dt);
             return;
         }
 
-        // Aggiorna fisica sfere se in gioco
         if (state == State.BALL_IN_PLAY) {
             updateBalls(dt);
         }
+    }
+
+    private void updateBoss(float dt) {
+        // Rotazione satelliti
+        float rotSpeed = (bossPhase == 1) ? 1.2f : (bossPhase == 2 ? 2.2f : 3.2f);
+        for (BossSatellite sat : bossSatellites) {
+            sat.angle += rotSpeed * dt;
+        }
+
+        // Calcolo fase in base a HP rimanenti
+        float hpRatio = (float) activeBoss.hp / activeBoss.maxHp;
+        int newPhase = (hpRatio > 0.66f) ? 1 : ((hpRatio > 0.33f) ? 2 : 3);
+        if (newPhase != bossPhase) {
+            bossPhase = newPhase;
+            screenShake = 16f;
+            floatingTexts.add(new FloatingText(activeBoss.centerX(), activeBoss.centerY() - 70f, "FASE BOSS " + bossPhase + "!", 0xFFFF007F));
+            if (listener != null) listener.onBossPhaseChange(bossPhase);
+        }
+
+        // Meccanica Attiva Fase 2 e 3: Impulsi repulsivi e discesa lenta
+        bossPulseTimer += dt;
+        if (bossPulseTimer >= ((bossPhase == 3) ? 4f : 7f)) {
+            bossPulseTimer = 0f;
+            triggerBossShockwave();
+        }
+
+        if (bossPhase == 3) {
+            // Fase Enrage: Boss scende lentamente
+            activeBoss.y += 12f * dt;
+            if (activeBoss.y > 1100f) activeBoss.y = 1100f;
+        }
+    }
+
+    private void triggerBossShockwave() {
+        screenShake = 12f;
+        floatingTexts.add(new FloatingText(activeBoss.centerX(), activeBoss.centerY(), "EMP REPVLSION!", 0xFFFF007F));
+        // Devia le sfere in campo
+        for (Ball b : balls) {
+            if (b.isAlive) {
+                float dx = b.x - activeBoss.centerX();
+                float dy = b.y - activeBoss.centerY();
+                float dist = (float) Math.sqrt(dx * dx + dy * dy);
+                if (dist > 1f) {
+                    b.vx += (dx / dist) * 450f;
+                    b.vy += (dy / dist) * 450f;
+                }
+            }
+        }
+        spawnSparks(activeBoss.centerX(), activeBoss.centerY(), 0xFFFF007F, 24);
+        if (listener != null) listener.onExplosion();
     }
 
     private void updateFever(float dt) {
@@ -520,11 +718,11 @@ public class Game {
 
         if (feverExplosionTimer <= 0f) {
             feverExplosionTimer = 0.08f;
-            // Trova il prossimo cubo non ancora distrutto e fallo esplodere in festa
             for (Cube c : cubes) {
                 if (c.isAlive) {
                     c.isAlive = false;
                     score += 500;
+                    addQuantumShards(1);
                     spawnCubeShards(c);
                     spawnSparks(c.centerX(), c.centerY(), 0xFFFFE600, 14);
                     floatingTexts.add(new FloatingText(c.centerX(), c.centerY(), "FEVER +500", 0xFFFFE600));
@@ -536,12 +734,14 @@ public class Game {
         }
 
         if (feverTimer <= 0f) {
-            // Fine Fever: Bonus per sfere rimanenti
             int ballBonus = ballsRemaining * 2000;
             score += ballBonus;
+            addQuantumShards(25); // +25 schegge per settore superato
+
             if (score > highScore) highScore = score;
 
-            if (currentLevel >= maxLevel) {
+            // Se abbiamo battuto il settore 10
+            if (currentLevel == 10 && !isEndless) {
                 state = State.VICTORY;
             } else {
                 prepareRelicDraft();
@@ -564,12 +764,12 @@ public class Game {
                 b.trail.remove(0);
             }
 
-            // Attrazione magnetica del Cestello (funneling naturale molto gratificante!)
+            // Attrazione magnetica del Cestello
             if (b.y >= basket.y - 180f && b.y <= basket.y + 40f) {
                 float basketCenterX = basket.centerX();
                 float distToCenter = basketCenterX - b.x;
                 if (Math.abs(distToCenter) < (basket.width * 0.75f)) {
-                    float pullFactor = activeRelics.contains(RelicType.MAGNETIC_BASKET) ? 7.5f : 3.5f;
+                    float pullFactor = (activeRelics.contains(RelicType.MAGNETIC_BASKET) || currentArchetype == Archetype.KINETIC_TITAN) ? 8.5f : 3.5f;
                     b.vx += distToCenter * pullFactor * dt;
                 }
             }
@@ -596,7 +796,7 @@ public class Game {
                 b.vy = Math.abs(b.vy) * 0.95f;
             }
 
-            // Rete di Sicurezza (Reliquia Safety Net)
+            // Rete di Sicurezza
             if (safetyNetAvailable && b.y + b.radius >= 1840f) {
                 b.y = 1840f - b.radius;
                 b.vy = -Math.abs(b.vy) * 1.15f;
@@ -606,7 +806,7 @@ public class Game {
                 if (listener != null) listener.onBounceHit(1);
             }
 
-            // Cattura nel Cestello (con margine perdonante)
+            // Cattura nel Cestello
             if (b.y + b.radius >= basket.y && b.y - b.radius <= basket.y + basket.height) {
                 if (b.x >= basket.x - 15f && b.x <= basket.x + basket.width + 15f) {
                     b.isAlive = false;
@@ -625,6 +825,14 @@ public class Game {
                 }
             }
 
+            // Abilità Swarm Matrix: le mini-sfere rimbalzano 1 volta prima di cadere!
+            if (b.isMini && currentArchetype == Archetype.SWARM_MATRIX && !b.hasSavedOnce && b.y + b.radius >= 1860f) {
+                b.hasSavedOnce = true;
+                b.vy = -Math.abs(b.vy) * 0.95f;
+                floatingTexts.add(new FloatingText(b.x, b.y - 30, "SWARM RESCUE!", 0xFFA855F7));
+                continue;
+            }
+
             // Sfera caduta fuori dallo schermo
             if (b.y - b.radius > VIRTUAL_HEIGHT + 20f) {
                 b.isAlive = false;
@@ -635,6 +843,10 @@ public class Game {
                 continue;
             }
 
+            // Collisione con i satelliti del boss
+            handleSatelliteCollisions(b);
+
+            // Collisione con i cubi
             handleCubeCollisions(b, newBalls);
         }
 
@@ -645,11 +857,36 @@ public class Game {
         }
     }
 
+    private void handleSatelliteCollisions(Ball b) {
+        if (activeBoss == null || !activeBoss.isAlive) return;
+
+        for (BossSatellite sat : bossSatellites) {
+            if (!sat.isAlive) continue;
+            float sx = activeBoss.centerX() + (float) Math.cos(sat.angle) * sat.distance;
+            float sy = activeBoss.centerY() + (float) Math.sin(sat.angle) * sat.distance;
+
+            float dx = b.x - sx;
+            float dy = b.y - sy;
+            if (dx * dx + dy * dy <= (b.radius + sat.width / 2f) * (b.radius + sat.width / 2f)) {
+                b.vx = -b.vx * 1.1f;
+                b.vy = -b.vy * 1.1f;
+                sat.hp--;
+                floatingTexts.add(new FloatingText(sx, sy, "DEFLECT", 0xFFFF007F));
+                if (listener != null) listener.onBounceHit(currentCombo);
+                if (sat.hp <= 0) {
+                    sat.isAlive = false;
+                    spawnSparks(sx, sy, 0xFFFF007F, 16);
+                    addQuantumShards(3);
+                }
+                break;
+            }
+        }
+    }
+
     private void addScore(int points) {
         score += points;
         currentShotScore += points;
 
-        // Verifica soglia Sfera Extra per punteggio tiro (Fever Ball)
         if (currentShotScore >= nextFreeBallThreshold) {
             ballsRemaining++;
             floatingTexts.add(new FloatingText(CANNON_X, 220f, "★ SFERA EXTRA! ★", 0xFFFFE600));
@@ -658,8 +895,17 @@ public class Game {
         }
     }
 
+    public void addQuantumShards(int count) {
+        quantumShardsRun += count;
+        progression.quantumShards += count;
+        if (listener != null) listener.onShardCollect();
+    }
+
     private void handleCubeCollisions(Ball b, List<Ball> newBalls) {
         boolean hasPiercing = activeRelics.contains(RelicType.PIERCING_RAIL);
+        int electricTier = getResonanceTier(RelicFamily.ELECTRIC);
+        int explosiveTier = getResonanceTier(RelicFamily.EXPLOSIVE);
+        int multiballTier = getResonanceTier(RelicFamily.MULTIBALL);
 
         for (int j = cubes.size() - 1; j >= 0; j--) {
             Cube c = cubes.get(j);
@@ -699,11 +945,9 @@ public class Game {
                         b.y = c.y + c.height + b.radius;
                         b.vy = Math.abs(b.vy);
                     }
-
                     b.vx += (random.nextFloat() - 0.5f) * 35f;
                 }
 
-                // Danno con crescita naturale ogni 3 rimbalzi
                 float damage = b.baseDamage + (b.bounces / 3);
 
                 if (activeRelics.contains(RelicType.KINETIC_SURGE)) {
@@ -719,6 +963,10 @@ public class Game {
 
                 if (activeRelics.contains(RelicType.HEAVY_MASS) && (c.type == CubeType.ARMOR || c.type == CubeType.BOSS)) {
                     damage += 4f;
+                }
+
+                if (c.isFrozen) {
+                    damage *= 2f;
                 }
 
                 boolean isCrit = false;
@@ -747,22 +995,31 @@ public class Game {
                     listener.onBounceHit(currentCombo);
                 }
 
+                // Sinergia Elettrica & Fulmini
                 if (activeRelics.contains(RelicType.CHAIN_LIGHTNING) && (b.bounces % 2 == 0)) {
-                    triggerChainLightning(c);
+                    int extraZaps = (electricTier >= 2) ? 2 : ((electricTier >= 1) ? 1 : 0);
+                    triggerChainLightning(c, extraZaps);
                 }
 
+                // Sinergia Esplosiva
                 if (activeRelics.contains(RelicType.BOUNCING_BOMB) && b.bounces == 8) {
-                    triggerExplosion(b.x, b.y, 230f, 10);
+                    float blastRadius = 230f * (1.0f + (explosiveTier * 0.25f));
+                    triggerExplosion(b.x, b.y, blastRadius, 10);
                     floatingTexts.add(new FloatingText(b.x, b.y - 50, "BOUNCING BOMB!", 0xFFFF6B00));
                 }
 
-                if (activeRelics.contains(RelicType.PRISMATIC_ECHO) && (currentCombo % 4 == 0)) {
-                    triggerExplosion(c.centerX(), c.centerY(), 170f, 5);
+                // Archetipo Cryo: congela bersagli
+                if (currentArchetype == Archetype.CRYSTAL_SINGULARITY && !c.isFrozen) {
+                    c.isFrozen = true;
+                    floatingTexts.add(new FloatingText(c.centerX(), c.centerY() - 30, "FROZEN", 0xFF38BDF8));
                 }
 
                 if (c.hp <= 0) {
                     c.isAlive = false;
                     totalCubesDestroyed++;
+                    progression.totalCubesDestroyed++;
+                    addQuantumShards(c.isCore ? 5 : 1);
+
                     int killPoints = (c.isCore ? 500 : 250) * Math.min(currentCombo, 10);
                     addScore(killPoints);
                     spawnCubeShards(c);
@@ -772,24 +1029,28 @@ public class Game {
                     }
 
                     if (c.type == CubeType.EXPLOSIVE) {
-                        triggerExplosion(c.centerX(), c.centerY(), 250f, 6);
+                        float rExp = 250f * (currentArchetype == Archetype.PYRO_DETONATOR ? 1.4f : 1.0f);
+                        triggerExplosion(c.centerX(), c.centerY(), rExp, 6);
                         screenShake = 16f;
                     }
 
                     if (c.type == CubeType.SPLITTER) {
-                        spawnMiniBalls(c.centerX(), c.centerY(), newBalls);
+                        spawnMiniBalls(c.centerX(), c.centerY(), newBalls, activeRelics.contains(RelicType.SPLIT_STORM) ? 3 : 2);
                     }
 
                     if (activeRelics.contains(RelicType.SHRAPNEL_BURST)) {
                         triggerShrapnel(c.centerX(), c.centerY());
                     }
 
-                    if (activeRelics.contains(RelicType.MULTIBALL_REACTOR) && random.nextFloat() < 0.30f) {
-                        spawnMiniBalls(c.centerX(), c.centerY(), newBalls);
+                    if (activeRelics.contains(RelicType.MULTIBALL_REACTOR) && random.nextFloat() < (multiballTier >= 2 ? 0.50f : 0.30f)) {
+                        spawnMiniBalls(c.centerX(), c.centerY(), newBalls, 2);
                         floatingTexts.add(new FloatingText(c.centerX(), c.centerY() - 40, "MULTIBALL!", 0xFFA855F7));
                     }
 
-                    // Se tutti i Core Cubes sono stati distrutti -> FEVER IMMEDIATO!
+                    if (c.type == CubeType.BOSS) {
+                        addQuantumShards(50);
+                    }
+
                     if (getRemainingCoreCubes() == 0) {
                         triggerFeverMode();
                         return;
@@ -823,18 +1084,21 @@ public class Game {
         return false;
     }
 
-    private void triggerChainLightning(Cube origin) {
+    private void triggerChainLightning(Cube origin, int extraTargets) {
         int zaps = 0;
+        int maxZaps = 2 + extraTargets;
+        int dmg = (currentArchetype == Archetype.VOLT_OVERCHARGE) ? 5 : 3;
+
         for (Cube c : cubes) {
             if (c.isAlive && c != origin) {
                 float dx = c.centerX() - origin.centerX();
                 float dy = c.centerY() - origin.centerY();
-                if (dx * dx + dy * dy < 450f * 450f) {
-                    c.hp -= 3;
+                if (dx * dx + dy * dy < 460f * 460f) {
+                    c.hp -= dmg;
                     c.hitFlash = 1f;
                     c.wobble = 1f;
-                    floatingTexts.add(new FloatingText(c.centerX(), c.centerY(), "ZAP -3", 0xFFFFE600));
-                    spawnSparks(c.centerX(), c.centerY(), 0xFFFFE600, 6);
+                    floatingTexts.add(new FloatingText(c.centerX(), c.centerY(), "ZAP -" + dmg, 0xFF00E5FF));
+                    spawnSparks(c.centerX(), c.centerY(), 0xFF00E5FF, 6);
                     zaps++;
                     if (c.hp <= 0) {
                         c.isAlive = false;
@@ -844,7 +1108,7 @@ public class Game {
                             return;
                         }
                     }
-                    if (zaps >= 2) break;
+                    if (zaps >= maxZaps) break;
                 }
             }
         }
@@ -929,26 +1193,22 @@ public class Game {
         if (listener != null) listener.onExplosion();
     }
 
-    private void spawnMiniBalls(float x, float y, List<Ball> outList) {
+    private void spawnMiniBalls(float x, float y, List<Ball> outList, int count) {
         float speed = 900f;
-        Ball b1 = new Ball(x, y - 10f, -speed * 0.7f, -speed * 0.7f);
-        b1.radius = 12f;
-        b1.isMini = true;
-        b1.baseDamage = 1f;
-
-        Ball b2 = new Ball(x, y - 10f, speed * 0.7f, -speed * 0.7f);
-        b2.radius = 12f;
-        b2.isMini = true;
-        b2.baseDamage = 1f;
-
-        outList.add(b1);
-        outList.add(b2);
+        for (int i = 0; i < count; i++) {
+            float angle = (float) (-Math.PI / 2f + (i - (count - 1) / 2f) * 0.6f);
+            Ball b = new Ball(x, y - 10f, (float) Math.cos(angle) * speed, (float) Math.sin(angle) * speed);
+            b.radius = 12f;
+            b.isMini = true;
+            b.baseDamage = (getResonanceTier(RelicFamily.MULTIBALL) >= 2) ? 2f : 1f;
+            outList.add(b);
+        }
     }
 
     private void spawnCubeShards(Cube c) {
         int color;
         if (c.isCore) {
-            color = 0xFFFFE600; // Oro vibrante per i core
+            color = 0xFFFFE600;
         } else {
             switch (c.type) {
                 case EXPLOSIVE: color = 0xFFFF6B00; break;
@@ -980,13 +1240,11 @@ public class Game {
     private void checkRoundEnd() {
         if (state == State.FEVER) return;
 
-        // Se tutti i cubi Core sono stati distrutti: FEVER!
         if (getRemainingCoreCubes() == 0) {
             triggerFeverMode();
             return;
         }
 
-        // Mercy Refund: se il tiro ha colpito solo 0 o 1 cubo e non è stato catturato, rimborsa la sfera!
         if (currentShotCubesHit <= 1 && ballsCaughtInCurrentShot == 0) {
             ballsRemaining++;
             floatingTexts.add(new FloatingText(CANNON_X, 260f, "MERCY REFUND! +1 SFERA", 0xFF00FF88));
@@ -995,6 +1253,9 @@ public class Game {
 
         if (ballsRemaining <= 0) {
             if (score > highScore) highScore = score;
+            progression.runsPlayed++;
+            if (currentLevel > progression.bestSector) progression.bestSector = currentLevel;
+            if (score > progression.highestScore) progression.highestScore = score;
             state = State.GAME_OVER;
         } else {
             state = State.AIMING;
@@ -1016,16 +1277,32 @@ public class Game {
         state = State.RELIC_DRAFT;
     }
 
+    public boolean rerollDraft() {
+        if (state != State.RELIC_DRAFT || rerollsAvailable <= 0) return false;
+        rerollsAvailable--;
+        prepareRelicDraft();
+        if (listener != null) listener.onReroll();
+        return true;
+    }
+
     public void selectRelic(RelicType relic) {
         if (state != State.RELIC_DRAFT) return;
         activeRelics.add(relic);
-        if (listener != null) listener.onRelicChosen();
-        if (cubes.isEmpty()) {
-            // Reliquia iniziale scelta all'inizio della partita: avvia Settore 1!
-            initLevel(1);
-        } else {
-            // Settore superato: avanza al settore successivo!
-            initLevel(currentLevel + 1);
+
+        // Controlla se abbiamo sbloccato una risonanza
+        int tier = getResonanceTier(relic.family);
+        if (tier > 0 && listener != null) {
+            listener.onResonanceUnlocked(relic.family, tier);
+        } else if (listener != null) {
+            listener.onRelicChosen();
         }
+
+        initLevel(currentLevel + 1);
+    }
+
+    public void startEndlessLoop() {
+        isEndless = true;
+        progression.victories++;
+        initLevel(11); // Settori Infiniti 11+
     }
 }

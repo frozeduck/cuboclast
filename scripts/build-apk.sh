@@ -7,6 +7,7 @@ cd "$PROJECT_DIR"
 echo "=== 1. Esecuzione Test Unitari del Modello di Gioco ==="
 mkdir -p /tmp/cuboclast-tests
 javac -d /tmp/cuboclast-tests \
+    android/app/src/main/java/eu/sabotino/cuboclast/GameProgression.java \
     android/app/src/main/java/eu/sabotino/cuboclast/Game.java \
     tests/GameTest.java
 java -ea -cp /tmp/cuboclast-tests eu.sabotino.cuboclast.GameTest

@@ -1,11 +1,11 @@
 package eu.sabotino.cuboclast;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
-import android.graphics.Path;
 import android.graphics.RectF;
 import android.os.SystemClock;
 import android.os.Vibrator;
@@ -13,8 +13,11 @@ import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
+import java.util.Map;
+
 public class GameView extends SurfaceView implements SurfaceHolder.Callback, Runnable {
     public final Game game;
+    private final GameProgression progression;
     private Thread gameThread = null;
     private volatile boolean isRunning = false;
     public volatile boolean paused = false;
@@ -23,6 +26,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private float offsetX = 0f;
     private float offsetY = 0f;
     private final Vibrator vibrator;
+    private final SharedPreferences prefs;
 
     // Colori Tavolozza Minimalista Neon
     private static final int COLOR_BG = 0xFF090D16;
@@ -32,7 +36,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private static final int COLOR_CANNON = 0xFF00E5FF;
     private static final int COLOR_AIM_LINE = 0x8800E5FF;
 
-    // Paints di rendering pre-allocati per 60/120 FPS
+    // Paints pre-allocati
     private final Paint bgPaint = new Paint();
     private final Paint linePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -43,10 +47,14 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     private final RectF tempRect = new RectF();
 
-    // Riquadri pulsanti HUD in coordinate virtuali
+    // Riquadri pulsanti HUD & Modali
     private final RectF speedBtnRect = new RectF(Game.VIRTUAL_WIDTH - 280f, 30f, Game.VIRTUAL_WIDTH - 160f, 90f);
     private final RectF soundBtnRect = new RectF(Game.VIRTUAL_WIDTH - 140f, 30f, Game.VIRTUAL_WIDTH - 30f, 90f);
-    private final RectF restartBtnRect = new RectF(Game.VIRTUAL_WIDTH / 2f - 180f, 1150f, Game.VIRTUAL_WIDTH / 2f + 180f, 1260f);
+    private final RectF rerollBtnRect = new RectF(Game.VIRTUAL_WIDTH / 2f - 180f, 1220f, Game.VIRTUAL_WIDTH / 2f + 180f, 1310f);
+    private final RectF restartBtnRect = new RectF(Game.VIRTUAL_WIDTH / 2f - 220f, 1140f, Game.VIRTUAL_WIDTH / 2f + 220f, 1230f);
+    private final RectF shopBtnRect = new RectF(Game.VIRTUAL_WIDTH / 2f - 220f, 1260f, Game.VIRTUAL_WIDTH / 2f + 220f, 1350f);
+    private final RectF endlessBtnRect = new RectF(Game.VIRTUAL_WIDTH / 2f - 240f, 1020f, Game.VIRTUAL_WIDTH / 2f + 240f, 1110f);
+    private final RectF backFromShopBtnRect = new RectF(Game.VIRTUAL_WIDTH / 2f - 180f, 1680f, Game.VIRTUAL_WIDTH / 2f + 180f, 1760f);
 
     public GameView(Context context) {
         super(context);
@@ -54,7 +62,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         setFocusable(true);
 
         vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
-        game = new Game();
+        prefs = context.getSharedPreferences("cuboclast_meta", Context.MODE_PRIVATE);
+
+        progression = loadProgression();
+        game = new Game(progression);
 
         game.listener = new Game.GameEventListener() {
             @Override
@@ -91,6 +102,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             public void onRelicChosen() {
                 AudioHelper.playRelicSelect();
                 vibrate(35);
+                saveProgression();
             }
 
             @Override
@@ -103,12 +115,37 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             public void onFever() {
                 AudioHelper.playFeverFanfare();
                 vibrate(80);
+                saveProgression();
             }
 
             @Override
             public void onMercyRefund() {
                 AudioHelper.playMercyRefund();
                 vibrate(25);
+            }
+
+            @Override
+            public void onBossPhaseChange(int newPhase) {
+                AudioHelper.playBossAlert();
+                vibrate(70);
+            }
+
+            @Override
+            public void onShardCollect() {
+                AudioHelper.playShardCollect();
+            }
+
+            @Override
+            public void onResonanceUnlocked(Game.RelicFamily family, int tier) {
+                AudioHelper.playResonanceFanfare();
+                vibrate(60);
+                game.floatingTexts.add(new Game.FloatingText(Game.CANNON_X, 320f, "★ RISONANZA " + family.label.toUpperCase() + " TIER " + tier + "! ★", family.color));
+            }
+
+            @Override
+            public void onReroll() {
+                AudioHelper.playReroll();
+                vibrate(30);
             }
         };
 
@@ -117,6 +154,42 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         aimPaint.setStrokeWidth(3.5f);
         aimPaint.setStyle(Paint.Style.STROKE);
         aimPaint.setPathEffect(new DashPathEffect(new float[]{14f, 12f}, 0));
+    }
+
+    private GameProgression loadProgression() {
+        GameProgression p = new GameProgression();
+        if (prefs != null) {
+            p.quantumShards = prefs.getInt("quantum_shards", 0);
+            p.runsPlayed = prefs.getInt("runs_played", 0);
+            p.victories = prefs.getInt("victories", 0);
+            p.bestSector = prefs.getInt("best_sector", 1);
+            p.highestScore = prefs.getInt("highest_score", 0);
+            p.totalCubesDestroyed = prefs.getInt("cubes_destroyed", 0);
+            p.upgradeExtraBalls = prefs.getInt("upg_extra_balls", 0);
+            p.upgradeBasketWidth = prefs.getInt("upg_basket_width", 0);
+            p.upgradeRerolls = prefs.getInt("upg_rerolls", 0);
+            p.unlockedCryo = prefs.getBoolean("unlocked_cryo", false);
+            p.unlockedSingularity = prefs.getBoolean("unlocked_singularity", false);
+        }
+        return p;
+    }
+
+    private void saveProgression() {
+        if (prefs != null) {
+            prefs.edit()
+                    .putInt("quantum_shards", progression.quantumShards)
+                    .putInt("runs_played", progression.runsPlayed)
+                    .putInt("victories", progression.victories)
+                    .putInt("best_sector", progression.bestSector)
+                    .putInt("highest_score", progression.highestScore)
+                    .putInt("cubes_destroyed", progression.totalCubesDestroyed)
+                    .putInt("upg_extra_balls", progression.upgradeExtraBalls)
+                    .putInt("upg_basket_width", progression.upgradeBasketWidth)
+                    .putInt("upg_rerolls", progression.upgradeRerolls)
+                    .putBoolean("unlocked_cryo", progression.unlockedCryo)
+                    .putBoolean("unlocked_singularity", progression.unlockedSingularity)
+                    .apply();
+        }
     }
 
     private void vibrate(long ms) {
@@ -224,6 +297,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         }
 
         drawCubes(canvas);
+        drawBossSatellites(canvas);
         drawBasket(canvas);
         drawShards(canvas);
         drawBalls(canvas);
@@ -231,10 +305,14 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         drawFloatingTexts(canvas);
         drawHUD(canvas);
 
-        if (game.state == Game.State.FEVER) {
+        if (game.state == Game.State.ARCHETYPE_SELECT) {
+            drawArchetypeSelectModal(canvas);
+        } else if (game.state == Game.State.FEVER) {
             drawFeverBanner(canvas);
         } else if (game.state == Game.State.RELIC_DRAFT) {
             drawRelicDraftModal(canvas);
+        } else if (game.state == Game.State.SHOP) {
+            drawShopModal(canvas);
         } else if (game.state == Game.State.GAME_OVER) {
             drawGameOverModal(canvas);
         } else if (game.state == Game.State.VICTORY) {
@@ -271,13 +349,15 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         float cx = Game.CANNON_X;
         float cy = Game.CANNON_Y;
 
+        int cannonColor = (game.currentArchetype != null) ? game.currentArchetype.color : COLOR_CANNON;
+
         fillPaint.setStyle(Paint.Style.FILL);
         fillPaint.setColor(0xFF141D2D);
         canvas.drawCircle(cx, cy, 42f, fillPaint);
 
         strokePaint.setStyle(Paint.Style.STROKE);
         strokePaint.setStrokeWidth(4f);
-        strokePaint.setColor(COLOR_CANNON);
+        strokePaint.setColor(cannonColor);
         canvas.drawCircle(cx, cy, 42f, strokePaint);
 
         float barrelLen = 52f;
@@ -285,7 +365,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         float barrelY = cy + (float) Math.sin(game.aimAngle) * barrelLen;
 
         strokePaint.setStrokeWidth(12f);
-        strokePaint.setColor(0xFF00E5FF);
+        strokePaint.setColor(cannonColor);
         strokePaint.setStrokeCap(Paint.Cap.ROUND);
         canvas.drawLine(cx, cy, barrelX, barrelY, strokePaint);
 
@@ -293,7 +373,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawCircle(cx, cy, 14f, fillPaint);
     }
 
-    // Traiettoria Predittiva Avanzata a 2 Segmenti con Rimbalzo (Stile Peggle)
     private void drawAimTrajectory(Canvas canvas) {
         float startX = Game.CANNON_X + (float) Math.cos(game.aimAngle) * 55f;
         float startY = Game.CANNON_Y + (float) Math.sin(game.aimAngle) * 55f;
@@ -304,7 +383,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         float normX = 0f;
         float normY = 1f;
 
-        // Parete sinistra (x = 25)
         if (dirX < -0.001f) {
             float t = (25f - startX) / dirX;
             if (t > 0 && t < minT) {
@@ -313,7 +391,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 normY = 0f;
             }
         }
-        // Parete destra (x = VIRTUAL_WIDTH - 25)
         if (dirX > 0.001f) {
             float t = (Game.VIRTUAL_WIDTH - 25f - startX) / dirX;
             if (t > 0 && t < minT) {
@@ -323,7 +400,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             }
         }
 
-        // Test intersezione con Cubi attivi
         for (Game.Cube c : game.cubes) {
             if (!c.isAlive) continue;
             float r = 18f;
@@ -359,7 +435,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         float hitX = startX + dirX * minT;
         float hitY = startY + dirY * minT;
 
-        // Disegna Segmento 1
         canvas.drawLine(startX, startY, hitX, hitY, aimPaint);
         fillPaint.setStyle(Paint.Style.FILL);
         fillPaint.setColor(0xEE00E5FF);
@@ -369,7 +444,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             canvas.drawCircle(startX + (hitX - startX) * frac, startY + (hitY - startY) * frac, 4.5f, fillPaint);
         }
 
-        // Raggio Riflesso (Segmento 2)
         float dot = dirX * normX + dirY * normY;
         float refX = dirX - 2f * dot * normX;
         float refY = dirY - 2f * dot * normY;
@@ -385,7 +459,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             canvas.drawCircle(hitX + (refEndX - hitX) * frac, hitY + (refEndY - hitY) * frac, 3.5f, fillPaint);
         }
 
-        // Mirino circolare sull'impatto
         strokePaint.setStyle(Paint.Style.STROKE);
         strokePaint.setStrokeWidth(2.5f);
         strokePaint.setColor(0xFFFFE600);
@@ -409,7 +482,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             int strokeColor;
             if (c.isCore) {
                 baseColor = 0xFF352B08;
-                strokeColor = 0xFFFFE600; // Oro vibrante per i bersagli principali!
+                strokeColor = 0xFFFFE600;
             } else {
                 switch (c.type) {
                     case EXPLOSIVE:
@@ -433,14 +506,19 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                         strokeColor = 0xFF3B82F6;
                         break;
                     case BOSS:
-                        baseColor = 0xFF36081E;
-                        strokeColor = 0xFFFF007F;
+                        baseColor = (game.bossPhase == 3) ? 0xFF4A0826 : 0xFF36081E;
+                        strokeColor = (game.bossPhase == 3) ? 0xFFFF0055 : 0xFFFF007F;
                         break;
                     default:
                         baseColor = 0xFF082635;
                         strokeColor = 0xFF00E5FF;
                         break;
                 }
+            }
+
+            if (c.isFrozen) {
+                baseColor = 0xFF0E2A4A;
+                strokeColor = 0xFF38BDF8;
             }
 
             fillPaint.setStyle(Paint.Style.FILL);
@@ -452,7 +530,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             strokePaint.setColor(strokeColor);
             canvas.drawRoundRect(tempRect, 12f, 12f, strokePaint);
 
-            // Se Cubo Core (Target Principale): alone interno pulsante dorato
             if (c.isCore) {
                 float pulse = 0.5f + (float) Math.sin(c.shieldPulse) * 0.35f;
                 strokePaint.setColor(Color.argb((int) (pulse * 255), 255, 230, 0));
@@ -474,23 +551,63 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             float textY = cy - (fm.ascent + fm.descent) / 2f;
             canvas.drawText(String.valueOf(c.hp), cx, textY, textPaint);
 
+            // Barra e Titolo Boss a Fasi
             if (c.type == Game.CubeType.BOSS) {
-                float barW = 320f;
-                float barH = 14f;
+                float barW = 340f;
+                float barH = 16f;
                 float barX = cx - barW / 2f;
-                float barY = cy - halfH - 32f;
+                float barY = cy - halfH - 42f;
 
                 fillPaint.setColor(0xFF1E2E48);
                 canvas.drawRect(barX, barY, barX + barW, barY + barH, fillPaint);
 
                 float hpRatio = (float) c.hp / c.maxHp;
-                fillPaint.setColor(0xFFFF007F);
+                fillPaint.setColor(game.bossPhase == 3 ? 0xFFFF0055 : (game.bossPhase == 2 ? 0xFFFF6B00 : 0xFFFF007F));
                 canvas.drawRect(barX, barY, barX + barW * hpRatio, barY + barH, fillPaint);
 
                 strokePaint.setColor(0xFFFFFFFF);
                 strokePaint.setStrokeWidth(2f);
                 canvas.drawRect(barX, barY, barX + barW, barY + barH, strokePaint);
+
+                textPaint.setTextSize(20f);
+                textPaint.setColor(0xFFFF007F);
+                String phaseName = (game.bossPhase == 1) ? "FASE 1: BARRIERA ROTANTE" : (game.bossPhase == 2 ? "FASE 2: EMP PULSE" : "FASE 3: ENRAGE OVERDRIVE");
+                canvas.drawText(phaseName, cx, barY - 10f, textPaint);
             }
+        }
+    }
+
+    private void drawBossSatellites(Canvas canvas) {
+        if (game.activeBoss == null || !game.activeBoss.isAlive) return;
+
+        float bx = game.activeBoss.centerX();
+        float by = game.activeBoss.centerY();
+
+        for (Game.BossSatellite sat : game.bossSatellites) {
+            if (!sat.isAlive) continue;
+            float sx = bx + (float) Math.cos(sat.angle) * sat.distance;
+            float sy = by + (float) Math.sin(sat.angle) * sat.distance;
+
+            // Raggio di collegamento
+            strokePaint.setStyle(Paint.Style.STROKE);
+            strokePaint.setColor(0x44FF007F);
+            strokePaint.setStrokeWidth(2f);
+            canvas.drawLine(bx, by, sx, sy, strokePaint);
+
+            // Satellite
+            fillPaint.setStyle(Paint.Style.FILL);
+            fillPaint.setColor(0xFF2B0A1A);
+            tempRect.set(sx - sat.width / 2f, sy - sat.height / 2f, sx + sat.width / 2f, sy + sat.height / 2f);
+            canvas.drawRoundRect(tempRect, 8f, 8f, fillPaint);
+
+            strokePaint.setColor(0xFFFF007F);
+            strokePaint.setStrokeWidth(2.5f);
+            canvas.drawRoundRect(tempRect, 8f, 8f, strokePaint);
+
+            textPaint.setTextAlign(Paint.Align.CENTER);
+            textPaint.setColor(0xFFFFFFFF);
+            textPaint.setTextSize(18f);
+            canvas.drawText(String.valueOf(sat.hp), sx, sy + 6f, textPaint);
         }
     }
 
@@ -511,7 +628,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         strokePaint.setStrokeWidth(2f);
         canvas.drawLine(b.x + 20f, b.y + b.height / 2f, b.x + b.width - 20f, b.y + b.height / 2f, strokePaint);
 
-        // Flusso magnetico visibile
         strokePaint.setColor(0x6600E5FF);
         strokePaint.setStrokeWidth(2f);
         canvas.drawArc(b.x + 10f, b.y - 35f, b.x + b.width - 10f, b.y + 15f, 180, 180, false, strokePaint);
@@ -576,7 +692,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawHUD(Canvas canvas) {
-        // Badge Livello / Settore in alto a sinistra
+        // Settore
         fillPaint.setStyle(Paint.Style.FILL);
         fillPaint.setColor(0xDD141D2D);
         tempRect.set(30f, 30f, 260f, 90f);
@@ -591,9 +707,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         textPaint.setColor(0xFFFFFFFF);
         textPaint.setTextSize(24f);
         textPaint.setFakeBoldText(true);
-        canvas.drawText("SETTORE " + game.currentLevel + "/" + game.maxLevel, 45f, 68f, textPaint);
+        String sectorText = game.isEndless ? ("LOOP " + game.currentLevel) : ("SETT. " + game.currentLevel + "/" + game.maxLevel);
+        canvas.drawText(sectorText, 45f, 68f, textPaint);
 
-        // Contatore Core Targets in alto
+        // Core Targets
         int remainingCores = game.getRemainingCoreCubes();
         int totalCores = game.getTotalCoreCubes();
         fillPaint.setColor(0xDD2A2208);
@@ -608,11 +725,20 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         textPaint.setTextSize(22f);
         canvas.drawText("★ CORE: " + remainingCores + "/" + totalCores, 290f, 68f, textPaint);
 
-        // Punteggio in alto al centro/destra
+        // Schegge Quantiche raccolte
+        fillPaint.setColor(0xDD082A2E);
+        tempRect.set(500f, 30f, 660f, 90f);
+        canvas.drawRoundRect(tempRect, 10f, 10f, fillPaint);
+        strokePaint.setColor(0xFF38BDF8);
+        canvas.drawRoundRect(tempRect, 10f, 10f, strokePaint);
+        textPaint.setColor(0xFF38BDF8);
+        canvas.drawText("◆ " + (game.progression.quantumShards), 515f, 68f, textPaint);
+
+        // Punteggio
         textPaint.setTextAlign(Paint.Align.CENTER);
-        textPaint.setTextSize(32f);
+        textPaint.setTextSize(30f);
         textPaint.setColor(0xFFFFFFFF);
-        canvas.drawText(String.format("%,d", game.score), Game.VIRTUAL_WIDTH / 2f + 130f, 70f, textPaint);
+        canvas.drawText(String.format("%,d", game.score), Game.VIRTUAL_WIDTH / 2f + 175f, 70f, textPaint);
 
         // Pulsante Velocità [>> 2X]
         fillPaint.setColor(game.speedBoost ? 0xFFFF007F : 0xDD141D2D);
@@ -625,15 +751,14 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         textPaint.setColor(0xFFFFFFFF);
         canvas.drawText(game.speedBoost ? "2X >>" : "1X >", speedBtnRect.centerX(), speedBtnRect.centerY() + 8f, textPaint);
 
-        // Pulsante Audio [♪ / ✕]
+        // Pulsante Audio [♪]
         fillPaint.setColor(AudioHelper.isSoundEnabled() ? 0xDD141D2D : 0xFF4A1020);
         canvas.drawRoundRect(soundBtnRect, 10f, 10f, fillPaint);
         strokePaint.setColor(AudioHelper.isSoundEnabled() ? COLOR_WALL_GLOW : 0xFFFF007F);
         canvas.drawRoundRect(soundBtnRect, 10f, 10f, strokePaint);
-
         canvas.drawText(AudioHelper.isSoundEnabled() ? "♪ ON" : "♪ OFF", soundBtnRect.centerX(), soundBtnRect.centerY() + 8f, textPaint);
 
-        // Contatore Sfere Rimanenti in basso a sinistra
+        // Contatore Sfere
         fillPaint.setColor(0xDD141D2D);
         tempRect.set(30f, 1835f, 340f, 1895f);
         canvas.drawRoundRect(tempRect, 10f, 10f, fillPaint);
@@ -648,12 +773,17 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             canvas.drawCircle(185f + i * 18f, 1865f, 5.5f, fillPaint);
         }
 
-        // Reliquie Attive in basso a destra
-        if (!game.activeRelics.isEmpty()) {
-            textPaint.setTextAlign(Paint.Align.RIGHT);
-            textPaint.setColor(0xFFA855F7);
-            textPaint.setTextSize(22f);
-            canvas.drawText("RELIQUIE: " + game.activeRelics.size(), Game.VIRTUAL_WIDTH - 40f, 1872f, textPaint);
+        // Pillole Risonanze Attive in basso a destra
+        float pillX = Game.VIRTUAL_WIDTH - 40f;
+        for (Map.Entry<Game.RelicFamily, Integer> e : game.getActiveResonances().entrySet()) {
+            if (e.getValue() >= 2) {
+                textPaint.setTextAlign(Paint.Align.RIGHT);
+                textPaint.setColor(e.getKey().color);
+                textPaint.setTextSize(20f);
+                String tag = "[" + e.getKey().label.toUpperCase() + " " + e.getValue() + "x" + (e.getValue() >= 3 ? " MAESTRIA" : "") + "]";
+                canvas.drawText(tag, pillX, 1872f, textPaint);
+                pillX -= textPaint.measureText(tag) + 15f;
+            }
         }
     }
 
@@ -680,6 +810,61 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawText("TUTTI I CORE DISTRUTTI! POLVERIZZAZIONE IN CORSO!", Game.VIRTUAL_WIDTH / 2f, 950f, textPaint);
     }
 
+    // Modalità Selezione Archetipo Core Iniziale
+    private void drawArchetypeSelectModal(Canvas canvas) {
+        fillPaint.setStyle(Paint.Style.FILL);
+        fillPaint.setColor(0xF4080B12);
+        canvas.drawRect(0, 0, Game.VIRTUAL_WIDTH, Game.VIRTUAL_HEIGHT, fillPaint);
+
+        textPaint.setTextAlign(Paint.Align.CENTER);
+        textPaint.setTextSize(46f);
+        textPaint.setColor(0xFF00E5FF);
+        textPaint.setFakeBoldText(true);
+        canvas.drawText("SCEGLI IL TUO NUCLEO DI POTERE", Game.VIRTUAL_WIDTH / 2f, 320f, textPaint);
+
+        textPaint.setTextSize(25f);
+        textPaint.setColor(0xFF94A3B8);
+        textPaint.setFakeBoldText(false);
+        canvas.drawText("Definisce lo stile, i poteri e le sinergie dell'intera run", Game.VIRTUAL_WIDTH / 2f, 370f, textPaint);
+
+        Game.Archetype[] archetypes = Game.Archetype.values();
+        float cardW = 920f;
+        float cardH = 175f;
+        float startX = (Game.VIRTUAL_WIDTH - cardW) / 2f;
+        float startY = 440f;
+        float gapY = 200f;
+
+        for (int i = 0; i < archetypes.length; i++) {
+            Game.Archetype arch = archetypes[i];
+            float cy = startY + i * gapY;
+            tempRect.set(startX, cy, startX + cardW, cy + cardH);
+
+            cardPaint.setStyle(Paint.Style.FILL);
+            cardPaint.setColor(0xFF141D2D);
+            canvas.drawRoundRect(tempRect, 18f, 18f, cardPaint);
+
+            strokePaint.setStyle(Paint.Style.STROKE);
+            strokePaint.setStrokeWidth(3.5f);
+            strokePaint.setColor(arch.color);
+            canvas.drawRoundRect(tempRect, 18f, 18f, strokePaint);
+
+            fillPaint.setColor(arch.color);
+            canvas.drawCircle(startX + 60f, cy + cardH / 2f, 26f, fillPaint);
+
+            textPaint.setTextAlign(Paint.Align.LEFT);
+            textPaint.setColor(0xFFFFFFFF);
+            textPaint.setTextSize(32f);
+            textPaint.setFakeBoldText(true);
+            canvas.drawText(arch.title, startX + 115f, cy + 60f, textPaint);
+
+            textPaint.setColor(0xFFCBD5E1);
+            textPaint.setTextSize(22f);
+            textPaint.setFakeBoldText(false);
+            canvas.drawText(arch.description, startX + 115f, cy + 110f, textPaint);
+        }
+    }
+
+    // Modalità Draft Reliquie con Reroll
     private void drawRelicDraftModal(Canvas canvas) {
         fillPaint.setStyle(Paint.Style.FILL);
         fillPaint.setColor(0xEE080B12);
@@ -689,18 +874,17 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         textPaint.setTextSize(44f);
         textPaint.setColor(0xFF00E5FF);
         textPaint.setFakeBoldText(true);
-        boolean isStarter = game.activeRelics.isEmpty();
-        canvas.drawText(isStarter ? "SCEGLI LA TUA RELIQUIA INIZIALE" : "SCEGLI UNA RELIQUIA ROGUELIKE", Game.VIRTUAL_WIDTH / 2f, 380f, textPaint);
+        canvas.drawText("SCEGLI UNA RELIQUIA ROGUELIKE", Game.VIRTUAL_WIDTH / 2f, 360f, textPaint);
 
-        textPaint.setTextSize(25f);
+        textPaint.setTextSize(24f);
         textPaint.setColor(0xFF94A3B8);
         textPaint.setFakeBoldText(false);
-        canvas.drawText(isStarter ? "Inizia la tua scalata con un super-potere sinergico" : "Potenzia il tuo arsenale per il prossimo settore", Game.VIRTUAL_WIDTH / 2f, 430f, textPaint);
+        canvas.drawText("Combina poteri della stessa famiglia per attivare Risonanze di Set!", Game.VIRTUAL_WIDTH / 2f, 410f, textPaint);
 
         float cardW = 900f;
         float cardH = 190f;
         float startX = (Game.VIRTUAL_WIDTH - cardW) / 2f;
-        float startY = 520f;
+        float startY = 490f;
         float gapY = 220f;
 
         for (int i = 0; i < game.draftChoices.size(); i++) {
@@ -714,10 +898,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
             strokePaint.setStyle(Paint.Style.STROKE);
             strokePaint.setStrokeWidth(3.5f);
-            strokePaint.setColor(0xFF00FF88);
+            strokePaint.setColor(relic.family.color);
             canvas.drawRoundRect(tempRect, 18f, 18f, strokePaint);
 
-            fillPaint.setColor(0xFF00FF88);
+            fillPaint.setColor(relic.family.color);
             canvas.drawCircle(startX + 60f, cy + cardH / 2f, 28f, fillPaint);
 
             textPaint.setTextAlign(Paint.Align.LEFT);
@@ -726,16 +910,120 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             textPaint.setFakeBoldText(true);
             canvas.drawText(relic.title, startX + 115f, cy + 65f, textPaint);
 
+            // Badge Famiglia
+            textPaint.setColor(relic.family.color);
+            textPaint.setTextSize(20f);
+            canvas.drawText("[" + relic.family.label.toUpperCase() + "]", startX + 115f, cy + 95f, textPaint);
+
             textPaint.setColor(0xFFCBD5E1);
             textPaint.setTextSize(23f);
             textPaint.setFakeBoldText(false);
-            canvas.drawText(relic.description, startX + 115f, cy + 120f, textPaint);
+            canvas.drawText(relic.description, startX + 115f, cy + 138f, textPaint);
         }
+
+        // Bottone Reroll
+        fillPaint.setColor(game.rerollsAvailable > 0 ? 0xDD1E2E48 : 0x551E2E48);
+        canvas.drawRoundRect(rerollBtnRect, 14f, 14f, fillPaint);
+        strokePaint.setColor(game.rerollsAvailable > 0 ? 0xFF38BDF8 : 0x5538BDF8);
+        canvas.drawRoundRect(rerollBtnRect, 14f, 14f, strokePaint);
+
+        textPaint.setTextAlign(Paint.Align.CENTER);
+        textPaint.setTextSize(26f);
+        textPaint.setColor(game.rerollsAvailable > 0 ? 0xFFFFFFFF : 0x88FFFFFF);
+        textPaint.setFakeBoldText(true);
+        canvas.drawText("🔄 REROLL (" + game.rerollsAvailable + " RIMASTI)", rerollBtnRect.centerX(), rerollBtnRect.centerY() + 8f, textPaint);
+    }
+
+    // Modalità Negozio / Archivio Meta-Progressione
+    private void drawShopModal(Canvas canvas) {
+        fillPaint.setStyle(Paint.Style.FILL);
+        fillPaint.setColor(0xF8080B12);
+        canvas.drawRect(0, 0, Game.VIRTUAL_WIDTH, Game.VIRTUAL_HEIGHT, fillPaint);
+
+        textPaint.setTextAlign(Paint.Align.CENTER);
+        textPaint.setTextSize(48f);
+        textPaint.setColor(0xFF38BDF8);
+        textPaint.setFakeBoldText(true);
+        canvas.drawText("ARCHIVIO TECNOLOGICO PERMANENTE", Game.VIRTUAL_WIDTH / 2f, 340f, textPaint);
+
+        textPaint.setTextSize(26f);
+        textPaint.setColor(0xFFCBD5E1);
+        textPaint.setFakeBoldText(false);
+        canvas.drawText("Schegge Quantiche disponibili: ◆ " + progression.quantumShards, Game.VIRTUAL_WIDTH / 2f, 400f, textPaint);
+
+        // 3 Slot di potenziamento acquistabili
+        float cardW = 900f;
+        float cardH = 170f;
+        float startX = (Game.VIRTUAL_WIDTH - cardW) / 2f;
+
+        // Upgrade 1: Sfere Extra
+        drawShopCard(canvas, startX, 480f, cardW, cardH,
+                "Capacità Serbatoio (+1 Sfera Iniziale)",
+                "Attuale: +" + progression.upgradeExtraBalls + " (Max 3)",
+                progression.upgradeExtraBalls >= 3 ? "MASSIMO" : ("◆ " + progression.getCostExtraBalls() + " ACQUISTA"),
+                progression.upgradeExtraBalls < 3 && progression.quantumShards >= progression.getCostExtraBalls());
+
+        // Upgrade 2: Larghezza Cestello
+        drawShopCard(canvas, startX, 680f, cardW, cardH,
+                "Calibrazione Cestello (+15px Ampiezza)",
+                "Attuale: +" + (progression.upgradeBasketWidth * 15) + "px (Max 3)",
+                progression.upgradeBasketWidth >= 3 ? "MASSIMO" : ("◆ " + progression.getCostBasketWidth() + " ACQUISTA"),
+                progression.upgradeBasketWidth < 3 && progression.quantumShards >= progression.getCostBasketWidth());
+
+        // Upgrade 3: Reroll
+        drawShopCard(canvas, startX, 880f, cardW, cardH,
+                "Manipolazione Quantica (+1 Reroll Draft)",
+                "Attuale: +" + progression.upgradeRerolls + " Reroll (Max 2)",
+                progression.upgradeRerolls >= 2 ? "MASSIMO" : ("◆ " + progression.getCostRerolls() + " ACQUISTA"),
+                progression.upgradeRerolls < 2 && progression.quantumShards >= progression.getCostRerolls());
+
+        // Bottone Torna Indietro
+        fillPaint.setColor(0xFF00E5FF);
+        canvas.drawRoundRect(backFromShopBtnRect, 14f, 14f, fillPaint);
+        textPaint.setTextAlign(Paint.Align.CENTER);
+        textPaint.setColor(0xFF080B12);
+        textPaint.setTextSize(32f);
+        textPaint.setFakeBoldText(true);
+        canvas.drawText("INDIETRO", backFromShopBtnRect.centerX(), backFromShopBtnRect.centerY() + 10f, textPaint);
+    }
+
+    private void drawShopCard(Canvas canvas, float x, float y, float w, float h, String title, String desc, String btnText, boolean canBuy) {
+        tempRect.set(x, y, x + w, y + h);
+        cardPaint.setStyle(Paint.Style.FILL);
+        cardPaint.setColor(0xFF141D2D);
+        canvas.drawRoundRect(tempRect, 16f, 16f, cardPaint);
+
+        strokePaint.setStyle(Paint.Style.STROKE);
+        strokePaint.setStrokeWidth(3f);
+        strokePaint.setColor(0xFF38BDF8);
+        canvas.drawRoundRect(tempRect, 16f, 16f, strokePaint);
+
+        textPaint.setTextAlign(Paint.Align.LEFT);
+        textPaint.setColor(0xFFFFFFFF);
+        textPaint.setTextSize(30f);
+        textPaint.setFakeBoldText(true);
+        canvas.drawText(title, x + 35f, y + 60f, textPaint);
+
+        textPaint.setColor(0xFF94A3B8);
+        textPaint.setTextSize(22f);
+        textPaint.setFakeBoldText(false);
+        canvas.drawText(desc, x + 35f, y + 110f, textPaint);
+
+        // Bottone acquisto dentro la card
+        RectF btn = new RectF(x + w - 280f, y + 45f, x + w - 30f, y + h - 45f);
+        fillPaint.setColor(canBuy ? 0xFF00FF88 : 0xFF2A3A4E);
+        canvas.drawRoundRect(btn, 12f, 12f, fillPaint);
+
+        textPaint.setTextAlign(Paint.Align.CENTER);
+        textPaint.setColor(canBuy ? 0xFF080B12 : 0xFF94A3B8);
+        textPaint.setTextSize(24f);
+        textPaint.setFakeBoldText(true);
+        canvas.drawText(btnText, btn.centerX(), btn.centerY() + 8f, textPaint);
     }
 
     private void drawGameOverModal(Canvas canvas) {
         fillPaint.setStyle(Paint.Style.FILL);
-        fillPaint.setColor(0xF0080B12);
+        fillPaint.setColor(0xF2080B12);
         canvas.drawRect(0, 0, Game.VIRTUAL_WIDTH, Game.VIRTUAL_HEIGHT, fillPaint);
 
         textPaint.setTextAlign(Paint.Align.CENTER);
@@ -748,42 +1036,52 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         textPaint.setColor(0xFFFFFFFF);
         canvas.drawText("Settore Raggiunto: " + game.currentLevel, Game.VIRTUAL_WIDTH / 2f, 780f, textPaint);
         canvas.drawText(String.format("Punteggio Finale: %,d", game.score), Game.VIRTUAL_WIDTH / 2f, 840f, textPaint);
-        canvas.drawText(String.format("Record Personale: %,d", game.highScore), Game.VIRTUAL_WIDTH / 2f, 900f, textPaint);
-        canvas.drawText("Cubi Frantumati: " + game.totalCubesDestroyed, Game.VIRTUAL_WIDTH / 2f, 960f, textPaint);
+        canvas.drawText("Schegge Quantiche Run: ◆ +" + game.quantumShardsRun, Game.VIRTUAL_WIDTH / 2f, 900f, textPaint);
+        canvas.drawText("Cubi Frantumati Totali: " + progression.totalCubesDestroyed, Game.VIRTUAL_WIDTH / 2f, 960f, textPaint);
 
+        // Rigioca
         fillPaint.setColor(0xFF00E5FF);
         canvas.drawRoundRect(restartBtnRect, 16f, 16f, fillPaint);
-
         textPaint.setColor(0xFF080B12);
         textPaint.setTextSize(36f);
         textPaint.setFakeBoldText(true);
-        canvas.drawText("RIGIOCA", restartBtnRect.centerX(), restartBtnRect.centerY() + 12f, textPaint);
+        canvas.drawText("NUOVA RUN", restartBtnRect.centerX(), restartBtnRect.centerY() + 12f, textPaint);
+
+        // Apri Negozio
+        fillPaint.setColor(0xFF38BDF8);
+        canvas.drawRoundRect(shopBtnRect, 16f, 16f, fillPaint);
+        canvas.drawText("ARCHIVIO UPGRADE ◆", shopBtnRect.centerX(), shopBtnRect.centerY() + 12f, textPaint);
     }
 
     private void drawVictoryModal(Canvas canvas) {
         fillPaint.setStyle(Paint.Style.FILL);
-        fillPaint.setColor(0xF0080B12);
+        fillPaint.setColor(0xF2080B12);
         canvas.drawRect(0, 0, Game.VIRTUAL_WIDTH, Game.VIRTUAL_HEIGHT, fillPaint);
 
         textPaint.setTextAlign(Paint.Align.CENTER);
         textPaint.setTextSize(54f);
         textPaint.setColor(0xFF00FF88);
         textPaint.setFakeBoldText(true);
-        canvas.drawText("SETTORI PURIFICATI!", Game.VIRTUAL_WIDTH / 2f, 680f, textPaint);
+        canvas.drawText("TESSERACT SCONFITTO!", Game.VIRTUAL_WIDTH / 2f, 660f, textPaint);
 
         textPaint.setTextSize(30f);
         textPaint.setColor(0xFFFFFFFF);
-        canvas.drawText("Tutti i 10 settori sono stati polverizzati!", Game.VIRTUAL_WIDTH / 2f, 780f, textPaint);
-        canvas.drawText(String.format("Punteggio Finale: %,d", game.score), Game.VIRTUAL_WIDTH / 2f, 840f, textPaint);
-        canvas.drawText("Reliquie accumulate: " + game.activeRelics.size(), Game.VIRTUAL_WIDTH / 2f, 900f, textPaint);
+        canvas.drawText("Hai purificato tutti i 10 settori della galassia!", Game.VIRTUAL_WIDTH / 2f, 750f, textPaint);
+        canvas.drawText(String.format("Punteggio Finale: %,d", game.score), Game.VIRTUAL_WIDTH / 2f, 810f, textPaint);
+        canvas.drawText("Schegge Quantiche Run: ◆ +" + game.quantumShardsRun, Game.VIRTUAL_WIDTH / 2f, 870f, textPaint);
 
-        fillPaint.setColor(0xFF00FF88);
-        canvas.drawRoundRect(restartBtnRect, 16f, 16f, fillPaint);
-
+        // Entra in Endless
+        fillPaint.setColor(0xFFFFE600);
+        canvas.drawRoundRect(endlessBtnRect, 16f, 16f, fillPaint);
         textPaint.setColor(0xFF080B12);
-        textPaint.setTextSize(34f);
+        textPaint.setTextSize(32f);
         textPaint.setFakeBoldText(true);
-        canvas.drawText("NUOVO LOOP ROGUE", restartBtnRect.centerX(), restartBtnRect.centerY() + 12f, textPaint);
+        canvas.drawText("∞ ENTRA NEL LOOP ENDLESS", endlessBtnRect.centerX(), endlessBtnRect.centerY() + 12f, textPaint);
+
+        // Ritiro / Nuova Run
+        fillPaint.setColor(0xFF00E5FF);
+        canvas.drawRoundRect(restartBtnRect, 16f, 16f, fillPaint);
+        canvas.drawText("MENU PRINCIPALE", restartBtnRect.centerX(), restartBtnRect.centerY() + 12f, textPaint);
     }
 
     @Override
@@ -793,21 +1091,112 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
         int action = event.getActionMasked();
 
-        if (game.state == Game.State.GAME_OVER || game.state == Game.State.VICTORY) {
-            if (action == MotionEvent.ACTION_UP && restartBtnRect.contains(vx, vy)) {
-                game.restartGame();
-                AudioHelper.playLaunch();
-                return true;
+        // 1. Schermata Selezione Archetipo Core
+        if (game.state == Game.State.ARCHETYPE_SELECT) {
+            if (action == MotionEvent.ACTION_UP) {
+                Game.Archetype[] archetypes = Game.Archetype.values();
+                float cardW = 920f;
+                float cardH = 175f;
+                float startX = (Game.VIRTUAL_WIDTH - cardW) / 2f;
+                float startY = 440f;
+                float gapY = 200f;
+
+                for (int i = 0; i < archetypes.length; i++) {
+                    float cy = startY + i * gapY;
+                    if (vx >= startX && vx <= startX + cardW && vy >= cy && vy <= cy + cardH) {
+                        game.selectArchetype(archetypes[i]);
+                        return true;
+                    }
+                }
             }
             return true;
         }
 
+        // 2. Schermata Negozio Meta-Upgrade
+        if (game.state == Game.State.SHOP) {
+            if (action == MotionEvent.ACTION_UP) {
+                if (backFromShopBtnRect.contains(vx, vy)) {
+                    game.state = Game.State.GAME_OVER;
+                    return true;
+                }
+                float cardW = 900f;
+                float cardH = 170f;
+                float startX = (Game.VIRTUAL_WIDTH - cardW) / 2f;
+
+                // Slot 1: Extra Balls
+                if (vx >= startX + cardW - 280f && vx <= startX + cardW - 30f && vy >= 480f + 45f && vy <= 480f + cardH - 45f) {
+                    if (progression.buyExtraBalls()) {
+                        saveProgression();
+                        AudioHelper.playRelicSelect();
+                    }
+                    return true;
+                }
+                // Slot 2: Basket Width
+                if (vx >= startX + cardW - 280f && vx <= startX + cardW - 30f && vy >= 680f + 45f && vy <= 680f + cardH - 45f) {
+                    if (progression.buyBasketWidth()) {
+                        saveProgression();
+                        AudioHelper.playRelicSelect();
+                    }
+                    return true;
+                }
+                // Slot 3: Reroll
+                if (vx >= startX + cardW - 280f && vx <= startX + cardW - 30f && vy >= 880f + 45f && vy <= 880f + cardH - 45f) {
+                    if (progression.buyReroll()) {
+                        saveProgression();
+                        AudioHelper.playRelicSelect();
+                    }
+                    return true;
+                }
+            }
+            return true;
+        }
+
+        // 3. Schermata Game Over
+        if (game.state == Game.State.GAME_OVER) {
+            if (action == MotionEvent.ACTION_UP) {
+                if (restartBtnRect.contains(vx, vy)) {
+                    game.initGame();
+                    AudioHelper.playLaunch();
+                    return true;
+                }
+                if (shopBtnRect.contains(vx, vy)) {
+                    game.state = Game.State.SHOP;
+                    AudioHelper.playRelicSelect();
+                    return true;
+                }
+            }
+            return true;
+        }
+
+        // 4. Schermata Vittoria
+        if (game.state == Game.State.VICTORY) {
+            if (action == MotionEvent.ACTION_UP) {
+                if (endlessBtnRect.contains(vx, vy)) {
+                    game.startEndlessLoop();
+                    AudioHelper.playLaunch();
+                    return true;
+                }
+                if (restartBtnRect.contains(vx, vy)) {
+                    game.initGame();
+                    AudioHelper.playLaunch();
+                    return true;
+                }
+            }
+            return true;
+        }
+
+        // 5. Draft Reliquie con Reroll
         if (game.state == Game.State.RELIC_DRAFT) {
             if (action == MotionEvent.ACTION_UP) {
+                if (rerollBtnRect.contains(vx, vy)) {
+                    game.rerollDraft();
+                    return true;
+                }
+
                 float cardW = 900f;
                 float cardH = 190f;
                 float startX = (Game.VIRTUAL_WIDTH - cardW) / 2f;
-                float startY = 520f;
+                float startY = 490f;
                 float gapY = 220f;
 
                 for (int i = 0; i < game.draftChoices.size(); i++) {
@@ -821,6 +1210,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             return true;
         }
 
+        // 6. Pulsanti HUD
         if (action == MotionEvent.ACTION_UP) {
             if (speedBtnRect.contains(vx, vy)) {
                 game.speedBoost = !game.speedBoost;
@@ -832,6 +1222,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             }
         }
 
+        // 7. Modalità Puntata e Sparo
         if (game.state == Game.State.AIMING) {
             if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE) {
                 if (vy > 100f) {

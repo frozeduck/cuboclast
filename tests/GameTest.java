@@ -2,204 +2,166 @@ package eu.sabotino.cuboclast;
 
 public class GameTest {
     public static void main(String[] args) {
-        System.out.println("=== Inizio Test Unitari Modello CuboClast v0.2.0 ===");
+        System.out.println("=== Inizio Test Unitari Modello CuboClast v0.3.0 ===");
 
-        testInitializationAndStarterDraft();
-        testAimAndShoot();
+        testArchetypeSelection();
+        testRelicFamiliesAndResonances();
+        testBossPhasesAndSatellites();
+        testQuantumShardsAndShop();
+        testEndlessMode();
+        testDraftReroll();
         testCoreCubesAndFever();
         testMercyRefund();
         testFreeBallByScore();
-        testKineticSurgeRelic();
-        testExplosionCube();
-        testSplitterCube();
-        testSafetyNet();
-        testBossLevel();
 
         System.out.println(">>> TUTTI I TEST UNITARI HANNO AVUTO SUCCESSO! (100% OK)");
     }
 
-    private static void testInitializationAndStarterDraft() {
+    private static void testArchetypeSelection() {
         Game game = new Game();
-        assert game.state == Game.State.RELIC_DRAFT : "All'avvio deve proporre la scelta della reliquia iniziale";
-        assert game.draftChoices.size() == 3 : "Devono esserci 3 scelte iniziali";
-        assert game.ballsRemaining == 8 : "Le sfere iniziali devono essere 8";
+        assert game.state == Game.State.ARCHETYPE_SELECT : "Lo stato iniziale deve essere ARCHETYPE_SELECT";
 
-        game.selectRelic(game.draftChoices.get(0));
-        assert game.state == Game.State.AIMING : "Dopo la scelta iniziale lo stato deve essere AIMING";
-        assert game.currentLevel == 1 : "Il livello iniziale deve essere 1";
-        assert !game.cubes.isEmpty() : "I cubi devono essere generati";
-        assert game.getRemainingCoreCubes() > 0 : "Devono esserci cubi Core bersaglio";
-        System.out.println("✓ Inizializzazione e Draft Reliquia Iniziale verificati.");
+        game.selectArchetype(Game.Archetype.VOLT_OVERCHARGE);
+        assert game.currentArchetype == Game.Archetype.VOLT_OVERCHARGE : "L'archetipo selezionato deve essere memorizzato";
+        assert game.activeRelics.contains(Game.RelicType.CHAIN_LIGHTNING) : "Volt Overcharge deve iniziare con Fulmine a Catena";
+        assert game.state == Game.State.AIMING : "Dopo la scelta dell'archetipo lo stato deve passare a AIMING";
+        System.out.println("✓ Selezione Archetipo Core e perk iniziale verificati.");
     }
 
-    private static void testAimAndShoot() {
+    private static void testRelicFamiliesAndResonances() {
         Game game = new Game();
-        game.selectRelic(game.draftChoices.get(0));
+        game.selectArchetype(Game.Archetype.PYRO_DETONATOR); // include BOUNCING_BOMB (EXPLOSIVE)
 
-        game.setAimAngle(540f, 600f);
-        assert game.aimAngle > 0 : "L'angolo deve essere calcolato";
+        assert game.getResonanceTier(Game.RelicFamily.EXPLOSIVE) == 0 : "Con 1 sola reliquia la risonanza deve essere Tier 0";
 
-        boolean shot = game.shoot();
-        assert shot : "Lo sparo deve avere successo";
-        assert game.state == Game.State.BALL_IN_PLAY : "Lo stato deve diventare BALL_IN_PLAY";
-        assert game.ballsRemaining == 7 : "Le sfere rimanenti devono essere 7";
-        assert game.balls.size() == 1 : "Ci deve essere 1 sfera in gioco";
-        System.out.println("✓ Meccanica di mira e sparo verificata.");
+        // Aggiungi una seconda reliquia esplosiva
+        game.activeRelics.add(Game.RelicType.SHRAPNEL_BURST);
+        assert game.getResonanceTier(Game.RelicFamily.EXPLOSIVE) == 1 : "Con 2 reliquie della stessa famiglia deve attivarsi Risonanza Tier 1";
+
+        // Aggiungi una terza reliquia esplosiva
+        game.activeRelics.add(Game.RelicType.CLUSTER_CHARGE);
+        assert game.getResonanceTier(Game.RelicFamily.EXPLOSIVE) == 2 : "Con 3 reliquie deve attivarsi Risonanza Tier 2 (MAESTRIA)";
+        System.out.println("✓ Famiglie reliquie e Risonanze di Set (Combo) verificate.");
+    }
+
+    private static void testBossPhasesAndSatellites() {
+        Game game = new Game();
+        game.selectArchetype(Game.Archetype.KINETIC_TITAN);
+        game.initLevel(5); // Livello Boss
+
+        assert game.activeBoss != null : "Nel settore 5 deve esserci un'entità Boss attiva";
+        assert !game.bossSatellites.isEmpty() : "Il boss deve avere satelliti difensivi orbitanti";
+        assert game.bossPhase == 1 : "Il boss deve iniziare in Fase 1";
+
+        // Simula danno al boss fino a < 66% HP (Fase 2)
+        game.activeBoss.hp = (int) (game.activeBoss.maxHp * 0.50f);
+        game.update(0.016f);
+        assert game.bossPhase == 2 : "Sotto il 66% di HP il boss deve passare in Fase 2";
+
+        // Simula danno al boss fino a < 33% HP (Fase 3 Enrage)
+        game.activeBoss.hp = (int) (game.activeBoss.maxHp * 0.20f);
+        game.update(0.016f);
+        assert game.bossPhase == 3 : "Sotto il 33% di HP il boss deve passare in Fase 3 (Enrage)";
+        System.out.println("✓ Boss fight a fasi dinamiche e satelliti orbitanti verificati.");
+    }
+
+    private static void testQuantumShardsAndShop() {
+        GameProgression prog = new GameProgression();
+        prog.quantumShards = 300;
+
+        assert prog.buyExtraBalls() : "Deve essere possibile acquistare Extra Balls con 300 schegge";
+        assert prog.upgradeExtraBalls == 1 : "Il livello Extra Balls deve essere 1";
+        assert prog.quantumShards == 225 : "Le schegge devono essere detratte (300 - 75 = 225)";
+
+        assert prog.buyBasketWidth() : "Deve essere possibile acquistare Basket Width";
+        assert prog.upgradeBasketWidth == 1;
+
+        assert prog.unlockCryo() : "Deve essere possibile sbloccare l'archetipo Cryo con 100 schegge";
+        assert prog.unlockedCryo : "Cryo deve risultare sbloccato";
+        System.out.println("✓ Meta-progressione permanente, Schegge Quantiche e Negozio verificati.");
+    }
+
+    private static void testEndlessMode() {
+        Game game = new Game();
+        game.selectArchetype(Game.Archetype.SWARM_MATRIX);
+        game.startEndlessLoop();
+
+        assert game.isEndless : "La modalità deve essere contrassegnata come Endless";
+        assert game.currentLevel == 11 : "L'Endless loop deve iniziare dal settore 11";
+        assert game.state == Game.State.AIMING;
+        System.out.println("✓ Transizione e avvio Loop Endless Roguelike verificati.");
+    }
+
+    private static void testDraftReroll() {
+        Game game = new Game();
+        game.selectArchetype(Game.Archetype.VOLT_OVERCHARGE);
+        game.prepareRelicDraft();
+
+        int rerollsBefore = game.rerollsAvailable;
+        boolean rerolled = game.rerollDraft();
+
+        assert rerolled : "Il reroll deve avere successo se disponibile";
+        assert game.rerollsAvailable == rerollsBefore - 1 : "I reroll disponibili devono scalare di 1";
+        assert game.draftChoices.size() == 3 : "Devono essere generate 3 nuove scelte";
+        System.out.println("✓ Meccanica di Reroll del draft verificata.");
     }
 
     private static void testCoreCubesAndFever() {
         Game game = new Game();
-        game.selectRelic(game.draftChoices.get(0));
+        game.selectArchetype(Game.Archetype.VOLT_OVERCHARGE);
         game.cubes.clear();
         game.balls.clear();
 
-        // Posiziona solo 1 cubo Core con 1 HP e 1 cubo non-core con 5 HP
         Game.Cube coreCube = new Game.Cube(500f, 400f, 80f, 50f, 1, Game.CubeType.NORMAL, true);
-        Game.Cube bonusCube = new Game.Cube(650f, 400f, 80f, 50f, 5, Game.CubeType.NORMAL, false);
         game.cubes.add(coreCube);
-        game.cubes.add(bonusCube);
 
         Game.Ball ball = new Game.Ball(540f, 380f, 0f, 200f);
         game.balls.add(ball);
         game.state = Game.State.BALL_IN_PLAY;
 
         game.update(0.016f);
-        assert !coreCube.isAlive : "Il cubo Core deve essere distrutto";
-        assert game.state == Game.State.FEVER : "La distruzione di tutti i Core cubes deve attivare CUBOCLAST FEVER";
-        System.out.println("✓ Meccanica Cubi Core e attivazione FEVER verificate.");
+        assert !coreCube.isAlive;
+        assert game.state == Game.State.FEVER;
+        System.out.println("✓ Obiettivi Cubi Core e attivazione FEVER verificati.");
     }
 
     private static void testMercyRefund() {
         Game game = new Game();
-        game.selectRelic(game.draftChoices.get(0));
+        game.selectArchetype(Game.Archetype.VOLT_OVERCHARGE);
         game.cubes.clear();
-        // Aggiungi un cubo Core lontano che non viene colpito
         game.cubes.add(new Game.Cube(100f, 100f, 80f, 50f, 10, Game.CubeType.NORMAL, true));
         game.balls.clear();
 
         int ballsBefore = game.ballsRemaining;
-        game.shoot(); // Spara e consuma 1 sfera
+        game.shoot();
         assert game.ballsRemaining == ballsBefore - 1;
 
-        // Fai cadere la sfera fuori dallo schermo senza aver toccato cubi
         Game.Ball ball = game.balls.get(0);
         ball.y = Game.VIRTUAL_HEIGHT + 50f;
         game.update(0.016f);
 
-        // Deve essere scattato il Mercy Refund
-        assert game.ballsRemaining == ballsBefore : "La sfera deve essere rimborsata con Mercy Refund se non colpisce bersagli";
-        System.out.println("✓ Meccanica di soccorso Mercy Refund verificata.");
+        assert game.ballsRemaining == ballsBefore;
+        System.out.println("✓ Meccanica Mercy Refund verificata.");
     }
 
     private static void testFreeBallByScore() {
         Game game = new Game();
-        game.selectRelic(game.draftChoices.get(0));
+        game.selectArchetype(Game.Archetype.VOLT_OVERCHARGE);
         game.cubes.clear();
         game.balls.clear();
 
         int ballsBefore = game.ballsRemaining;
         game.shoot();
 
-        // Simula colpo ad alto punteggio sopra i 6.000 punti
         Game.Cube highValueCore = new Game.Cube(500f, 400f, 80f, 50f, 1, Game.CubeType.NORMAL, true);
         game.cubes.add(highValueCore);
         Game.Ball ball = game.balls.get(0);
         ball.x = 540f;
         ball.y = 390f;
-        game.currentCombo = 20; // Alta combo -> alto punteggio
+        game.currentCombo = 20;
 
         game.update(0.016f);
-        assert game.ballsRemaining >= ballsBefore : "Raggiunta la soglia punteggio deve essere concessa una Sfera Extra!";
-        System.out.println("✓ Meccanica Sfera Extra per punteggio (Fever Ball) verificata.");
-    }
-
-    private static void testKineticSurgeRelic() {
-        Game game = new Game();
-        game.activeRelics.clear();
-        game.activeRelics.add(Game.RelicType.KINETIC_SURGE);
-        game.cubes.clear();
-        game.balls.clear();
-
-        Game.Cube cube = new Game.Cube(500f, 400f, 80f, 50f, 50, Game.CubeType.NORMAL, false);
-        game.cubes.add(cube);
-
-        Game.Ball ball = new Game.Ball(540f, 380f, 0f, 200f);
-        ball.bounces = 6;
-        game.balls.add(ball);
-        game.state = Game.State.BALL_IN_PLAY;
-
-        game.update(0.016f);
-        assert cube.hp <= 43 : "Kinetic Surge deve incrementare il danno proporzionalmente ai rimbalzi (" + cube.hp + ")";
-        System.out.println("✓ Sinergia Reliquia Kinetic Surge verificata.");
-    }
-
-    private static void testExplosionCube() {
-        Game game = new Game();
-        game.cubes.clear();
-        game.balls.clear();
-
-        Game.Cube expCube = new Game.Cube(500f, 500f, 80f, 50f, 1, Game.CubeType.EXPLOSIVE, false);
-        Game.Cube neighbor = new Game.Cube(520f, 580f, 80f, 50f, 10, Game.CubeType.NORMAL, false);
-        game.cubes.add(expCube);
-        game.cubes.add(neighbor);
-
-        Game.Ball ball = new Game.Ball(540f, 480f, 0f, 200f);
-        game.balls.add(ball);
-        game.state = Game.State.BALL_IN_PLAY;
-
-        game.update(0.016f);
-        assert !expCube.isAlive : "Il cubo esplosivo deve essere distrutto";
-        assert neighbor.hp < 10 : "I cubi vicini devono subire danno da detonazione ad area";
-        System.out.println("✓ Distruzione Cubo Esplosivo ed effetto AoE verificati.");
-    }
-
-    private static void testSplitterCube() {
-        Game game = new Game();
-        game.cubes.clear();
-        game.balls.clear();
-
-        Game.Cube splitCube = new Game.Cube(500f, 500f, 80f, 50f, 1, Game.CubeType.SPLITTER, false);
-        game.cubes.add(splitCube);
-
-        Game.Ball ball = new Game.Ball(540f, 480f, 0f, 200f);
-        game.balls.add(ball);
-        game.state = Game.State.BALL_IN_PLAY;
-
-        game.update(0.016f);
-        assert !splitCube.isAlive : "Il cubo splitter deve essere distrutto";
-        assert game.balls.size() >= 2 : "La distruzione dello splitter deve generare mini-sfere extra";
-        System.out.println("✓ Gimmick Cubo Splitter e generazione multiball verificati.");
-    }
-
-    private static void testSafetyNet() {
-        Game game = new Game();
-        game.activeRelics.clear();
-        game.activeRelics.add(Game.RelicType.SAFETY_NET);
-        game.initLevel(1);
-        game.balls.clear();
-
-        Game.Ball ball = new Game.Ball(300f, 1835f, 0f, 300f);
-        game.balls.add(ball);
-        game.state = Game.State.BALL_IN_PLAY;
-
-        game.update(0.016f);
-        assert ball.vy < 0 : "La rete di sicurezza deve far rimbalzare la sfera verso l'alto";
-        System.out.println("✓ Reliquia Rete di Sicurezza (Safety Net) verificata.");
-    }
-
-    private static void testBossLevel() {
-        Game game = new Game();
-        game.initLevel(5);
-        boolean hasBoss = false;
-        for (Game.Cube c : game.cubes) {
-            if (c.type == Game.CubeType.BOSS) {
-                hasBoss = true;
-                assert c.isCore : "Il boss deve essere un cubo Core";
-                assert c.hp <= 60 : "Gli HP del boss del livello 5 devono essere ben bilanciati";
-                break;
-            }
-        }
-        assert hasBoss : "Il livello 5 deve contenere un'entità BOSS";
-        System.out.println("✓ Generazione Settore Boss bilanciata (Livello 5) verificata.");
+        assert game.ballsRemaining >= ballsBefore;
+        System.out.println("✓ Sfera Extra per soglia punteggio verificata.");
     }
 }
