@@ -181,4 +181,48 @@ public class AudioHelper {
         }
         playBuffer(buf);
     }
+
+    // Sfera Extra guadagnata con punteggio o combo (Chime trionfale)
+    public static void playFreeBall() {
+        if (!soundEnabled) return;
+        int n = (int) (SAMPLE_RATE * 0.28f);
+        short[] buf = new short[n];
+        for (int i = 0; i < n; i++) {
+            float t = (float) i / SAMPLE_RATE;
+            float f = (t < 0.09f) ? 587.33f : ((t < 0.18f) ? 783.99f : 1046.50f);
+            float decay = (float) Math.exp(-(t % 0.09f) * 16.0);
+            buf[i] = (short) (Math.sin(2.0 * Math.PI * f * t) * decay * 29000);
+        }
+        playBuffer(buf);
+    }
+
+    // CuboClast FEVER! (Fanfara festosa stile Peggle Extreme Fever)
+    public static void playFeverFanfare() {
+        if (!soundEnabled) return;
+        int n = (int) (SAMPLE_RATE * 0.45f);
+        short[] buf = new short[n];
+        float[] notes = {523.25f, 659.25f, 783.99f, 1046.50f};
+        for (int i = 0; i < n; i++) {
+            float t = (float) i / SAMPLE_RATE;
+            int idx = Math.min((int) (t / 0.10f), notes.length - 1);
+            float f = notes[idx];
+            float decay = (float) Math.exp(-(t % 0.10f) * 12.0);
+            buf[i] = (short) (Math.sin(2.0 * Math.PI * f * t) * decay * 30000);
+        }
+        playBuffer(buf);
+    }
+
+    // Rimborso di Grazia (Mercy Refund) quando la sfera non colpisce bersagli
+    public static void playMercyRefund() {
+        if (!soundEnabled) return;
+        int n = (int) (SAMPLE_RATE * 0.16f);
+        short[] buf = new short[n];
+        for (int i = 0; i < n; i++) {
+            float t = (float) i / SAMPLE_RATE;
+            float decay = (float) Math.exp(-t * 14.0);
+            float f = (t < 0.08f) ? 392.00f : 523.25f;
+            buf[i] = (short) (Math.sin(2.0 * Math.PI * f * t) * decay * 24000);
+        }
+        playBuffer(buf);
+    }
 }

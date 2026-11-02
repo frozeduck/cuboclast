@@ -15,7 +15,7 @@ public class Game {
     public enum State {
         AIMING,
         BALL_IN_PLAY,
-        LEVEL_CLEAR,
+        FEVER,
         RELIC_DRAFT,
         GAME_OVER,
         VICTORY
@@ -35,16 +35,16 @@ public class Game {
         KINETIC_SURGE("Kinetic Surge", "Ogni rimbalzo aumenta il danno della sfera di +1 per quel tiro."),
         CHAIN_LIGHTNING("Fulmine a Catena", "Ogni 2 rimbalzi scaglia un fulmine su 2 cubi casuali per 3 danni."),
         SHRAPNEL_BURST("Schegge Taglienti", "I cubi distrutti proiettano 4 schegge geometriche perforanti."),
-        MULTIBALL_REACTOR("Reattore Multiball", "Distruggere un cubo ha il 25% di probabilita di generare una mini-sfera."),
-        PIERCING_RAIL("Sfera Perforante", "La sfera attraversa i cubi con 2 o meno HP senza rimbalzare."),
-        CRITICAL_OVERDRIVE("Sovraccarico Critico", "25% di possibilita di colpo critico (danno x3 e onda d'urto)."),
+        MULTIBALL_REACTOR("Reattore Multiball", "Distruggere un cubo ha il 30% di probabilita di generare una mini-sfera."),
+        PIERCING_RAIL("Sfera Perforante", "La sfera disintegra i cubi con 2 o meno HP senza rimbalzare."),
+        CRITICAL_OVERDRIVE("Sovraccarico Critico", "30% di probabilita di colpo critico (danno x3 e onda d'urto)."),
         SUPERNOVA("Supernova", "Quando una sfera cade sul fondo, scatena un fascio d'energia verso l'alto."),
-        MAGNETIC_BASKET("Cestello Magnetico", "Il cestello inferiore e piu largo del 35% e attira le sfere cadenti."),
+        MAGNETIC_BASKET("Cestello Magnetico", "Il cestello e piu largo (290px) e cattura le sfere con forte attrazione."),
         HYPER_VELOCITY("Iper-Velocita", "Le sfere viaggiano il 25% piu veloci e infliggono +1 danno base."),
         BOUNCING_BOMB("Sfera Bomba", "All'8° rimbalzo la sfera genera una massiccia detonazione ad area."),
-        PRISMATIC_ECHO("Eco Prismatico", "Ogni 5 cubi colpiti attiva un'onda d'urto ad anello."),
-        HEAVY_MASS("Massa Inerziale", "Infligge +3 danni extra contro i cubi corazzati e i boss."),
-        SAFETY_NET("Rete di Sicurezza", "Un campo di forza respinge la prima sfera caduta in ogni livello.");
+        PRISMATIC_ECHO("Eco Prismatico", "Ogni 4 cubi colpiti attiva un'onda d'urto ad anello."),
+        HEAVY_MASS("Massa Inerziale", "Infligge +4 danni extra contro i cubi corazzati e i boss."),
+        SAFETY_NET("Rete di Sicurezza", "Un campo di forza respinge la prima sfera caduta in ogni settore.");
 
         public final String title;
         public final String description;
@@ -81,12 +81,13 @@ public class Game {
         public int hp;
         public int maxHp;
         public CubeType type;
+        public boolean isCore = false; // Cubo bersaglio necessario per superare il livello
         public float wobble = 0f;
         public float hitFlash = 0f;
         public boolean isAlive = true;
         public float shieldPulse = 0f;
 
-        public Cube(float x, float y, float w, float h, int hp, CubeType type) {
+        public Cube(float x, float y, float w, float h, int hp, CubeType type, boolean isCore) {
             this.x = x;
             this.y = y;
             this.width = w;
@@ -94,6 +95,7 @@ public class Game {
             this.hp = hp;
             this.maxHp = hp;
             this.type = type;
+            this.isCore = isCore;
         }
 
         public float centerX() { return x + width / 2f; }
@@ -103,9 +105,9 @@ public class Game {
     public static class Basket {
         public float x;
         public float y = 1780f;
-        public float width = 180f;
+        public float width = 220f;
         public float height = 34f;
-        public float vx = 280f;
+        public float vx = 230f;
 
         public Basket() {
             this.x = VIRTUAL_WIDTH / 2f - width / 2f;
@@ -113,8 +115,8 @@ public class Game {
 
         public void update(float dt) {
             x += vx * dt;
-            float minX = 40f;
-            float maxX = VIRTUAL_WIDTH - 40f - width;
+            float minX = 35f;
+            float maxX = VIRTUAL_WIDTH - 35f - width;
             if (x < minX) {
                 x = minX;
                 vx = Math.abs(vx);
@@ -122,6 +124,10 @@ public class Game {
                 x = maxX;
                 vx = -Math.abs(vx);
             }
+        }
+
+        public float centerX() {
+            return x + width / 2f;
         }
     }
 
@@ -133,7 +139,6 @@ public class Game {
         public int color;
         public float rotation = 0f;
         public float rotSpeed;
-        public boolean isDead = false;
 
         public Shard(float x, float y, float vx, float vy, float size, int color) {
             this.x = x;
@@ -150,7 +155,7 @@ public class Game {
         public float x, y;
         public String text;
         public int color;
-        public float life = 1f;
+        public float life = 1.1f;
         public float vy = -70f;
 
         public FloatingText(float x, float y, String text, int color) {
@@ -167,12 +172,22 @@ public class Game {
     public int maxLevel = 10;
     public int score = 0;
     public int highScore = 0;
-    public int ballsRemaining = 5;
+    public int ballsRemaining = 8; // Più generoso: 8 sfere iniziali
     public int ballsInShotCount = 0;
     public int totalCubesDestroyed = 0;
     public int currentCombo = 0;
-    public float aimAngle = (float) Math.PI / 2f; // Rivolto verso il basso (90 gradi)
+    public float aimAngle = (float) Math.PI / 2f;
     public boolean speedBoost = false;
+
+    // Statistiche tiro corrente
+    public int currentShotScore = 0;
+    public int currentShotCubesHit = 0;
+    public int ballsCaughtInCurrentShot = 0;
+    private int nextFreeBallThreshold = 6000;
+
+    // Timer FEVER
+    public float feverTimer = 0f;
+    public float feverExplosionTimer = 0f;
 
     public final List<Ball> balls = new ArrayList<>();
     public final List<Cube> cubes = new ArrayList<>();
@@ -194,11 +209,39 @@ public class Game {
         void onExplosion();
         void onChainLightning();
         void onRelicChosen();
+        void onFreeBall();
+        void onFever();
+        void onMercyRefund();
     }
     public GameEventListener listener = null;
 
     public Game() {
-        initLevel(1);
+        initGame();
+    }
+
+    public void initGame() {
+        currentLevel = 1;
+        score = 0;
+        ballsRemaining = 8;
+        activeRelics.clear();
+        totalCubesDestroyed = 0;
+
+        // Proponi subito una scelta di reliquia iniziale per iniziare con una build!
+        prepareStarterRelicDraft();
+    }
+
+    public void prepareStarterRelicDraft() {
+        draftChoices.clear();
+        List<RelicType> starters = new ArrayList<>();
+        starters.add(RelicType.KINETIC_SURGE);
+        starters.add(RelicType.MULTIBALL_REACTOR);
+        starters.add(RelicType.CHAIN_LIGHTNING);
+        starters.add(RelicType.MAGNETIC_BASKET);
+        Collections.shuffle(starters, random);
+        for (int i = 0; i < 3; i++) {
+            draftChoices.add(starters.get(i));
+        }
+        state = State.RELIC_DRAFT;
     }
 
     public void initLevel(int level) {
@@ -210,13 +253,13 @@ public class Game {
         currentCombo = 0;
         safetyNetAvailable = activeRelics.contains(RelicType.SAFETY_NET);
 
-        // Se passiamo al livello successivo, ricarichiamo le sfere base (minimo 5)
-        if (ballsRemaining < 5) {
-            ballsRemaining = 5;
+        // Ricarica sfere: garantiti almeno 8 colpi a ogni nuovo settore!
+        if (ballsRemaining < 8) {
+            ballsRemaining = 8;
         }
 
-        // Applica potenziamenti reliquie al cestello
-        basket.width = activeRelics.contains(RelicType.MAGNETIC_BASKET) ? 245f : 180f;
+        // Calibrazione larghezza cestello
+        basket.width = activeRelics.contains(RelicType.MAGNETIC_BASKET) ? 290f : 220f;
 
         generateLevelGrid(level);
         state = State.AIMING;
@@ -226,16 +269,32 @@ public class Game {
         if (score > highScore) {
             highScore = score;
         }
-        score = 0;
-        ballsRemaining = 5;
-        activeRelics.clear();
-        totalCubesDestroyed = 0;
-        initLevel(1);
+        initGame();
+    }
+
+    public int getRemainingCoreCubes() {
+        int count = 0;
+        for (Cube c : cubes) {
+            if (c.isAlive && c.isCore) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public int getTotalCoreCubes() {
+        int count = 0;
+        for (Cube c : cubes) {
+            if (c.isCore) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private void generateLevelGrid(int level) {
         float startY = 320f;
-        int rows;
+        int rows = Math.min(3 + level, 7);
         int cols = 9;
         float cubeWidth = 84f;
         float cubeHeight = 56f;
@@ -244,25 +303,32 @@ public class Game {
         float totalGridW = cols * cubeWidth + (cols - 1) * paddingX;
         float startX = (VIRTUAL_WIDTH - totalGridW) / 2f;
 
-        // Difficoltà e HP crescenti
-        int baseHp = 1 + (level - 1) * 2; // Lv 1: 1-3 HP, Lv 5: 9-15 HP, Lv 10: 19-30 HP
+        // Bilanciamento HP dolce:
+        // Livello 1: 1 HP (1 colpo = distruzione istantanea!)
+        // Livello 2: 1-2 HP
+        // Livello 3: 2-3 HP
+        // Livello 4: 2-4 HP
+        int baseHp = Math.max(1, (level <= 1) ? 1 : (1 + (level - 2)));
 
         if (level == 5 || level == 10) {
-            // LIVELLI BOSS
             generateBossLevel(level, startX, startY, cols, cubeWidth, cubeHeight, paddingX, paddingY);
             return;
         }
 
-        rows = Math.min(4 + level, 8);
+        int coreBudget = Math.min(6 + level * 2, 14);
+        int coresAssigned = 0;
 
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
-                // Disposizione a scacchiera / motivi geometrici
                 boolean placeCube = false;
                 if (level == 1) {
-                    placeCube = (r % 2 == 0) || (c % 2 == 0);
+                    // Formazione a rombo aperta e facile
+                    placeCube = (r == 0 && (c >= 2 && c <= 6))
+                            || (r == 1 && (c == 1 || c == 3 || c == 5 || c == 7))
+                            || (r == 2 && (c >= 2 && c <= 6))
+                            || (r == 3 && (c == 3 || c == 4 || c == 5));
                 } else if (level % 2 == 0) {
-                    placeCube = (r + c) % 2 == 0 || (r == 0 || r == rows - 1);
+                    placeCube = (r + c) % 2 == 0;
                 } else {
                     placeCube = (c >= 1 && c <= 7) && !(r == 1 && c == 4);
                 }
@@ -272,60 +338,75 @@ public class Game {
                 float cx = startX + c * (cubeWidth + paddingX);
                 float cy = startY + r * (cubeHeight + paddingY);
 
-                // Determina tipologia di cubo
                 CubeType type = CubeType.NORMAL;
                 float roll = random.nextFloat();
-                int cubeHp = baseHp + random.nextInt(Math.max(1, level));
+                int cubeHp = (level == 1) ? 1 : Math.max(1, baseHp + random.nextInt(2));
 
-                if (roll < 0.12f) {
+                if (roll < 0.15f) {
                     type = CubeType.EXPLOSIVE;
-                    cubeHp = Math.max(2, baseHp - 1);
-                } else if (roll < 0.22f) {
+                    cubeHp = Math.max(1, cubeHp - 1);
+                } else if (roll < 0.28f) {
                     type = CubeType.SPLITTER;
-                    cubeHp = Math.max(2, baseHp);
-                } else if (roll < 0.32f) {
+                    cubeHp = 1;
+                } else if (roll < 0.40f) {
                     type = CubeType.KINETIC;
-                    cubeHp = Math.max(1, baseHp - 2);
-                } else if (roll < 0.42f && level >= 3) {
+                    cubeHp = 1;
+                } else if (roll < 0.50f && level >= 3) {
                     type = CubeType.ARMOR;
-                    cubeHp = baseHp * 2 + 2;
-                } else if (roll < 0.50f && level >= 4) {
+                    cubeHp = baseHp + 2;
+                } else if (roll < 0.58f && level >= 4) {
                     type = CubeType.SHIELD;
-                    cubeHp = baseHp + 3;
+                    cubeHp = baseHp + 1;
                 }
 
-                cubes.add(new Cube(cx, cy, cubeWidth, cubeHeight, Math.max(1, cubeHp), type));
+                // Assegna stato di Cubo Core Obiettivo
+                boolean isCore = false;
+                if (coresAssigned < coreBudget && (type == CubeType.NORMAL || random.nextFloat() < 0.5f)) {
+                    isCore = true;
+                    coresAssigned++;
+                }
+
+                cubes.add(new Cube(cx, cy, cubeWidth, cubeHeight, cubeHp, type, isCore));
+            }
+        }
+
+        // Assicura che ci siano almeno 6 cubi Core
+        if (coresAssigned < 6) {
+            for (Cube c : cubes) {
+                if (!c.isCore) {
+                    c.isCore = true;
+                    coresAssigned++;
+                    if (coresAssigned >= 6) break;
+                }
             }
         }
     }
 
     private void generateBossLevel(int level, float startX, float startY, int cols, float cubeWidth, float cubeHeight, float paddingX, float paddingY) {
-        // Boss centrale gigante
         float bossW = 260f;
         float bossH = 180f;
         float bossX = (VIRTUAL_WIDTH - bossW) / 2f;
         float bossY = startY + 120f;
-        int bossHp = (level == 5) ? 90 : 220;
+        int bossHp = (level == 5) ? 60 : 130;
 
-        Cube boss = new Cube(bossX, bossY, bossW, bossH, bossHp, CubeType.BOSS);
+        // Il Boss è il Cubo Core principale
+        Cube boss = new Cube(bossX, bossY, bossW, bossH, bossHp, CubeType.BOSS, true);
         cubes.add(boss);
 
-        // Satelliti difensivi attorno al boss
-        int orbitCubes = (level == 5) ? 8 : 12;
-        float orbitRadius = 260f;
+        int orbitCubes = (level == 5) ? 6 : 10;
+        float orbitRadius = 250f;
         for (int i = 0; i < orbitCubes; i++) {
             double angle = (2 * Math.PI / orbitCubes) * i;
             float ox = boss.centerX() + (float) Math.cos(angle) * orbitRadius - cubeWidth / 2f;
             float oy = boss.centerY() + (float) Math.sin(angle) * orbitRadius - cubeHeight / 2f;
-            CubeType type = (i % 2 == 0) ? CubeType.ARMOR : CubeType.EXPLOSIVE;
-            cubes.add(new Cube(ox, oy, cubeWidth, cubeHeight, 10 + level * 2, type));
+            CubeType type = (i % 2 == 0) ? CubeType.SPLITTER : CubeType.EXPLOSIVE;
+            cubes.add(new Cube(ox, oy, cubeWidth, cubeHeight, 2, type, false));
         }
 
-        // Fila di barriera superiore
         for (int c = 1; c < cols - 1; c += 2) {
             float cx = startX + c * (cubeWidth + paddingX);
             float cy = startY;
-            cubes.add(new Cube(cx, cy, cubeWidth, cubeHeight, 8 + level, CubeType.KINETIC));
+            cubes.add(new Cube(cx, cy, cubeWidth, cubeHeight, 1, CubeType.KINETIC, false));
         }
     }
 
@@ -333,12 +414,11 @@ public class Game {
         if (state != State.AIMING) return;
         float dx = touchX - CANNON_X;
         float dy = touchY - CANNON_Y;
-        if (dy < 50f) dy = 50f; // Impedisci sparo all'indietro
+        if (dy < 40f) dy = 40f;
         aimAngle = (float) Math.atan2(dy, dx);
 
-        // Limita l'angolo a un cono di puntamento verso il basso
-        float minAngle = (float) Math.toRadians(18);
-        float maxAngle = (float) Math.toRadians(162);
+        float minAngle = (float) Math.toRadians(15);
+        float maxAngle = (float) Math.toRadians(165);
         if (aimAngle < minAngle) aimAngle = minAngle;
         if (aimAngle > maxAngle) aimAngle = maxAngle;
     }
@@ -349,6 +429,10 @@ public class Game {
         ballsRemaining--;
         ballsInShotCount = 1;
         currentCombo = 0;
+        currentShotScore = 0;
+        currentShotCubesHit = 0;
+        ballsCaughtInCurrentShot = 0;
+        nextFreeBallThreshold = 6000;
 
         float speed = 1250f;
         if (activeRelics.contains(RelicType.HYPER_VELOCITY)) {
@@ -368,18 +452,16 @@ public class Game {
     }
 
     public void update(float dt) {
-        if (dt > 0.05f) dt = 0.05f; // Limite delta per stabilità fisica
+        if (dt > 0.05f) dt = 0.05f;
         if (speedBoost && state == State.BALL_IN_PLAY) {
             dt *= 2.0f;
         }
 
-        // Aggiorna scuotimento schermo
         if (screenShake > 0f) {
             screenShake -= dt * 25f;
             if (screenShake < 0f) screenShake = 0f;
         }
 
-        // Aggiorna cestello
         basket.update(dt);
 
         // Aggiorna particelle schegge
@@ -387,9 +469,9 @@ public class Game {
             Shard s = shards.get(i);
             s.x += s.vx * dt;
             s.y += s.vy * dt;
-            s.vy += GRAVITY * 0.4f * dt;
+            s.vy += GRAVITY * 0.35f * dt;
             s.rotation += s.rotSpeed * dt;
-            s.life -= dt * 1.8f;
+            s.life -= dt * 1.6f;
             if (s.life <= 0f) {
                 shards.remove(i);
             }
@@ -399,13 +481,13 @@ public class Game {
         for (int i = floatingTexts.size() - 1; i >= 0; i--) {
             FloatingText ft = floatingTexts.get(i);
             ft.y += ft.vy * dt;
-            ft.life -= dt * 1.5f;
+            ft.life -= dt * 1.3f;
             if (ft.life <= 0f) {
                 floatingTexts.remove(i);
             }
         }
 
-        // Aggiorna animazioni cubi (wobble e hitFlash)
+        // Aggiorna cubi
         for (Cube c : cubes) {
             if (c.wobble > 0f) {
                 c.wobble -= dt * 6f;
@@ -415,14 +497,55 @@ public class Game {
                 c.hitFlash -= dt * 8f;
                 if (c.hitFlash < 0f) c.hitFlash = 0f;
             }
-            if (c.type == CubeType.SHIELD) {
-                c.shieldPulse = (c.shieldPulse + dt * 3f) % ((float) Math.PI * 2f);
+            if (c.type == CubeType.SHIELD || c.isCore) {
+                c.shieldPulse = (c.shieldPulse + dt * 3.5f) % ((float) Math.PI * 2f);
             }
+        }
+
+        // Gestione animazione FEVER
+        if (state == State.FEVER) {
+            updateFever(dt);
+            return;
         }
 
         // Aggiorna fisica sfere se in gioco
         if (state == State.BALL_IN_PLAY) {
             updateBalls(dt);
+        }
+    }
+
+    private void updateFever(float dt) {
+        feverTimer -= dt;
+        feverExplosionTimer -= dt;
+
+        if (feverExplosionTimer <= 0f) {
+            feverExplosionTimer = 0.08f;
+            // Trova il prossimo cubo non ancora distrutto e fallo esplodere in festa
+            for (Cube c : cubes) {
+                if (c.isAlive) {
+                    c.isAlive = false;
+                    score += 500;
+                    spawnCubeShards(c);
+                    spawnSparks(c.centerX(), c.centerY(), 0xFFFFE600, 14);
+                    floatingTexts.add(new FloatingText(c.centerX(), c.centerY(), "FEVER +500", 0xFFFFE600));
+                    screenShake = 6f;
+                    if (listener != null) listener.onCubeShattered();
+                    break;
+                }
+            }
+        }
+
+        if (feverTimer <= 0f) {
+            // Fine Fever: Bonus per sfere rimanenti
+            int ballBonus = ballsRemaining * 2000;
+            score += ballBonus;
+            if (score > highScore) highScore = score;
+
+            if (currentLevel >= maxLevel) {
+                state = State.VICTORY;
+            } else {
+                prepareRelicDraft();
+            }
         }
     }
 
@@ -436,20 +559,26 @@ public class Game {
                 continue;
             }
 
-            // Aggiungi scia
             b.trail.add(new float[]{b.x, b.y});
             if (b.trail.size() > 10) {
                 b.trail.remove(0);
             }
 
-            // Gravità
-            b.vy += GRAVITY * dt;
+            // Attrazione magnetica del Cestello (funneling naturale molto gratificante!)
+            if (b.y >= basket.y - 180f && b.y <= basket.y + 40f) {
+                float basketCenterX = basket.centerX();
+                float distToCenter = basketCenterX - b.x;
+                if (Math.abs(distToCenter) < (basket.width * 0.75f)) {
+                    float pullFactor = activeRelics.contains(RelicType.MAGNETIC_BASKET) ? 7.5f : 3.5f;
+                    b.vx += distToCenter * pullFactor * dt;
+                }
+            }
 
-            // Spostamento
+            b.vy += GRAVITY * dt;
             b.x += b.vx * dt;
             b.y += b.vy * dt;
 
-            // Rimbalzo pareti laterali
+            // Pareti laterali
             float leftWall = 25f;
             float rightWall = VIRTUAL_WIDTH - 25f;
             if (b.x - b.radius < leftWall) {
@@ -460,30 +589,32 @@ public class Game {
                 b.vx = -b.vx * 0.95f;
             }
 
-            // Rimbalzo soffitto
+            // Soffitto
             float ceiling = 70f;
             if (b.y - b.radius < ceiling) {
                 b.y = ceiling + b.radius;
                 b.vy = Math.abs(b.vy) * 0.95f;
             }
 
-            // Rete di sicurezza (Reliquia Safety Net)
+            // Rete di Sicurezza (Reliquia Safety Net)
             if (safetyNetAvailable && b.y + b.radius >= 1840f) {
                 b.y = 1840f - b.radius;
-                b.vy = -Math.abs(b.vy) * 1.1f;
+                b.vy = -Math.abs(b.vy) * 1.15f;
                 safetyNetAvailable = false;
                 screenShake = 12f;
                 floatingTexts.add(new FloatingText(b.x, b.y - 40, "RETE DI SICUREZZA!", 0xFF00E5FF));
                 if (listener != null) listener.onBounceHit(1);
             }
 
-            // Cattura nel cestello inferiore
+            // Cattura nel Cestello (con margine perdonante)
             if (b.y + b.radius >= basket.y && b.y - b.radius <= basket.y + basket.height) {
-                if (b.x >= basket.x - 10f && b.x <= basket.x + basket.width + 10f) {
-                    // SFERA SALVATA!
+                if (b.x >= basket.x - 15f && b.x <= basket.x + basket.width + 15f) {
                     b.isAlive = false;
+                    balls.remove(i);
                     ballsRemaining++;
-                    score += 250 * Math.max(1, currentCombo);
+                    ballsCaughtInCurrentShot++;
+                    int catchPoints = 350 * Math.max(1, currentCombo);
+                    addScore(catchPoints);
                     floatingTexts.add(new FloatingText(b.x, basket.y - 50, "+1 SFERA! CATTURA!", 0xFF00FF88));
                     if (listener != null) listener.onBallCaught();
 
@@ -497,21 +628,33 @@ public class Game {
             // Sfera caduta fuori dallo schermo
             if (b.y - b.radius > VIRTUAL_HEIGHT + 20f) {
                 b.isAlive = false;
+                balls.remove(i);
                 if (activeRelics.contains(RelicType.SUPERNOVA)) {
                     triggerSupernova(b.x);
                 }
                 continue;
             }
 
-            // Collisione con i cubi
             handleCubeCollisions(b, newBalls);
         }
 
         balls.addAll(newBalls);
 
-        // Verifica se tutte le sfere del tiro sono terminate
         if (balls.isEmpty()) {
             checkRoundEnd();
+        }
+    }
+
+    private void addScore(int points) {
+        score += points;
+        currentShotScore += points;
+
+        // Verifica soglia Sfera Extra per punteggio tiro (Fever Ball)
+        if (currentShotScore >= nextFreeBallThreshold) {
+            ballsRemaining++;
+            floatingTexts.add(new FloatingText(CANNON_X, 220f, "★ SFERA EXTRA! ★", 0xFFFFE600));
+            nextFreeBallThreshold += 12000;
+            if (listener != null) listener.onFreeBall();
         }
     }
 
@@ -522,19 +665,17 @@ public class Game {
             Cube c = cubes.get(j);
             if (!c.isAlive) continue;
 
-            // Test collisione Sfera - AABB Cubo
             float closestX = Math.max(c.x, Math.min(b.x, c.x + c.width));
             float closestY = Math.max(c.y, Math.min(b.y, c.y + c.height));
             float distX = b.x - closestX;
             float distY = b.y - closestY;
-            float distSq = distX * distX + distY * distVy(distY);
+            float distSq = distX * distX + distY * distY;
 
             if (distSq <= b.radius * b.radius) {
-                // COLLISIONE AVVENUTA!
                 b.bounces++;
                 currentCombo++;
+                currentShotCubesHit++;
 
-                // Calcolo penetrazione e normale di collisione
                 float overlapLeft = (b.x + b.radius) - c.x;
                 float overlapRight = (c.x + c.width) - (b.x - b.radius);
                 float overlapTop = (b.y + b.radius) - c.y;
@@ -559,19 +700,16 @@ public class Game {
                         b.vy = Math.abs(b.vy);
                     }
 
-                    // Aggiungi leggera componente orizzontale casuale per evitare rimbalzi verticali infiniti
-                    b.vx += (random.nextFloat() - 0.5f) * 40f;
+                    b.vx += (random.nextFloat() - 0.5f) * 35f;
                 }
 
-                // Calcolo Danno con Reliquie e Sinergie
-                float damage = b.baseDamage;
+                // Danno con crescita naturale ogni 3 rimbalzi
+                float damage = b.baseDamage + (b.bounces / 3);
 
-                // Sinergia 1: Kinetic Surge (+1 danno per ogni rimbalzo nel tiro)
                 if (activeRelics.contains(RelicType.KINETIC_SURGE)) {
                     damage += (b.bounces - 1);
                 }
 
-                // Sinergia 2: Kinetic Booster Cube
                 if (c.type == CubeType.KINETIC) {
                     damage += 2f;
                     b.vx *= 1.35f;
@@ -579,21 +717,18 @@ public class Game {
                     floatingTexts.add(new FloatingText(c.centerX(), c.centerY() - 30, "KINETIC BOOST!", 0xFFFFE600));
                 }
 
-                // Sinergia 3: Heavy Mass (+3 vs Armor / Boss)
                 if (activeRelics.contains(RelicType.HEAVY_MASS) && (c.type == CubeType.ARMOR || c.type == CubeType.BOSS)) {
-                    damage += 3f;
+                    damage += 4f;
                 }
 
-                // Sinergia 4: Colpo Critico
                 boolean isCrit = false;
-                if (activeRelics.contains(RelicType.CRITICAL_OVERDRIVE) && random.nextFloat() < 0.25f) {
+                if (activeRelics.contains(RelicType.CRITICAL_OVERDRIVE) && random.nextFloat() < 0.30f) {
                     damage *= 3f;
                     isCrit = true;
                     screenShake = Math.max(screenShake, 14f);
                     floatingTexts.add(new FloatingText(c.centerX(), c.centerY() - 40, "CRIT! x3", 0xFFFF007F));
                 }
 
-                // Verifica protezione scudo da vicini
                 boolean isShielded = isCubeProtectedByShield(c);
                 if (isShielded) {
                     damage = Math.max(1f, damage * 0.5f);
@@ -604,69 +739,74 @@ public class Game {
                 c.wobble = 1f;
                 c.hitFlash = 1f;
 
-                score += 50 * currentCombo;
-                floatingTexts.add(new FloatingText(c.centerX(), c.centerY(), "-" + finalDamage, isCrit ? 0xFFFF007F : 0xFF00E5FF));
+                int hitPoints = (c.isCore ? 120 : 60) * currentCombo;
+                addScore(hitPoints);
+                floatingTexts.add(new FloatingText(c.centerX(), c.centerY(), "-" + finalDamage, isCrit ? 0xFFFF007F : (c.isCore ? 0xFFFFE600 : 0xFF00E5FF)));
 
                 if (listener != null) {
                     listener.onBounceHit(currentCombo);
                 }
 
-                // Sinergia 5: Chain Lightning
                 if (activeRelics.contains(RelicType.CHAIN_LIGHTNING) && (b.bounces % 2 == 0)) {
                     triggerChainLightning(c);
                 }
 
-                // Sinergia 6: Bouncing Bomb all'8° rimbalzo
                 if (activeRelics.contains(RelicType.BOUNCING_BOMB) && b.bounces == 8) {
-                    triggerExplosion(b.x, b.y, 220f, 10);
+                    triggerExplosion(b.x, b.y, 230f, 10);
                     floatingTexts.add(new FloatingText(b.x, b.y - 50, "BOUNCING BOMB!", 0xFFFF6B00));
                 }
 
-                // Sinergia 7: Prismatic Echo ogni 5 colpi
-                if (activeRelics.contains(RelicType.PRISMATIC_ECHO) && (currentCombo % 5 == 0)) {
-                    triggerExplosion(c.centerX(), c.centerY(), 160f, 5);
+                if (activeRelics.contains(RelicType.PRISMATIC_ECHO) && (currentCombo % 4 == 0)) {
+                    triggerExplosion(c.centerX(), c.centerY(), 170f, 5);
                 }
 
-                // Se il cubo viene distrutto
                 if (c.hp <= 0) {
                     c.isAlive = false;
                     totalCubesDestroyed++;
-                    score += 200 * currentCombo;
+                    int killPoints = (c.isCore ? 500 : 250) * Math.min(currentCombo, 10);
+                    addScore(killPoints);
                     spawnCubeShards(c);
 
                     if (listener != null) {
                         listener.onCubeShattered();
                     }
 
-                    // Cubo Esplosivo -> Detonazione
                     if (c.type == CubeType.EXPLOSIVE) {
-                        triggerExplosion(c.centerX(), c.centerY(), 240f, 6);
+                        triggerExplosion(c.centerX(), c.centerY(), 250f, 6);
                         screenShake = 16f;
                     }
 
-                    // Cubo Splitter -> Genera 2 mini-sfere
                     if (c.type == CubeType.SPLITTER) {
                         spawnMiniBalls(c.centerX(), c.centerY(), newBalls);
                     }
 
-                    // Sinergia 8: Shrapnel Burst
                     if (activeRelics.contains(RelicType.SHRAPNEL_BURST)) {
                         triggerShrapnel(c.centerX(), c.centerY());
                     }
 
-                    // Sinergia 9: Multiball Reactor
-                    if (activeRelics.contains(RelicType.MULTIBALL_REACTOR) && random.nextFloat() < 0.25f) {
+                    if (activeRelics.contains(RelicType.MULTIBALL_REACTOR) && random.nextFloat() < 0.30f) {
                         spawnMiniBalls(c.centerX(), c.centerY(), newBalls);
                         floatingTexts.add(new FloatingText(c.centerX(), c.centerY() - 40, "MULTIBALL!", 0xFFA855F7));
                     }
+
+                    // Se tutti i Core Cubes sono stati distrutti -> FEVER IMMEDIATO!
+                    if (getRemainingCoreCubes() == 0) {
+                        triggerFeverMode();
+                        return;
+                    }
                 }
-                break; // Un rimbalzo per frame di collisione
+                break;
             }
         }
     }
 
-    private float distVy(float dy) {
-        return dy;
+    private void triggerFeverMode() {
+        state = State.FEVER;
+        feverTimer = 1.6f;
+        feverExplosionTimer = 0.05f;
+        screenShake = 18f;
+        floatingTexts.add(new FloatingText(CANNON_X, 350f, "★ CUBOCLAST FEVER! ★", 0xFFFFE600));
+        if (listener != null) listener.onFever();
     }
 
     private boolean isCubeProtectedByShield(Cube target) {
@@ -699,6 +839,10 @@ public class Game {
                     if (c.hp <= 0) {
                         c.isAlive = false;
                         spawnCubeShards(c);
+                        if (getRemainingCoreCubes() == 0) {
+                            triggerFeverMode();
+                            return;
+                        }
                     }
                     if (zaps >= 2) break;
                 }
@@ -722,6 +866,10 @@ public class Game {
                     if (c.hp <= 0) {
                         c.isAlive = false;
                         spawnCubeShards(c);
+                        if (getRemainingCoreCubes() == 0) {
+                            triggerFeverMode();
+                            return;
+                        }
                     }
                 }
             }
@@ -733,14 +881,12 @@ public class Game {
     }
 
     private void triggerShrapnel(float sx, float sy) {
-        // Lancia schegge penetranti che infliggono danno ai cubi vicini
         float[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
         for (float[] d : dirs) {
             for (Cube c : cubes) {
                 if (c.isAlive) {
                     float dx = c.centerX() - sx;
                     float dy = c.centerY() - sy;
-                    // Proietta lungo la direzione
                     float dot = dx * d[0] + dy * d[1];
                     if (dot > 0 && Math.abs(dx * d[1] - dy * d[0]) < 60f && dot < 350f) {
                         c.hp -= 2;
@@ -749,6 +895,10 @@ public class Game {
                         if (c.hp <= 0) {
                             c.isAlive = false;
                             spawnCubeShards(c);
+                            if (getRemainingCoreCubes() == 0) {
+                                triggerFeverMode();
+                                return;
+                            }
                         }
                         break;
                     }
@@ -759,9 +909,8 @@ public class Game {
 
     private void triggerSupernova(float x) {
         screenShake = 14f;
-        // Danneggia tutti i cubi nella colonna sopra l'impatto
         for (Cube c : cubes) {
-            if (c.isAlive && Math.abs(c.centerX() - x) < 90f) {
+            if (c.isAlive && Math.abs(c.centerX() - x) < 100f) {
                 c.hp -= 8;
                 c.hitFlash = 1f;
                 c.wobble = 1.2f;
@@ -769,6 +918,10 @@ public class Game {
                 if (c.hp <= 0) {
                     c.isAlive = false;
                     spawnCubeShards(c);
+                    if (getRemainingCoreCubes() == 0) {
+                        triggerFeverMode();
+                        return;
+                    }
                 }
             }
         }
@@ -794,24 +947,25 @@ public class Game {
 
     private void spawnCubeShards(Cube c) {
         int color;
-        switch (c.type) {
-            case EXPLOSIVE: color = 0xFFFF6B00; break;
-            case SPLITTER:  color = 0xFFA855F7; break;
-            case KINETIC:   color = 0xFFFFE600; break;
-            case SHIELD:    color = 0xFF00FF88; break;
-            case ARMOR:     color = 0xFF3B82F6; break;
-            case BOSS:      color = 0xFFFF007F; break;
-            default:        color = 0xFF00E5FF; break;
+        if (c.isCore) {
+            color = 0xFFFFE600; // Oro vibrante per i core
+        } else {
+            switch (c.type) {
+                case EXPLOSIVE: color = 0xFFFF6B00; break;
+                case SPLITTER:  color = 0xFFA855F7; break;
+                case KINETIC:   color = 0xFFFFE600; break;
+                case SHIELD:    color = 0xFF00FF88; break;
+                case ARMOR:     color = 0xFF3B82F6; break;
+                case BOSS:      color = 0xFFFF007F; break;
+                default:        color = 0xFF00E5FF; break;
+            }
         }
 
-        int count = (c.type == CubeType.BOSS) ? 36 : 12;
+        int count = (c.type == CubeType.BOSS) ? 36 : 14;
         for (int i = 0; i < count; i++) {
             float angle = random.nextFloat() * (float) Math.PI * 2f;
             float speed = 150f + random.nextFloat() * 450f;
-            float vx = (float) Math.cos(angle) * speed;
-            float vy = (float) Math.sin(angle) * speed;
-            float size = 8f + random.nextFloat() * 14f;
-            shards.add(new Shard(c.centerX(), c.centerY(), vx, vy, size, color));
+            shards.add(new Shard(c.centerX(), c.centerY(), (float) Math.cos(angle) * speed, (float) Math.sin(angle) * speed, 10f, color));
         }
     }
 
@@ -824,40 +978,26 @@ public class Game {
     }
 
     private void checkRoundEnd() {
-        // Conta quanti cubi rimangono
-        int aliveCount = 0;
-        boolean bossAlive = false;
-        for (Cube c : cubes) {
-            if (c.isAlive) {
-                aliveCount++;
-                if (c.type == CubeType.BOSS) {
-                    bossAlive = true;
-                }
-            }
+        if (state == State.FEVER) return;
+
+        // Se tutti i cubi Core sono stati distrutti: FEVER!
+        if (getRemainingCoreCubes() == 0) {
+            triggerFeverMode();
+            return;
         }
 
-        boolean levelWon = (aliveCount == 0) || (currentLevel % 5 == 0 && !bossAlive);
+        // Mercy Refund: se il tiro ha colpito solo 0 o 1 cubo e non è stato catturato, rimborsa la sfera!
+        if (currentShotCubesHit <= 1 && ballsCaughtInCurrentShot == 0) {
+            ballsRemaining++;
+            floatingTexts.add(new FloatingText(CANNON_X, 260f, "MERCY REFUND! +1 SFERA", 0xFF00FF88));
+            if (listener != null) listener.onMercyRefund();
+        }
 
-        if (levelWon) {
-            // LIVELLO COMPLETATO!
-            score += 1000 * currentLevel;
+        if (ballsRemaining <= 0) {
             if (score > highScore) highScore = score;
-
-            if (currentLevel >= maxLevel) {
-                state = State.VICTORY;
-            } else {
-                prepareRelicDraft();
-            }
+            state = State.GAME_OVER;
         } else {
-            // Livello non ancora vinto: controlla se abbiamo ancora sfere
-            if (ballsRemaining <= 0) {
-                // SFERE ESAURITE -> GAME OVER
-                if (score > highScore) highScore = score;
-                state = State.GAME_OVER;
-            } else {
-                // Ancora sfere a disposizione: torna alla modalità di mira
-                state = State.AIMING;
-            }
+            state = State.AIMING;
         }
     }
 
@@ -880,6 +1020,12 @@ public class Game {
         if (state != State.RELIC_DRAFT) return;
         activeRelics.add(relic);
         if (listener != null) listener.onRelicChosen();
-        initLevel(currentLevel + 1);
+        if (cubes.isEmpty()) {
+            // Reliquia iniziale scelta all'inizio della partita: avvia Settore 1!
+            initLevel(1);
+        } else {
+            // Settore superato: avanza al settore successivo!
+            initLevel(currentLevel + 1);
+        }
     }
 }

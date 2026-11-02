@@ -13,8 +13,6 @@ import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
-import java.util.List;
-
 public class GameView extends SurfaceView implements SurfaceHolder.Callback, Runnable {
     public final Game game;
     private Thread gameThread = null;
@@ -34,7 +32,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private static final int COLOR_CANNON = 0xFF00E5FF;
     private static final int COLOR_AIM_LINE = 0x8800E5FF;
 
-    // Paints di rendering pre-allocati per massima fluidità a 60/120 FPS
+    // Paints di rendering pre-allocati per 60/120 FPS
     private final Paint bgPaint = new Paint();
     private final Paint linePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -44,7 +42,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private final Paint cardPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     private final RectF tempRect = new RectF();
-    private final Path tempPath = new Path();
 
     // Riquadri pulsanti HUD in coordinate virtuali
     private final RectF speedBtnRect = new RectF(Game.VIRTUAL_WIDTH - 280f, 30f, Game.VIRTUAL_WIDTH - 160f, 90f);
@@ -59,7 +56,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
         game = new Game();
 
-        // Collega gli eventi di gioco all'Audio procedurale e Haptic
         game.listener = new Game.GameEventListener() {
             @Override
             public void onBounceHit(int combo) {
@@ -96,14 +92,31 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 AudioHelper.playRelicSelect();
                 vibrate(35);
             }
+
+            @Override
+            public void onFreeBall() {
+                AudioHelper.playFreeBall();
+                vibrate(50);
+            }
+
+            @Override
+            public void onFever() {
+                AudioHelper.playFeverFanfare();
+                vibrate(80);
+            }
+
+            @Override
+            public void onMercyRefund() {
+                AudioHelper.playMercyRefund();
+                vibrate(25);
+            }
         };
 
-        // Inizializza stili di pittura
         bgPaint.setColor(COLOR_BG);
         aimPaint.setColor(COLOR_AIM_LINE);
-        aimPaint.setStrokeWidth(4f);
+        aimPaint.setStrokeWidth(3.5f);
         aimPaint.setStyle(Paint.Style.STROKE);
-        aimPaint.setPathEffect(new DashPathEffect(new float[]{16f, 14f}, 0));
+        aimPaint.setPathEffect(new DashPathEffect(new float[]{14f, 12f}, 0));
     }
 
     private void vibrate(long ms) {
@@ -122,7 +135,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-        // Calcola scala uniforme per mantenere il corretto aspect ratio 9:16
         float scaleX = (float) width / Game.VIRTUAL_WIDTH;
         float scaleY = (float) height / Game.VIRTUAL_HEIGHT;
         scale = Math.min(scaleX, scaleY);
@@ -183,7 +195,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 }
             }
 
-            // Target 60 FPS (~16ms frame time)
             long elapsed = SystemClock.elapsedRealtime() - now;
             long sleepTime = 16 - elapsed;
             if (sleepTime > 0) {
@@ -196,50 +207,33 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void render(Canvas canvas) {
-        // Sfondo esterno
         canvas.drawColor(0xFF04060A);
 
-        // Applica trasformazione al virtual viewport con screen shake
         canvas.save();
         float shakeX = (game.screenShake > 0) ? (game.random.nextFloat() - 0.5f) * game.screenShake : 0;
         float shakeY = (game.screenShake > 0) ? (game.random.nextFloat() - 0.5f) * game.screenShake : 0;
         canvas.translate(offsetX + shakeX, offsetY + shakeY);
         canvas.scale(scale, scale);
 
-        // Clip all'area di gioco virtuale
         canvas.clipRect(0, 0, Game.VIRTUAL_WIDTH, Game.VIRTUAL_HEIGHT);
 
-        // 1. Sfondo e Griglia minimale
         drawBackground(canvas);
 
-        // 2. Traiettoria di puntamento se in mira
         if (game.state == Game.State.AIMING) {
             drawAimTrajectory(canvas);
         }
 
-        // 3. Cubi
         drawCubes(canvas);
-
-        // 4. Cestello inferiore
         drawBasket(canvas);
-
-        // 5. Particelle e Schegge
         drawShards(canvas);
-
-        // 6. Sfere e scie
         drawBalls(canvas);
-
-        // 7. Cannone superiore
         drawCannon(canvas);
-
-        // 8. Testi fluttuanti di danno / combo
         drawFloatingTexts(canvas);
-
-        // 9. Overlay HUD (Livello, Punti, Sfere, Pulsanti)
         drawHUD(canvas);
 
-        // 10. Schermate modali (Draft Reliquie, Game Over, Vittoria)
-        if (game.state == Game.State.RELIC_DRAFT) {
+        if (game.state == Game.State.FEVER) {
+            drawFeverBanner(canvas);
+        } else if (game.state == Game.State.RELIC_DRAFT) {
             drawRelicDraftModal(canvas);
         } else if (game.state == Game.State.GAME_OVER) {
             drawGameOverModal(canvas);
@@ -251,10 +245,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawBackground(Canvas canvas) {
-        // Rettangolo principale di gioco
         canvas.drawRect(0, 0, Game.VIRTUAL_WIDTH, Game.VIRTUAL_HEIGHT, bgPaint);
 
-        // Griglia geometrica ultra-sottile
         strokePaint.setStyle(Paint.Style.STROKE);
         strokePaint.setStrokeWidth(1.5f);
         strokePaint.setColor(COLOR_GRID);
@@ -266,7 +258,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             canvas.drawLine(0, y, Game.VIRTUAL_WIDTH, y, strokePaint);
         }
 
-        // Cornice perimetrale al neon
         strokePaint.setColor(COLOR_WALL);
         strokePaint.setStrokeWidth(8f);
         canvas.drawRect(4, 4, Game.VIRTUAL_WIDTH - 4, Game.VIRTUAL_HEIGHT - 4, strokePaint);
@@ -280,7 +271,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         float cx = Game.CANNON_X;
         float cy = Game.CANNON_Y;
 
-        // Base circolare cannone
         fillPaint.setStyle(Paint.Style.FILL);
         fillPaint.setColor(0xFF141D2D);
         canvas.drawCircle(cx, cy, 42f, fillPaint);
@@ -290,7 +280,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         strokePaint.setColor(COLOR_CANNON);
         canvas.drawCircle(cx, cy, 42f, strokePaint);
 
-        // Canna rotante
         float barrelLen = 52f;
         float barrelX = cx + (float) Math.cos(game.aimAngle) * barrelLen;
         float barrelY = cy + (float) Math.sin(game.aimAngle) * barrelLen;
@@ -300,37 +289,113 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         strokePaint.setStrokeCap(Paint.Cap.ROUND);
         canvas.drawLine(cx, cy, barrelX, barrelY, strokePaint);
 
-        // Cuore energetico centrale
         fillPaint.setColor(0xFFFFFFFF);
         canvas.drawCircle(cx, cy, 14f, fillPaint);
     }
 
+    // Traiettoria Predittiva Avanzata a 2 Segmenti con Rimbalzo (Stile Peggle)
     private void drawAimTrajectory(Canvas canvas) {
         float startX = Game.CANNON_X + (float) Math.cos(game.aimAngle) * 55f;
         float startY = Game.CANNON_Y + (float) Math.sin(game.aimAngle) * 55f;
+        float dirX = (float) Math.cos(game.aimAngle);
+        float dirY = (float) Math.sin(game.aimAngle);
 
-        // Traccia raggio fino al primo ostacolo o parete
-        float rayLen = 520f;
-        float targetX = startX + (float) Math.cos(game.aimAngle) * rayLen;
-        float targetY = startY + (float) Math.sin(game.aimAngle) * rayLen;
+        float minT = 1600f;
+        float normX = 0f;
+        float normY = 1f;
 
-        canvas.drawLine(startX, startY, targetX, targetY, aimPaint);
-
-        // Pallini luminosi lungo la traiettoria
-        fillPaint.setStyle(Paint.Style.FILL);
-        fillPaint.setColor(0xCC00E5FF);
-        for (float t = 0.15f; t <= 1.0f; t += 0.12f) {
-            float px = startX + (targetX - startX) * t;
-            float py = startY + (targetY - startY) * t;
-            canvas.drawCircle(px, py, 5f + t * 3f, fillPaint);
+        // Parete sinistra (x = 25)
+        if (dirX < -0.001f) {
+            float t = (25f - startX) / dirX;
+            if (t > 0 && t < minT) {
+                minT = t;
+                normX = 1f;
+                normY = 0f;
+            }
         }
+        // Parete destra (x = VIRTUAL_WIDTH - 25)
+        if (dirX > 0.001f) {
+            float t = (Game.VIRTUAL_WIDTH - 25f - startX) / dirX;
+            if (t > 0 && t < minT) {
+                minT = t;
+                normX = -1f;
+                normY = 0f;
+            }
+        }
+
+        // Test intersezione con Cubi attivi
+        for (Game.Cube c : game.cubes) {
+            if (!c.isAlive) continue;
+            float r = 18f;
+            float minX = c.x - r;
+            float maxX = c.x + c.width + r;
+            float minY = c.y - r;
+            float maxY = c.y + c.height + r;
+
+            float t1 = (minX - startX) / (Math.abs(dirX) > 0.0001f ? dirX : 0.0001f);
+            float t2 = (maxX - startX) / (Math.abs(dirX) > 0.0001f ? dirX : 0.0001f);
+            float t3 = (minY - startY) / (Math.abs(dirY) > 0.0001f ? dirY : 0.0001f);
+            float t4 = (maxY - startY) / (Math.abs(dirY) > 0.0001f ? dirY : 0.0001f);
+
+            float tNear = Math.max(Math.min(t1, t2), Math.min(t3, t4));
+            float tFar = Math.min(Math.max(t1, t2), Math.max(t3, t4));
+
+            if (tFar >= 0 && tNear <= tFar && tNear > 0 && tNear < minT) {
+                minT = tNear;
+                float hitPx = startX + dirX * minT;
+                float hitPy = startY + dirY * minT;
+                float dLeft = Math.abs(hitPx - minX);
+                float dRight = Math.abs(hitPx - maxX);
+                float dTop = Math.abs(hitPy - minY);
+                float dBottom = Math.abs(hitPy - maxY);
+                float m = Math.min(Math.min(dLeft, dRight), Math.min(dTop, dBottom));
+                if (m == dLeft) { normX = -1f; normY = 0f; }
+                else if (m == dRight) { normX = 1f; normY = 0f; }
+                else if (m == dTop) { normX = 0f; normY = -1f; }
+                else { normX = 0f; normY = 1f; }
+            }
+        }
+
+        float hitX = startX + dirX * minT;
+        float hitY = startY + dirY * minT;
+
+        // Disegna Segmento 1
+        canvas.drawLine(startX, startY, hitX, hitY, aimPaint);
+        fillPaint.setStyle(Paint.Style.FILL);
+        fillPaint.setColor(0xEE00E5FF);
+        int steps1 = Math.max(3, (int) (minT / 42f));
+        for (int i = 1; i <= steps1; i++) {
+            float frac = (float) i / steps1;
+            canvas.drawCircle(startX + (hitX - startX) * frac, startY + (hitY - startY) * frac, 4.5f, fillPaint);
+        }
+
+        // Raggio Riflesso (Segmento 2)
+        float dot = dirX * normX + dirY * normY;
+        float refX = dirX - 2f * dot * normX;
+        float refY = dirY - 2f * dot * normY;
+        float len2 = 360f;
+        float refEndX = hitX + refX * len2;
+        float refEndY = hitY + refY * len2;
+
+        canvas.drawLine(hitX, hitY, refEndX, refEndY, aimPaint);
+        fillPaint.setColor(0xAA00FF88);
+        int steps2 = 8;
+        for (int i = 1; i <= steps2; i++) {
+            float frac = (float) i / steps2;
+            canvas.drawCircle(hitX + (refEndX - hitX) * frac, hitY + (refEndY - hitY) * frac, 3.5f, fillPaint);
+        }
+
+        // Mirino circolare sull'impatto
+        strokePaint.setStyle(Paint.Style.STROKE);
+        strokePaint.setStrokeWidth(2.5f);
+        strokePaint.setColor(0xFFFFE600);
+        canvas.drawCircle(hitX, hitY, 14f, strokePaint);
     }
 
     private void drawCubes(Canvas canvas) {
         for (Game.Cube c : game.cubes) {
             if (!c.isAlive) continue;
 
-            // Wobble scale effect
             float wScale = 1.0f + c.wobble * 0.18f;
             float hScale = 1.0f - c.wobble * 0.14f;
             float cx = c.centerX();
@@ -342,66 +407,73 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
             int baseColor;
             int strokeColor;
-            switch (c.type) {
-                case EXPLOSIVE:
-                    baseColor = 0xFF351A08;
-                    strokeColor = 0xFFFF6B00;
-                    break;
-                case SPLITTER:
-                    baseColor = 0xFF2B0F3A;
-                    strokeColor = 0xFFA855F7;
-                    break;
-                case KINETIC:
-                    baseColor = 0xFF353008;
-                    strokeColor = 0xFFFFE600;
-                    break;
-                case SHIELD:
-                    baseColor = 0xFF08351E;
-                    strokeColor = 0xFF00FF88;
-                    break;
-                case ARMOR:
-                    baseColor = 0xFF0E1A38;
-                    strokeColor = 0xFF3B82F6;
-                    break;
-                case BOSS:
-                    baseColor = 0xFF36081E;
-                    strokeColor = 0xFFFF007F;
-                    break;
-                default:
-                    baseColor = 0xFF082635;
-                    strokeColor = 0xFF00E5FF;
-                    break;
+            if (c.isCore) {
+                baseColor = 0xFF352B08;
+                strokeColor = 0xFFFFE600; // Oro vibrante per i bersagli principali!
+            } else {
+                switch (c.type) {
+                    case EXPLOSIVE:
+                        baseColor = 0xFF351A08;
+                        strokeColor = 0xFFFF6B00;
+                        break;
+                    case SPLITTER:
+                        baseColor = 0xFF2B0F3A;
+                        strokeColor = 0xFFA855F7;
+                        break;
+                    case KINETIC:
+                        baseColor = 0xFF353008;
+                        strokeColor = 0xFFFFE600;
+                        break;
+                    case SHIELD:
+                        baseColor = 0xFF08351E;
+                        strokeColor = 0xFF00FF88;
+                        break;
+                    case ARMOR:
+                        baseColor = 0xFF0E1A38;
+                        strokeColor = 0xFF3B82F6;
+                        break;
+                    case BOSS:
+                        baseColor = 0xFF36081E;
+                        strokeColor = 0xFFFF007F;
+                        break;
+                    default:
+                        baseColor = 0xFF082635;
+                        strokeColor = 0xFF00E5FF;
+                        break;
+                }
             }
 
-            // Sfondo Cubo
             fillPaint.setStyle(Paint.Style.FILL);
             fillPaint.setColor(baseColor);
             canvas.drawRoundRect(tempRect, 12f, 12f, fillPaint);
 
-            // Bordo al neon
             strokePaint.setStyle(Paint.Style.STROKE);
-            strokePaint.setStrokeWidth(3.5f);
+            strokePaint.setStrokeWidth(c.isCore ? 4.5f : 3.0f);
             strokePaint.setColor(strokeColor);
             canvas.drawRoundRect(tempRect, 12f, 12f, strokePaint);
 
-            // Se colpito di recente: hit flash bianco
+            // Se Cubo Core (Target Principale): alone interno pulsante dorato
+            if (c.isCore) {
+                float pulse = 0.5f + (float) Math.sin(c.shieldPulse) * 0.35f;
+                strokePaint.setColor(Color.argb((int) (pulse * 255), 255, 230, 0));
+                strokePaint.setStrokeWidth(1.8f);
+                canvas.drawCircle(cx, cy, halfH * 0.7f, strokePaint);
+            }
+
             if (c.hitFlash > 0f) {
                 fillPaint.setColor(Color.argb((int) (c.hitFlash * 180), 255, 255, 255));
                 canvas.drawRoundRect(tempRect, 12f, 12f, fillPaint);
             }
 
-            // Testo HP al centro
             textPaint.setTextAlign(Paint.Align.CENTER);
-            textPaint.setColor(0xFFFFFFFF);
+            textPaint.setColor(c.isCore ? 0xFFFFE600 : 0xFFFFFFFF);
             textPaint.setFakeBoldText(true);
             textPaint.setTextSize((c.type == Game.CubeType.BOSS) ? 44f : 24f);
 
-            // Posiziona numero verticalmente centrato
             Paint.FontMetrics fm = textPaint.getFontMetrics();
             float textY = cy - (fm.ascent + fm.descent) / 2f;
             canvas.drawText(String.valueOf(c.hp), cx, textY, textPaint);
 
-            // Se boss: barra vitale superiore e nome
             if (c.type == Game.CubeType.BOSS) {
                 float barW = 320f;
                 float barH = 14f;
@@ -426,35 +498,29 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         Game.Basket b = game.basket;
         tempRect.set(b.x, b.y, b.x + b.width, b.y + b.height);
 
-        // Fondo del cestello
         fillPaint.setStyle(Paint.Style.FILL);
         fillPaint.setColor(0xFF0F2538);
-        canvas.drawRoundRect(tempRect, 10f, 10f, fillPaint);
+        canvas.drawRoundRect(tempRect, 12f, 12f, fillPaint);
 
-        // Bordo neon ciano
         strokePaint.setStyle(Paint.Style.STROKE);
         strokePaint.setStrokeWidth(3.5f);
         strokePaint.setColor(0xFF00FF88);
-        canvas.drawRoundRect(tempRect, 10f, 10f, strokePaint);
+        canvas.drawRoundRect(tempRect, 12f, 12f, strokePaint);
 
-        // Linea centrale di cattura
         strokePaint.setColor(0xFFFFFFFF);
         strokePaint.setStrokeWidth(2f);
         canvas.drawLine(b.x + 20f, b.y + b.height / 2f, b.x + b.width - 20f, b.y + b.height / 2f, strokePaint);
 
-        // Se cestello magnetico: onde energetiche sopra
-        if (game.activeRelics.contains(Game.RelicType.MAGNETIC_BASKET)) {
-            strokePaint.setColor(0x8800E5FF);
-            strokePaint.setStrokeWidth(2f);
-            canvas.drawArc(b.x + 10f, b.y - 35f, b.x + b.width - 10f, b.y + 15f, 180, 180, false, strokePaint);
-        }
+        // Flusso magnetico visibile
+        strokePaint.setColor(0x6600E5FF);
+        strokePaint.setStrokeWidth(2f);
+        canvas.drawArc(b.x + 10f, b.y - 35f, b.x + b.width - 10f, b.y + 15f, 180, 180, false, strokePaint);
     }
 
     private void drawBalls(Canvas canvas) {
         for (Game.Ball b : game.balls) {
             if (!b.isAlive) continue;
 
-            // Disegna scia di movimento (motion trail)
             if (b.trail.size() > 1) {
                 linePaint.setStyle(Paint.Style.STROKE);
                 linePaint.setStrokeCap(Paint.Cap.ROUND);
@@ -468,18 +534,15 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 }
             }
 
-            // Sfera principale
             fillPaint.setStyle(Paint.Style.FILL);
             fillPaint.setColor(b.isMini ? 0xFFA855F7 : 0xFF00E5FF);
             canvas.drawCircle(b.x, b.y, b.radius, fillPaint);
 
-            // Alone esterno brillante
             strokePaint.setStyle(Paint.Style.STROKE);
             strokePaint.setStrokeWidth(2.5f);
             strokePaint.setColor(0xFFFFFFFF);
             canvas.drawCircle(b.x, b.y, b.radius, strokePaint);
 
-            // Punto luce riflesso
             fillPaint.setColor(0xFFFFFFFF);
             canvas.drawCircle(b.x - b.radius * 0.35f, b.y - b.radius * 0.35f, b.radius * 0.35f, fillPaint);
         }
@@ -516,7 +579,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         // Badge Livello / Settore in alto a sinistra
         fillPaint.setStyle(Paint.Style.FILL);
         fillPaint.setColor(0xDD141D2D);
-        tempRect.set(30f, 30f, 290f, 90f);
+        tempRect.set(30f, 30f, 260f, 90f);
         canvas.drawRoundRect(tempRect, 10f, 10f, fillPaint);
 
         strokePaint.setStyle(Paint.Style.STROKE);
@@ -526,15 +589,30 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
         textPaint.setTextAlign(Paint.Align.LEFT);
         textPaint.setColor(0xFFFFFFFF);
-        textPaint.setTextSize(26f);
+        textPaint.setTextSize(24f);
         textPaint.setFakeBoldText(true);
-        canvas.drawText("SETTORE " + game.currentLevel + "/" + game.maxLevel, 50f, 68f, textPaint);
+        canvas.drawText("SETTORE " + game.currentLevel + "/" + game.maxLevel, 45f, 68f, textPaint);
 
-        // Punteggio in alto al centro
-        textPaint.setTextAlign(Paint.Align.CENTER);
-        textPaint.setTextSize(34f);
+        // Contatore Core Targets in alto
+        int remainingCores = game.getRemainingCoreCubes();
+        int totalCores = game.getTotalCoreCubes();
+        fillPaint.setColor(0xDD2A2208);
+        tempRect.set(275f, 30f, 485f, 90f);
+        canvas.drawRoundRect(tempRect, 10f, 10f, fillPaint);
+
+        strokePaint.setColor(0xFFFFE600);
+        strokePaint.setStrokeWidth(2.5f);
+        canvas.drawRoundRect(tempRect, 10f, 10f, strokePaint);
+
         textPaint.setColor(0xFFFFE600);
-        canvas.drawText(String.format("SCORE %,d", game.score), Game.VIRTUAL_WIDTH / 2f, 70f, textPaint);
+        textPaint.setTextSize(22f);
+        canvas.drawText("★ CORE: " + remainingCores + "/" + totalCores, 290f, 68f, textPaint);
+
+        // Punteggio in alto al centro/destra
+        textPaint.setTextAlign(Paint.Align.CENTER);
+        textPaint.setTextSize(32f);
+        textPaint.setColor(0xFFFFFFFF);
+        canvas.drawText(String.format("%,d", game.score), Game.VIRTUAL_WIDTH / 2f + 130f, 70f, textPaint);
 
         // Pulsante Velocità [>> 2X]
         fillPaint.setColor(game.speedBoost ? 0xFFFF007F : 0xDD141D2D);
@@ -557,7 +635,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
         // Contatore Sfere Rimanenti in basso a sinistra
         fillPaint.setColor(0xDD141D2D);
-        tempRect.set(30f, 1835f, 320f, 1895f);
+        tempRect.set(30f, 1835f, 340f, 1895f);
         canvas.drawRoundRect(tempRect, 10f, 10f, fillPaint);
 
         textPaint.setTextAlign(Paint.Align.LEFT);
@@ -565,10 +643,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         textPaint.setTextSize(24f);
         canvas.drawText("SFERE: " + game.ballsRemaining, 50f, 1872f, textPaint);
 
-        // Icone pallini sfere rimanenti
         fillPaint.setColor(0xFF00E5FF);
-        for (int i = 0; i < Math.min(game.ballsRemaining, 6); i++) {
-            canvas.drawCircle(190f + i * 20f, 1865f, 6f, fillPaint);
+        for (int i = 0; i < Math.min(game.ballsRemaining, 8); i++) {
+            canvas.drawCircle(185f + i * 18f, 1865f, 5.5f, fillPaint);
         }
 
         // Reliquie Attive in basso a destra
@@ -580,25 +657,46 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         }
     }
 
+    private void drawFeverBanner(Canvas canvas) {
+        fillPaint.setStyle(Paint.Style.FILL);
+        fillPaint.setColor(0xCC080B12);
+        canvas.drawRect(0, 750f, Game.VIRTUAL_WIDTH, 1050f, fillPaint);
+
+        strokePaint.setStyle(Paint.Style.STROKE);
+        strokePaint.setColor(0xFFFFE600);
+        strokePaint.setStrokeWidth(5f);
+        canvas.drawLine(0, 750f, Game.VIRTUAL_WIDTH, 750f, strokePaint);
+        canvas.drawLine(0, 1050f, Game.VIRTUAL_WIDTH, 1050f, strokePaint);
+
+        textPaint.setTextAlign(Paint.Align.CENTER);
+        textPaint.setTextSize(64f);
+        textPaint.setColor(0xFFFFE600);
+        textPaint.setFakeBoldText(true);
+        canvas.drawText("★ CUBOCLAST FEVER! ★", Game.VIRTUAL_WIDTH / 2f, 870f, textPaint);
+
+        textPaint.setTextSize(30f);
+        textPaint.setColor(0xFFFFFFFF);
+        textPaint.setFakeBoldText(false);
+        canvas.drawText("TUTTI I CORE DISTRUTTI! POLVERIZZAZIONE IN CORSO!", Game.VIRTUAL_WIDTH / 2f, 950f, textPaint);
+    }
+
     private void drawRelicDraftModal(Canvas canvas) {
-        // Oscura sfondo
         fillPaint.setStyle(Paint.Style.FILL);
         fillPaint.setColor(0xEE080B12);
         canvas.drawRect(0, 0, Game.VIRTUAL_WIDTH, Game.VIRTUAL_HEIGHT, fillPaint);
 
-        // Titolo
         textPaint.setTextAlign(Paint.Align.CENTER);
-        textPaint.setTextSize(46f);
+        textPaint.setTextSize(44f);
         textPaint.setColor(0xFF00E5FF);
         textPaint.setFakeBoldText(true);
-        canvas.drawText("SCEGLI UNA RELIQUIA ROGUELIKE", Game.VIRTUAL_WIDTH / 2f, 380f, textPaint);
+        boolean isStarter = game.activeRelics.isEmpty();
+        canvas.drawText(isStarter ? "SCEGLI LA TUA RELIQUIA INIZIALE" : "SCEGLI UNA RELIQUIA ROGUELIKE", Game.VIRTUAL_WIDTH / 2f, 380f, textPaint);
 
-        textPaint.setTextSize(26f);
+        textPaint.setTextSize(25f);
         textPaint.setColor(0xFF94A3B8);
         textPaint.setFakeBoldText(false);
-        canvas.drawText("Potenzia il tuo arsenale per superare il prossimo settore", Game.VIRTUAL_WIDTH / 2f, 430f, textPaint);
+        canvas.drawText(isStarter ? "Inizia la tua scalata con un super-potere sinergico" : "Potenzia il tuo arsenale per il prossimo settore", Game.VIRTUAL_WIDTH / 2f, 430f, textPaint);
 
-        // 3 Carte da scegliere disposte verticalmente
         float cardW = 900f;
         float cardH = 190f;
         float startX = (Game.VIRTUAL_WIDTH - cardW) / 2f;
@@ -619,11 +717,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             strokePaint.setColor(0xFF00FF88);
             canvas.drawRoundRect(tempRect, 18f, 18f, strokePaint);
 
-            // Icona esagonale / distintivo
             fillPaint.setColor(0xFF00FF88);
             canvas.drawCircle(startX + 60f, cy + cardH / 2f, 28f, fillPaint);
 
-            // Testo Reliquia
             textPaint.setTextAlign(Paint.Align.LEFT);
             textPaint.setColor(0xFFFFFFFF);
             textPaint.setTextSize(32f);
@@ -655,7 +751,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawText(String.format("Record Personale: %,d", game.highScore), Game.VIRTUAL_WIDTH / 2f, 900f, textPaint);
         canvas.drawText("Cubi Frantumati: " + game.totalCubesDestroyed, Game.VIRTUAL_WIDTH / 2f, 960f, textPaint);
 
-        // Bottone Riavvia
         fillPaint.setColor(0xFF00E5FF);
         canvas.drawRoundRect(restartBtnRect, 16f, 16f, fillPaint);
 
@@ -682,7 +777,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawText(String.format("Punteggio Finale: %,d", game.score), Game.VIRTUAL_WIDTH / 2f, 840f, textPaint);
         canvas.drawText("Reliquie accumulate: " + game.activeRelics.size(), Game.VIRTUAL_WIDTH / 2f, 900f, textPaint);
 
-        // Bottone Nuovo Loop
         fillPaint.setColor(0xFF00FF88);
         canvas.drawRoundRect(restartBtnRect, 16f, 16f, fillPaint);
 
@@ -694,13 +788,11 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        // Conversione coordinate schermo in coordinate virtuali di gioco
         float vx = (event.getX() - offsetX) / scale;
         float vy = (event.getY() - offsetY) / scale;
 
         int action = event.getActionMasked();
 
-        // 1. Gestione click durante schermata Game Over o Vittoria
         if (game.state == Game.State.GAME_OVER || game.state == Game.State.VICTORY) {
             if (action == MotionEvent.ACTION_UP && restartBtnRect.contains(vx, vy)) {
                 game.restartGame();
@@ -710,7 +802,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             return true;
         }
 
-        // 2. Gestione selezione carta Reliquia durante il Draft
         if (game.state == Game.State.RELIC_DRAFT) {
             if (action == MotionEvent.ACTION_UP) {
                 float cardW = 900f;
@@ -730,7 +821,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             return true;
         }
 
-        // 3. Gestione pulsanti HUD
         if (action == MotionEvent.ACTION_UP) {
             if (speedBtnRect.contains(vx, vy)) {
                 game.speedBoost = !game.speedBoost;
@@ -742,10 +832,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             }
         }
 
-        // 4. Modalità Puntata e Sparo
         if (game.state == Game.State.AIMING) {
             if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE) {
-                // Non intercettare se stiamo premendo i tasti HUD in alto
                 if (vy > 100f) {
                     game.setAimAngle(vx, vy);
                 }
