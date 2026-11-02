@@ -3,11 +3,27 @@
   "version": "0.4.0",
   "private": true,
   "type": "module",
-  "description": "Minimalist Roguelike Peggle & Cube Breaker Android APK (Native SurfaceView 60 FPS)",
+  "description": "CuboClast — Roguelike Peggle & Cube Breaker Web & Mobile Experience",
   "scripts": {
-    "test": "./scripts/build-apk.sh",
-    "build": "./scripts/build-apk.sh",
-    "check": "python3 scripts/check-apk.py",
-    "icons": "python3 scripts/generate_icons.py"
+    "dev": "vite --host 0.0.0.0 --port 3000",
+    "build": "tsc && vite build",
+    "preview": "vite preview --port 3000",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "canvas-confetti": "^1.9.4",
+    "lucide-react": "^1.16.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/canvas-confetti": "^1.9.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.2.0"
   }
 }
