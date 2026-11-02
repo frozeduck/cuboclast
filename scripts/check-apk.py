@@ -3,10 +3,13 @@ import pathlib
 import zipfile
 
 project = pathlib.Path(__file__).resolve().parent.parent
-apks = list(project.glob("downloads/cuboclast-*-debug.apk"))
-
-assert apks, "Nessun APK trovato nella cartella downloads/"
-apk = apks[0]
+latest = project / "downloads" / "cuboclast-latest-debug.apk"
+if latest.exists():
+    apk = latest
+else:
+    apks = sorted(project.glob("downloads/cuboclast-*-debug.apk"))
+    assert apks, "Nessun APK trovato nella cartella downloads/"
+    apk = apks[-1]
 
 print(f"Verifica APK in corso: {apk.name} ({apk.stat().st_size / 1024 / 1024:.2f} MB)")
 

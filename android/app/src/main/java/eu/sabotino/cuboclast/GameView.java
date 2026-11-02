@@ -55,6 +55,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private final RectF shopBtnRect = new RectF(Game.VIRTUAL_WIDTH / 2f - 220f, 1260f, Game.VIRTUAL_WIDTH / 2f + 220f, 1350f);
     private final RectF endlessBtnRect = new RectF(Game.VIRTUAL_WIDTH / 2f - 240f, 1020f, Game.VIRTUAL_WIDTH / 2f + 240f, 1110f);
     private final RectF backFromShopBtnRect = new RectF(Game.VIRTUAL_WIDTH / 2f - 180f, 1680f, Game.VIRTUAL_WIDTH / 2f + 180f, 1760f);
+    private final RectF resumeBtnRect = new RectF(Game.VIRTUAL_WIDTH / 2f - 460f, 230f, Game.VIRTUAL_WIDTH / 2f + 460f, 350f);
 
     public GameView(Context context) {
         super(context);
@@ -170,11 +171,20 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             p.upgradeRerolls = prefs.getInt("upg_rerolls", 0);
             p.unlockedCryo = prefs.getBoolean("unlocked_cryo", false);
             p.unlockedSingularity = prefs.getBoolean("unlocked_singularity", false);
+
+            p.hasActiveRun = prefs.getBoolean("has_active_run", false);
+            p.savedLevel = prefs.getInt("saved_level", 1);
+            p.savedScore = prefs.getInt("saved_score", 0);
+            p.savedBalls = prefs.getInt("saved_balls", 8);
+            p.savedArchetype = prefs.getString("saved_archetype", "");
+            p.savedRelics = prefs.getString("saved_relics", "");
+            p.savedShardsRun = prefs.getInt("saved_shards_run", 0);
+            p.savedIsEndless = prefs.getBoolean("saved_is_endless", false);
         }
         return p;
     }
 
-    private void saveProgression() {
+    public void saveProgression() {
         if (prefs != null) {
             prefs.edit()
                     .putInt("quantum_shards", progression.quantumShards)
@@ -188,6 +198,15 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                     .putInt("upg_rerolls", progression.upgradeRerolls)
                     .putBoolean("unlocked_cryo", progression.unlockedCryo)
                     .putBoolean("unlocked_singularity", progression.unlockedSingularity)
+
+                    .putBoolean("has_active_run", progression.hasActiveRun)
+                    .putInt("saved_level", progression.savedLevel)
+                    .putInt("saved_score", progression.savedScore)
+                    .putInt("saved_balls", progression.savedBalls)
+                    .putString("saved_archetype", progression.savedArchetype)
+                    .putString("saved_relics", progression.savedRelics)
+                    .putInt("saved_shards_run", progression.savedShardsRun)
+                    .putBoolean("saved_is_endless", progression.savedIsEndless)
                     .apply();
         }
     }
@@ -229,6 +248,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             }
         } catch (InterruptedException ignored) {
         }
+        saveProgression();
     }
 
     public void resume() {
@@ -248,33 +268,41 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         long lastTime = SystemClock.elapsedRealtime();
 
         while (isRunning) {
-            long now = SystemClock.elapsedRealtime();
-            float dt = (now - lastTime) / 1000f;
-            lastTime = now;
+            try {
+                long now = SystemClock.elapsedRealtime();
+                float dt = (now - lastTime) / 1000f;
+                lastTime = now;
 
-            if (!paused) {
-                game.update(dt);
-            }
-
-            SurfaceHolder holder = getHolder();
-            if (holder != null && holder.getSurface().isValid()) {
-                Canvas canvas = holder.lockCanvas();
-                if (canvas != null) {
-                    try {
-                        render(canvas);
-                    } finally {
-                        holder.unlockCanvasAndPost(canvas);
+                if (!paused) {
+                    synchronized (game) {
+                        game.update(dt);
                     }
                 }
-            }
 
-            long elapsed = SystemClock.elapsedRealtime() - now;
-            long sleepTime = 16 - elapsed;
-            if (sleepTime > 0) {
-                try {
-                    Thread.sleep(sleepTime);
-                } catch (InterruptedException ignored) {
+                SurfaceHolder holder = getHolder();
+                if (holder != null && holder.getSurface().isValid()) {
+                    Canvas canvas = holder.lockCanvas();
+                    if (canvas != null) {
+                        try {
+                            synchronized (game) {
+                                render(canvas);
+                            }
+                        } finally {
+                            holder.unlockCanvasAndPost(canvas);
+                        }
+                    }
                 }
+
+                long elapsed = SystemClock.elapsedRealtime() - now;
+                long sleepTime = 16 - elapsed;
+                if (sleepTime > 0) {
+                    try {
+                        Thread.sleep(sleepTime);
+                    } catch (InterruptedException ignored) {
+                    }
+                }
+            } catch (Throwable t) {
+                android.util.Log.e("GameView", "Recovered from game loop exception", t);
             }
         }
     }
@@ -320,6 +348,28 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         }
 
         canvas.restore();
+    }
+
+    private void drawMultilineText(Canvas canvas, String text, float x, float y, float maxWidth, float lineHeight, Paint paint) {
+        if (text == null || text.isEmpty()) return;
+        String[] words = text.split(" ");
+        StringBuilder currentLine = new StringBuilder();
+        float currentY = y;
+
+        for (int i = 0; i < words.length; i++) {
+            String word = words[i];
+            String testLine = currentLine.length() == 0 ? word : currentLine + " " + word;
+            if (paint.measureText(testLine) > maxWidth && currentLine.length() > 0) {
+                canvas.drawText(currentLine.toString(), x, currentY, paint);
+                currentLine = new StringBuilder(word);
+                currentY += lineHeight;
+            } else {
+                currentLine = new StringBuilder(testLine);
+            }
+        }
+        if (currentLine.length() > 0) {
+            canvas.drawText(currentLine.toString(), x, currentY, paint);
+        }
     }
 
     private void drawBackground(Canvas canvas) {
@@ -400,7 +450,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             }
         }
 
-        for (Game.Cube c : game.cubes) {
+        for (int i = 0; i < game.cubes.size(); i++) {
+            Game.Cube c = game.cubes.get(i);
             if (!c.isAlive) continue;
             float r = 18f;
             float minX = c.x - r;
@@ -466,7 +517,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawCubes(Canvas canvas) {
-        for (Game.Cube c : game.cubes) {
+        for (int i = 0; i < game.cubes.size(); i++) {
+            Game.Cube c = game.cubes.get(i);
             if (!c.isAlive) continue;
 
             float wScale = 1.0f + c.wobble * 0.18f;
@@ -583,7 +635,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         float bx = game.activeBoss.centerX();
         float by = game.activeBoss.centerY();
 
-        for (Game.BossSatellite sat : game.bossSatellites) {
+        for (int i = 0; i < game.bossSatellites.size(); i++) {
+            Game.BossSatellite sat = game.bossSatellites.get(i);
             if (!sat.isAlive) continue;
             float sx = bx + (float) Math.cos(sat.angle) * sat.distance;
             float sy = by + (float) Math.sin(sat.angle) * sat.distance;
@@ -634,7 +687,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     private void drawBalls(Canvas canvas) {
-        for (Game.Ball b : game.balls) {
+        for (int bIdx = 0; bIdx < game.balls.size(); bIdx++) {
+            Game.Ball b = game.balls.get(bIdx);
             if (!b.isAlive) continue;
 
             if (b.trail.size() > 1) {
@@ -666,7 +720,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     private void drawShards(Canvas canvas) {
         fillPaint.setStyle(Paint.Style.FILL);
-        for (Game.Shard s : game.shards) {
+        for (int i = 0; i < game.shards.size(); i++) {
+            Game.Shard s = game.shards.get(i);
             fillPaint.setColor(s.color);
             fillPaint.setAlpha((int) (Math.max(0f, Math.min(1f, s.life)) * 255));
 
@@ -684,7 +739,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         textPaint.setFakeBoldText(true);
         textPaint.setTextSize(28f);
 
-        for (Game.FloatingText ft : game.floatingTexts) {
+        for (int i = 0; i < game.floatingTexts.size(); i++) {
+            Game.FloatingText ft = game.floatingTexts.get(i);
             textPaint.setColor(ft.color);
             textPaint.setAlpha((int) (Math.max(0f, Math.min(1f, ft.life)) * 255));
             canvas.drawText(ft.text, ft.x, ft.y, textPaint);
@@ -813,26 +869,83 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     // Modalità Selezione Archetipo Core Iniziale
     private void drawArchetypeSelectModal(Canvas canvas) {
         fillPaint.setStyle(Paint.Style.FILL);
-        fillPaint.setColor(0xF4080B12);
+        fillPaint.setColor(0xF6080B12);
         canvas.drawRect(0, 0, Game.VIRTUAL_WIDTH, Game.VIRTUAL_HEIGHT, fillPaint);
 
-        textPaint.setTextAlign(Paint.Align.CENTER);
-        textPaint.setTextSize(46f);
-        textPaint.setColor(0xFF00E5FF);
-        textPaint.setFakeBoldText(true);
-        canvas.drawText("SCEGLI IL TUO NUCLEO DI POTERE", Game.VIRTUAL_WIDTH / 2f, 320f, textPaint);
+        float cardW = 920f;
+        float startX = (Game.VIRTUAL_WIDTH - cardW) / 2f;
 
-        textPaint.setTextSize(25f);
-        textPaint.setColor(0xFF94A3B8);
-        textPaint.setFakeBoldText(false);
-        canvas.drawText("Definisce lo stile, i poteri e le sinergie dell'intera run", Game.VIRTUAL_WIDTH / 2f, 370f, textPaint);
+        if (progression.hasActiveRun) {
+            textPaint.setTextAlign(Paint.Align.CENTER);
+            textPaint.setTextSize(44f);
+            textPaint.setColor(0xFF00E5FF);
+            textPaint.setFakeBoldText(true);
+            canvas.drawText("CUBOCLAST", Game.VIRTUAL_WIDTH / 2f, 140f, textPaint);
+
+            textPaint.setTextSize(22f);
+            textPaint.setColor(0xFF94A3B8);
+            textPaint.setFakeBoldText(false);
+            canvas.drawText("Scegli un nuovo nucleo o riprendi la spedizione attiva", Game.VIRTUAL_WIDTH / 2f, 180f, textPaint);
+
+            // Pulsante RIPRENDI PARTITA
+            resumeBtnRect.set(startX, 215f, startX + cardW, 335f);
+            cardPaint.setStyle(Paint.Style.FILL);
+            cardPaint.setColor(0xFF063528);
+            canvas.drawRoundRect(resumeBtnRect, 18f, 18f, cardPaint);
+
+            strokePaint.setStyle(Paint.Style.STROKE);
+            strokePaint.setStrokeWidth(3.5f);
+            strokePaint.setColor(0xFF00FF88);
+            canvas.drawRoundRect(resumeBtnRect, 18f, 18f, strokePaint);
+
+            fillPaint.setColor(0xFF00FF88);
+            canvas.drawCircle(startX + 60f, 275f, 24f, fillPaint);
+
+            // Triangolo play
+            linePaint.setStyle(Paint.Style.FILL);
+            linePaint.setColor(0xFF063528);
+            android.graphics.Path playPath = new android.graphics.Path();
+            playPath.moveTo(startX + 55f, 263f);
+            playPath.lineTo(startX + 71f, 275f);
+            playPath.lineTo(startX + 55f, 287f);
+            playPath.close();
+            canvas.drawPath(playPath, linePaint);
+
+            textPaint.setTextAlign(Paint.Align.LEFT);
+            textPaint.setColor(0xFFFFFFFF);
+            textPaint.setTextSize(32f);
+            textPaint.setFakeBoldText(true);
+            canvas.drawText("RIPRENDI PARTITA ATTIVA", startX + 110f, 265f, textPaint);
+
+            textPaint.setColor(0xFFA7F3D0);
+            textPaint.setTextSize(22f);
+            textPaint.setFakeBoldText(false);
+            String info = "Settore " + progression.savedLevel + " · " + String.format("%,d", progression.savedScore) + " Punti · " + progression.savedBalls + " Sfere";
+            canvas.drawText(info, startX + 110f, 305f, textPaint);
+
+            // Testo separatore
+            textPaint.setTextAlign(Paint.Align.CENTER);
+            textPaint.setColor(0xFF64748B);
+            textPaint.setTextSize(20f);
+            textPaint.setFakeBoldText(true);
+            canvas.drawText("— OPPURE INIZIA UNA NUOVA SPEDIZIONE —", Game.VIRTUAL_WIDTH / 2f, 380f, textPaint);
+        } else {
+            textPaint.setTextAlign(Paint.Align.CENTER);
+            textPaint.setTextSize(46f);
+            textPaint.setColor(0xFF00E5FF);
+            textPaint.setFakeBoldText(true);
+            canvas.drawText("SCEGLI IL TUO NUCLEO DI POTERE", Game.VIRTUAL_WIDTH / 2f, 230f, textPaint);
+
+            textPaint.setTextSize(24f);
+            textPaint.setColor(0xFF94A3B8);
+            textPaint.setFakeBoldText(false);
+            canvas.drawText("Definisce lo stile, i poteri e le sinergie dell'intera run", Game.VIRTUAL_WIDTH / 2f, 280f, textPaint);
+        }
 
         Game.Archetype[] archetypes = Game.Archetype.values();
-        float cardW = 920f;
-        float cardH = 175f;
-        float startX = (Game.VIRTUAL_WIDTH - cardW) / 2f;
-        float startY = 440f;
-        float gapY = 200f;
+        float cardH = 225f;
+        float startY = progression.hasActiveRun ? 410f : 340f;
+        float gapY = progression.hasActiveRun ? 245f : 265f;
 
         for (int i = 0; i < archetypes.length; i++) {
             Game.Archetype arch = archetypes[i];
@@ -849,18 +962,27 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             canvas.drawRoundRect(tempRect, 18f, 18f, strokePaint);
 
             fillPaint.setColor(arch.color);
-            canvas.drawCircle(startX + 60f, cy + cardH / 2f, 26f, fillPaint);
+            canvas.drawCircle(startX + 55f, cy + 48f, 22f, fillPaint);
 
             textPaint.setTextAlign(Paint.Align.LEFT);
             textPaint.setColor(0xFFFFFFFF);
             textPaint.setTextSize(32f);
             textPaint.setFakeBoldText(true);
-            canvas.drawText(arch.title, startX + 115f, cy + 60f, textPaint);
+            canvas.drawText(arch.title, startX + 95f, cy + 56f, textPaint);
 
-            textPaint.setColor(0xFFCBD5E1);
-            textPaint.setTextSize(22f);
+            // Badge Elemento
+            textPaint.setTextAlign(Paint.Align.RIGHT);
+            textPaint.setColor(arch.color);
+            textPaint.setTextSize(20f);
+            textPaint.setFakeBoldText(true);
+            canvas.drawText("[NUCLEO]", startX + cardW - 30f, cy + 56f, textPaint);
+
+            // Descrizione multiriga chiara e leggibile
+            textPaint.setTextAlign(Paint.Align.LEFT);
+            textPaint.setColor(0xFFE2E8F0);
+            textPaint.setTextSize(23f);
             textPaint.setFakeBoldText(false);
-            canvas.drawText(arch.description, startX + 115f, cy + 110f, textPaint);
+            drawMultilineText(canvas, arch.description, startX + 35f, cy + 105f, cardW - 70f, 32f, textPaint);
         }
     }
 
@@ -882,10 +1004,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         canvas.drawText("Combina poteri della stessa famiglia per attivare Risonanze di Set!", Game.VIRTUAL_WIDTH / 2f, 410f, textPaint);
 
         float cardW = 900f;
-        float cardH = 190f;
+        float cardH = 205f;
         float startX = (Game.VIRTUAL_WIDTH - cardW) / 2f;
-        float startY = 490f;
-        float gapY = 220f;
+        float startY = 475f;
+        float gapY = 235f;
 
         for (int i = 0; i < game.draftChoices.size(); i++) {
             Game.RelicType relic = game.draftChoices.get(i);
@@ -902,23 +1024,27 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             canvas.drawRoundRect(tempRect, 18f, 18f, strokePaint);
 
             fillPaint.setColor(relic.family.color);
-            canvas.drawCircle(startX + 60f, cy + cardH / 2f, 28f, fillPaint);
+            canvas.drawCircle(startX + 55f, cy + 48f, 22f, fillPaint);
 
             textPaint.setTextAlign(Paint.Align.LEFT);
             textPaint.setColor(0xFFFFFFFF);
             textPaint.setTextSize(32f);
             textPaint.setFakeBoldText(true);
-            canvas.drawText(relic.title, startX + 115f, cy + 65f, textPaint);
+            canvas.drawText(relic.title, startX + 95f, cy + 56f, textPaint);
 
             // Badge Famiglia
+            textPaint.setTextAlign(Paint.Align.RIGHT);
             textPaint.setColor(relic.family.color);
             textPaint.setTextSize(20f);
-            canvas.drawText("[" + relic.family.label.toUpperCase() + "]", startX + 115f, cy + 95f, textPaint);
+            textPaint.setFakeBoldText(true);
+            canvas.drawText("[" + relic.family.label.toUpperCase() + "]", startX + cardW - 30f, cy + 56f, textPaint);
 
-            textPaint.setColor(0xFFCBD5E1);
+            // Descrizione multiriga chiara e leggibile
+            textPaint.setTextAlign(Paint.Align.LEFT);
+            textPaint.setColor(0xFFE2E8F0);
             textPaint.setTextSize(23f);
             textPaint.setFakeBoldText(false);
-            canvas.drawText(relic.description, startX + 115f, cy + 138f, textPaint);
+            drawMultilineText(canvas, relic.description, startX + 35f, cy + 105f, cardW - 70f, 32f, textPaint);
         }
 
         // Bottone Reroll
@@ -1091,157 +1217,177 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
         int action = event.getActionMasked();
 
-        // 1. Schermata Selezione Archetipo Core
-        if (game.state == Game.State.ARCHETYPE_SELECT) {
-            if (action == MotionEvent.ACTION_UP) {
-                Game.Archetype[] archetypes = Game.Archetype.values();
-                float cardW = 920f;
-                float cardH = 175f;
-                float startX = (Game.VIRTUAL_WIDTH - cardW) / 2f;
-                float startY = 440f;
-                float gapY = 200f;
+        synchronized (game) {
+            // 1. Schermata Selezione Archetipo Core & Ripresa Partita
+            if (game.state == Game.State.ARCHETYPE_SELECT) {
+                if (action == MotionEvent.ACTION_UP) {
+                    float cardW = 920f;
+                    float startX = (Game.VIRTUAL_WIDTH - cardW) / 2f;
 
-                for (int i = 0; i < archetypes.length; i++) {
-                    float cy = startY + i * gapY;
-                    if (vx >= startX && vx <= startX + cardW && vy >= cy && vy <= cy + cardH) {
-                        game.selectArchetype(archetypes[i]);
+                    // Click su Riprendi Partita
+                    if (progression.hasActiveRun && resumeBtnRect.contains(vx, vy)) {
+                        if (game.resumeSavedRun()) {
+                            saveProgression();
+                            AudioHelper.playLaunch();
+                            vibrate(35);
+                            return true;
+                        }
+                    }
+
+                    Game.Archetype[] archetypes = Game.Archetype.values();
+                    float cardH = 225f;
+                    float startY = progression.hasActiveRun ? 410f : 340f;
+                    float gapY = progression.hasActiveRun ? 245f : 265f;
+
+                    for (int i = 0; i < archetypes.length; i++) {
+                        float cy = startY + i * gapY;
+                        if (vx >= startX && vx <= startX + cardW && vy >= cy && vy <= cy + cardH) {
+                            game.selectArchetype(archetypes[i]);
+                            saveProgression();
+                            AudioHelper.playRelicSelect();
+                            vibrate(30);
+                            return true;
+                        }
+                    }
+                }
+                return true;
+            }
+
+            // 2. Schermata Negozio Meta-Upgrade
+            if (game.state == Game.State.SHOP) {
+                if (action == MotionEvent.ACTION_UP) {
+                    if (backFromShopBtnRect.contains(vx, vy)) {
+                        game.state = Game.State.GAME_OVER;
+                        return true;
+                    }
+                    float cardW = 900f;
+                    float cardH = 170f;
+                    float startX = (Game.VIRTUAL_WIDTH - cardW) / 2f;
+
+                    // Slot 1: Extra Balls
+                    if (vx >= startX + cardW - 280f && vx <= startX + cardW - 30f && vy >= 480f + 45f && vy <= 480f + cardH - 45f) {
+                        if (progression.buyExtraBalls()) {
+                            saveProgression();
+                            AudioHelper.playRelicSelect();
+                        }
+                        return true;
+                    }
+                    // Slot 2: Basket Width
+                    if (vx >= startX + cardW - 280f && vx <= startX + cardW - 30f && vy >= 680f + 45f && vy <= 680f + cardH - 45f) {
+                        if (progression.buyBasketWidth()) {
+                            saveProgression();
+                            AudioHelper.playRelicSelect();
+                        }
+                        return true;
+                    }
+                    // Slot 3: Reroll
+                    if (vx >= startX + cardW - 280f && vx <= startX + cardW - 30f && vy >= 880f + 45f && vy <= 880f + cardH - 45f) {
+                        if (progression.buyReroll()) {
+                            saveProgression();
+                            AudioHelper.playRelicSelect();
+                        }
                         return true;
                     }
                 }
-            }
-            return true;
-        }
-
-        // 2. Schermata Negozio Meta-Upgrade
-        if (game.state == Game.State.SHOP) {
-            if (action == MotionEvent.ACTION_UP) {
-                if (backFromShopBtnRect.contains(vx, vy)) {
-                    game.state = Game.State.GAME_OVER;
-                    return true;
-                }
-                float cardW = 900f;
-                float cardH = 170f;
-                float startX = (Game.VIRTUAL_WIDTH - cardW) / 2f;
-
-                // Slot 1: Extra Balls
-                if (vx >= startX + cardW - 280f && vx <= startX + cardW - 30f && vy >= 480f + 45f && vy <= 480f + cardH - 45f) {
-                    if (progression.buyExtraBalls()) {
-                        saveProgression();
-                        AudioHelper.playRelicSelect();
-                    }
-                    return true;
-                }
-                // Slot 2: Basket Width
-                if (vx >= startX + cardW - 280f && vx <= startX + cardW - 30f && vy >= 680f + 45f && vy <= 680f + cardH - 45f) {
-                    if (progression.buyBasketWidth()) {
-                        saveProgression();
-                        AudioHelper.playRelicSelect();
-                    }
-                    return true;
-                }
-                // Slot 3: Reroll
-                if (vx >= startX + cardW - 280f && vx <= startX + cardW - 30f && vy >= 880f + 45f && vy <= 880f + cardH - 45f) {
-                    if (progression.buyReroll()) {
-                        saveProgression();
-                        AudioHelper.playRelicSelect();
-                    }
-                    return true;
-                }
-            }
-            return true;
-        }
-
-        // 3. Schermata Game Over
-        if (game.state == Game.State.GAME_OVER) {
-            if (action == MotionEvent.ACTION_UP) {
-                if (restartBtnRect.contains(vx, vy)) {
-                    game.initGame();
-                    AudioHelper.playLaunch();
-                    return true;
-                }
-                if (shopBtnRect.contains(vx, vy)) {
-                    game.state = Game.State.SHOP;
-                    AudioHelper.playRelicSelect();
-                    return true;
-                }
-            }
-            return true;
-        }
-
-        // 4. Schermata Vittoria
-        if (game.state == Game.State.VICTORY) {
-            if (action == MotionEvent.ACTION_UP) {
-                if (endlessBtnRect.contains(vx, vy)) {
-                    game.startEndlessLoop();
-                    AudioHelper.playLaunch();
-                    return true;
-                }
-                if (restartBtnRect.contains(vx, vy)) {
-                    game.initGame();
-                    AudioHelper.playLaunch();
-                    return true;
-                }
-            }
-            return true;
-        }
-
-        // 5. Draft Reliquie con Reroll
-        if (game.state == Game.State.RELIC_DRAFT) {
-            if (action == MotionEvent.ACTION_UP) {
-                if (rerollBtnRect.contains(vx, vy)) {
-                    game.rerollDraft();
-                    return true;
-                }
-
-                float cardW = 900f;
-                float cardH = 190f;
-                float startX = (Game.VIRTUAL_WIDTH - cardW) / 2f;
-                float startY = 490f;
-                float gapY = 220f;
-
-                for (int i = 0; i < game.draftChoices.size(); i++) {
-                    float cy = startY + i * gapY;
-                    if (vx >= startX && vx <= startX + cardW && vy >= cy && vy <= cy + cardH) {
-                        game.selectRelic(game.draftChoices.get(i));
-                        return true;
-                    }
-                }
-            }
-            return true;
-        }
-
-        // 6. Pulsanti HUD
-        if (action == MotionEvent.ACTION_UP) {
-            if (speedBtnRect.contains(vx, vy)) {
-                game.speedBoost = !game.speedBoost;
                 return true;
             }
-            if (soundBtnRect.contains(vx, vy)) {
-                AudioHelper.toggleSound();
-                return true;
-            }
-        }
 
-        // 7. Modalità Puntata e Sparo
-        if (game.state == Game.State.AIMING) {
-            if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE) {
-                if (vy > 100f) {
-                    game.setAimAngle(vx, vy);
-                }
-                return true;
-            } else if (action == MotionEvent.ACTION_UP) {
-                if (vy > 100f) {
-                    game.setAimAngle(vx, vy);
-                    boolean fired = game.shoot();
-                    if (fired) {
+            // 3. Schermata Game Over
+            if (game.state == Game.State.GAME_OVER) {
+                if (action == MotionEvent.ACTION_UP) {
+                    if (restartBtnRect.contains(vx, vy)) {
+                        game.initGame();
+                        saveProgression();
                         AudioHelper.playLaunch();
-                        vibrate(20);
+                        return true;
+                    }
+                    if (shopBtnRect.contains(vx, vy)) {
+                        game.state = Game.State.SHOP;
+                        AudioHelper.playRelicSelect();
+                        return true;
                     }
                 }
                 return true;
             }
-        }
 
-        return true;
+            // 4. Schermata Vittoria
+            if (game.state == Game.State.VICTORY) {
+                if (action == MotionEvent.ACTION_UP) {
+                    if (endlessBtnRect.contains(vx, vy)) {
+                        game.startEndlessLoop();
+                        saveProgression();
+                        AudioHelper.playLaunch();
+                        return true;
+                    }
+                    if (restartBtnRect.contains(vx, vy)) {
+                        game.initGame();
+                        saveProgression();
+                        AudioHelper.playLaunch();
+                        return true;
+                    }
+                }
+                return true;
+            }
+
+            // 5. Draft Reliquie con Reroll
+            if (game.state == Game.State.RELIC_DRAFT) {
+                if (action == MotionEvent.ACTION_UP) {
+                    if (rerollBtnRect.contains(vx, vy)) {
+                        game.rerollDraft();
+                        return true;
+                    }
+
+                    float cardW = 900f;
+                    float cardH = 205f;
+                    float startX = (Game.VIRTUAL_WIDTH - cardW) / 2f;
+                    float startY = 475f;
+                    float gapY = 235f;
+
+                    for (int i = 0; i < game.draftChoices.size(); i++) {
+                        float cy = startY + i * gapY;
+                        if (vx >= startX && vx <= startX + cardW && vy >= cy && vy <= cy + cardH) {
+                            game.selectRelic(game.draftChoices.get(i));
+                            saveProgression();
+                            return true;
+                        }
+                    }
+                }
+                return true;
+            }
+
+            // 6. Pulsanti HUD
+            if (action == MotionEvent.ACTION_UP) {
+                if (speedBtnRect.contains(vx, vy)) {
+                    game.speedBoost = !game.speedBoost;
+                    return true;
+                }
+                if (soundBtnRect.contains(vx, vy)) {
+                    AudioHelper.toggleSound();
+                    return true;
+                }
+            }
+
+            // 7. Modalità Puntata e Sparo
+            if (game.state == Game.State.AIMING) {
+                if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE) {
+                    if (vy > 100f) {
+                        game.setAimAngle(vx, vy);
+                    }
+                    return true;
+                } else if (action == MotionEvent.ACTION_UP) {
+                    if (vy > 100f) {
+                        game.setAimAngle(vx, vy);
+                        boolean fired = game.shoot();
+                        if (fired) {
+                            AudioHelper.playLaunch();
+                            vibrate(20);
+                        }
+                    }
+                    return true;
+                }
+            }
+
+            return true;
+        }
     }
 }

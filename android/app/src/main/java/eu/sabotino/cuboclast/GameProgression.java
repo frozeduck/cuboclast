@@ -1,6 +1,7 @@
 package eu.sabotino.cuboclast;
 
 public class GameProgression {
+    // Statistiche Permanenti
     public int quantumShards = 0;
     public int runsPlayed = 0;
     public int victories = 0;
@@ -18,7 +19,46 @@ public class GameProgression {
     public boolean unlockedCryo = false;       // Sbloccabile con 100 ◆
     public boolean unlockedSingularity = false; // Sbloccabile con 250 ◆
 
+    // Stato Run Attiva (Salvataggio Ripresa Automatica)
+    public boolean hasActiveRun = false;
+    public int savedLevel = 1;
+    public int savedScore = 0;
+    public int savedBalls = 8;
+    public String savedArchetype = "";
+    public String savedRelics = "";
+    public int savedShardsRun = 0;
+    public boolean savedIsEndless = false;
+
     public GameProgression() {}
+
+    public void saveActiveRunState(int level, int score, int balls, String archetype, String relics, int shardsRun, boolean isEndless) {
+        this.hasActiveRun = true;
+        this.savedLevel = level;
+        this.savedScore = score;
+        this.savedBalls = balls;
+        this.savedArchetype = archetype;
+        this.savedRelics = relics;
+        this.savedShardsRun = shardsRun;
+        this.savedIsEndless = isEndless;
+
+        if (level > bestSector) {
+            bestSector = level;
+        }
+        if (score > highestScore) {
+            highestScore = score;
+        }
+    }
+
+    public void clearActiveRunState() {
+        this.hasActiveRun = false;
+        this.savedLevel = 1;
+        this.savedScore = 0;
+        this.savedBalls = 8;
+        this.savedArchetype = "";
+        this.savedRelics = "";
+        this.savedShardsRun = 0;
+        this.savedIsEndless = false;
+    }
 
     // Costi degli upgrade permanenti
     public int getCostExtraBalls() {

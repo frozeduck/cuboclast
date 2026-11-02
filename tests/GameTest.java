@@ -13,6 +13,7 @@ public class GameTest {
         testCoreCubesAndFever();
         testMercyRefund();
         testFreeBallByScore();
+        testActiveRunPersistenceAndResume();
 
         System.out.println(">>> TUTTI I TEST UNITARI HANNO AVUTO SUCCESSO! (100% OK)");
     }
@@ -163,5 +164,46 @@ public class GameTest {
         game.update(0.016f);
         assert game.ballsRemaining >= ballsBefore;
         System.out.println("✓ Sfera Extra per soglia punteggio verificata.");
+    }
+
+    private static void testActiveRunPersistenceAndResume() {
+        GameProgression prog = new GameProgression();
+        Game game1 = new Game(prog);
+        game1.selectArchetype(Game.Archetype.VOLT_OVERCHARGE);
+
+        assert prog.hasActiveRun : "Dopo aver scelto l'archetipo, hasActiveRun deve essere true";
+        assert prog.savedLevel == 1 : "Il livello salvato iniziale deve essere 1";
+
+        // Simula avanzamento al livello 4 con reliquie e punteggio
+        game1.score = 25000;
+        game1.ballsRemaining = 7;
+        game1.activeRelics.add(Game.RelicType.CHAIN_LIGHTNING);
+        game1.activeRelics.add(Game.RelicType.VOLT_DISCHARGE);
+        game1.initLevel(4);
+
+        assert prog.savedLevel == 4 : "Il livello salvato deve essere 4";
+        assert prog.savedScore == 25000 : "Il punteggio salvato deve essere 25000";
+        assert prog.savedBalls == 7 : "Le sfere salvate devono essere 7";
+
+        // Simula chiusura / crash del gioco e nuova istanza con la stessa progressione
+        Game game2 = new Game(prog);
+        assert game2.state == Game.State.ARCHETYPE_SELECT : "Nuova sessione parte in ARCHETYPE_SELECT";
+        assert prog.hasActiveRun : "La progressione deve ricordare che c'è una run attiva";
+
+        boolean resumed = game2.resumeSavedRun();
+        assert resumed : "resumeSavedRun() deve restituire true";
+        assert game2.currentLevel == 4 : "Il livello ripreso deve essere 4";
+        assert game2.score == 25000 : "Il punteggio ripreso deve essere 25000";
+        assert game2.ballsRemaining == 7 : "Le sfere riprese devono essere 7";
+        assert game2.currentArchetype == Game.Archetype.VOLT_OVERCHARGE : "L'archetipo ripreso deve essere VOLT_OVERCHARGE";
+        assert game2.activeRelics.contains(Game.RelicType.VOLT_DISCHARGE) : "Le reliquie devono essere state ripristinate";
+        assert game2.state == Game.State.AIMING : "Dopo la ripresa lo stato deve essere AIMING";
+
+        // Simula conclusione run (clearActiveRunState)
+        prog.clearActiveRunState();
+        assert !prog.hasActiveRun : "hasActiveRun deve essere false dopo clear";
+        Game game3 = new Game(prog);
+        assert !game3.resumeSavedRun() : "resumeSavedRun deve restituire false quando non c'è una run attiva";
+        System.out.println("✓ Persistenza stato run attiva e ripresa automatica (Crash/Exit Recovery) verificata.");
     }
 }

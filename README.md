@@ -8,12 +8,33 @@ L'estetica è rigorosamente **minimalista e geometrica**: tonalità scure deep-s
 
 ## ⚡ Download e Release
 
-* **[Scarica l'APK v0.3.0 su GitHub Release](https://github.com/frozeduck/cuboclast/releases/tag/v0.3.0)** · [Repository GitHub](https://github.com/frozeduck/cuboclast)
+* **[Scarica l'APK v0.4.0 su GitHub Release](https://github.com/frozeduck/cuboclast/releases/tag/v0.4.0)** · [Repository GitHub](https://github.com/frozeduck/cuboclast)
 * **Server locale di download**: [http://192.168.1.200:8144](http://192.168.1.200:8144) (file: `cuboclast-latest-debug.apk`)
 
 ---
 
-## 🌟 Novità v0.3.0: Archetipi, Risonanze di Set, Boss a Fasi & Endless Loop
+## 🌟 Novità v0.4.0: Zero Crash, Salvataggio Continuo della Run & Leggibilità Migliorata
+
+### 1. 🛡️ Risoluzione Crash (Thread-Safe Synchronization)
+* **Sincronizzazione Atomica Thread UI & Game Loop**: Eliminato qualsiasi rischio di `ConcurrentModificationException` tra gli eventi touch dell'interfaccia e il ciclo a 60 FPS su `SurfaceView`.
+* **Iterazioni Indicizzate Protette**: Tutte le liste dinamiche (`cubes`, `balls`, `shards`, `floatingTexts`, `bossSatellites`) usano ora accessi per indice senza allocazione di iteratori concorrenti.
+* **Auto-Recovery**: Gestione delle eccezioni con ripristino istantaneo dello stato per garantire che il ciclo grafico non si arresti mai.
+
+### 2. 💾 Salvataggio Automatico Continuo & "Riprendi Partita"
+* **Persistenza Stato Attivo**: Ad ogni settore raggiunto, ad ogni reliquia scelta e alla messa in pausa/chiusura dell'app, vengono salvati su disco:
+  * Settore e livello corrente raggiunto.
+  * Punteggio e sfere rimanenti.
+  * Archetipo selezionato e lista completa delle reliquie attive accumulate.
+  * Schegge Quantiche della sessione e stato Endless.
+* **Pulsante "RIPRENDI PARTITA"**: All'avvio del gioco, se è presente una sessione in corso, compare un pulsante prominente smeraldo che permette di riprendere all'istante l'esatto stato della partita senza perdere alcun progresso.
+
+### 3. 📖 Carte Abilità ad Alta Leggibilità
+* **Testo Multiriga Dinamico (`drawMultilineText`)**: Le descrizioni delle abilità e dei perk iniziali si adattano ora automaticamente alla larghezza della schermata, evitando qualsiasi testo tagliato.
+* **Tipografia Ridisegnata**: Font ingranditi ad alto contrasto (32f per titoli, 23f `#E2E8F0` per il corpo), card più alte (225px) con badge elementali dedicati e spaziatura ottimizzata.
+
+---
+
+## 🌟 Contenuti di Gioco: Archetipi, Risonanze di Set, Boss a Fasi & Endless Loop
 
 ### 1. 🛡️ 5 Archetipi Core Iniziali (Definiscono l'Intera Run)
 All'avvio di ogni partita scegli il tuo **Nucleo di Potere**:

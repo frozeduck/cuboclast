@@ -348,6 +348,8 @@ public class Game {
 
     public void selectArchetype(Archetype archetype) {
         currentArchetype = archetype;
+        progression.runsPlayed++; // Incrementa subito il contatore run giocate!
+
         // Equipaggia subito la reliquia iniziale corrispondente
         switch (archetype) {
             case VOLT_OVERCHARGE:
@@ -371,8 +373,88 @@ public class Game {
         initLevel(1);
     }
 
+    public String serializeRelics() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < activeRelics.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append(activeRelics.get(i).name());
+        }
+        return sb.toString();
+    }
+
+    public boolean resumeSavedRun() {
+        if (!progression.hasActiveRun) return false;
+        try {
+            currentLevel = progression.savedLevel;
+            int restoredScore = progression.savedScore;
+            int restoredBalls = progression.savedBalls;
+            int restoredShards = progression.savedShardsRun;
+            boolean restoredEndless = progression.savedIsEndless;
+
+            if (progression.savedArchetype != null && !progression.savedArchetype.isEmpty()) {
+                currentArchetype = Archetype.valueOf(progression.savedArchetype);
+            } else {
+                currentArchetype = Archetype.VOLT_OVERCHARGE;
+            }
+
+            activeRelics.clear();
+            if (progression.savedRelics != null && !progression.savedRelics.isEmpty()) {
+                String[] parts = progression.savedRelics.split(",");
+                for (String p : parts) {
+                    try {
+                        activeRelics.add(RelicType.valueOf(p.trim()));
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            isEndless = restoredEndless;
+            initLevel(currentLevel);
+
+            // Ripristina lo stato esatto salvato della run
+            score = restoredScore;
+            ballsRemaining = restoredBalls;
+            quantumShardsRun = restoredShards;
+
+            progression.saveActiveRunState(
+                    currentLevel,
+                    score,
+                    ballsRemaining,
+                    currentArchetype.name(),
+                    serializeRelics(),
+                    quantumShardsRun,
+                    isEndless
+            );
+
+            state = State.AIMING;
+            return true;
+        } catch (Exception e) {
+            initGame();
+            return false;
+        }
+    }
+
     public void initLevel(int level) {
         currentLevel = level;
+        if (currentLevel > progression.bestSector) {
+            progression.bestSector = currentLevel;
+        }
+        if (score > progression.highestScore) {
+            progression.highestScore = score;
+        }
+
+        // Salva lo stato della run attiva ad ogni livello raggiunto!
+        if (currentArchetype != null) {
+            progression.saveActiveRunState(
+                    currentLevel,
+                    score,
+                    ballsRemaining,
+                    currentArchetype.name(),
+                    serializeRelics(),
+                    quantumShardsRun,
+                    isEndless
+            );
+        }
+
         cubes.clear();
         balls.clear();
         shards.clear();
@@ -407,7 +489,8 @@ public class Game {
         for (RelicFamily f : RelicFamily.values()) {
             counts.put(f, 0);
         }
-        for (RelicType r : activeRelics) {
+        for (int i = 0; i < activeRelics.size(); i++) {
+            RelicType r = activeRelics.get(i);
             counts.put(r.family, counts.get(r.family) + 1);
         }
         return counts;
@@ -422,7 +505,8 @@ public class Game {
 
     public int getRemainingCoreCubes() {
         int count = 0;
-        for (Cube c : cubes) {
+        for (int i = 0; i < cubes.size(); i++) {
+            Cube c = cubes.get(i);
             if (c.isAlive && c.isCore) {
                 count++;
             }
@@ -432,7 +516,8 @@ public class Game {
 
     public int getTotalCoreCubes() {
         int count = 0;
-        for (Cube c : cubes) {
+        for (int i = 0; i < cubes.size(); i++) {
+            Cube c = cubes.get(i);
             if (c.isCore) {
                 count++;
             }
@@ -637,8 +722,9 @@ public class Game {
             }
         }
 
-        // Aggiorna cubi
-        for (Cube c : cubes) {
+        // Aggiorna cubi in modo sicuro
+        for (int i = 0; i < cubes.size(); i++) {
+            Cube c = cubes.get(i);
             if (c.wobble > 0f) {
                 c.wobble -= dt * 6f;
                 if (c.wobble < 0f) c.wobble = 0f;
@@ -665,7 +751,8 @@ public class Game {
     private void updateBoss(float dt) {
         // Rotazione satelliti
         float rotSpeed = (bossPhase == 1) ? 1.2f : (bossPhase == 2 ? 2.2f : 3.2f);
-        for (BossSatellite sat : bossSatellites) {
+        for (int i = 0; i < bossSatellites.size(); i++) {
+            BossSatellite sat = bossSatellites.get(i);
             sat.angle += rotSpeed * dt;
         }
 
@@ -687,7 +774,6 @@ public class Game {
         }
 
         if (bossPhase == 3) {
-            // Fase Enrage: Boss scende lentamente
             activeBoss.y += 12f * dt;
             if (activeBoss.y > 1100f) activeBoss.y = 1100f;
         }
@@ -695,9 +781,9 @@ public class Game {
 
     private void triggerBossShockwave() {
         screenShake = 12f;
-        floatingTexts.add(new FloatingText(activeBoss.centerX(), activeBoss.centerY(), "EMP REPVLSION!", 0xFFFF007F));
-        // Devia le sfere in campo
-        for (Ball b : balls) {
+        floatingTexts.add(new FloatingText(activeBoss.centerX(), activeBoss.centerY(), "EMP REPULSION!", 0xFFFF007F));
+        for (int i = 0; i < balls.size(); i++) {
+            Ball b = balls.get(i);
             if (b.isAlive) {
                 float dx = b.x - activeBoss.centerX();
                 float dy = b.y - activeBoss.centerY();
@@ -718,7 +804,8 @@ public class Game {
 
         if (feverExplosionTimer <= 0f) {
             feverExplosionTimer = 0.08f;
-            for (Cube c : cubes) {
+            for (int i = 0; i < cubes.size(); i++) {
+                Cube c = cubes.get(i);
                 if (c.isAlive) {
                     c.isAlive = false;
                     score += 500;
@@ -742,6 +829,7 @@ public class Game {
 
             // Se abbiamo battuto il settore 10
             if (currentLevel == 10 && !isEndless) {
+                progression.clearActiveRunState();
                 state = State.VICTORY;
             } else {
                 prepareRelicDraft();
@@ -860,7 +948,8 @@ public class Game {
     private void handleSatelliteCollisions(Ball b) {
         if (activeBoss == null || !activeBoss.isAlive) return;
 
-        for (BossSatellite sat : bossSatellites) {
+        for (int i = 0; i < bossSatellites.size(); i++) {
+            BossSatellite sat = bossSatellites.get(i);
             if (!sat.isAlive) continue;
             float sx = activeBoss.centerX() + (float) Math.cos(sat.angle) * sat.distance;
             float sy = activeBoss.centerY() + (float) Math.sin(sat.angle) * sat.distance;
@@ -1072,7 +1161,8 @@ public class Game {
 
     private boolean isCubeProtectedByShield(Cube target) {
         if (target.type == CubeType.SHIELD) return false;
-        for (Cube c : cubes) {
+        for (int i = 0; i < cubes.size(); i++) {
+            Cube c = cubes.get(i);
             if (c.isAlive && c.type == CubeType.SHIELD && c != target) {
                 float dx = c.centerX() - target.centerX();
                 float dy = c.centerY() - target.centerY();
@@ -1089,7 +1179,8 @@ public class Game {
         int maxZaps = 2 + extraTargets;
         int dmg = (currentArchetype == Archetype.VOLT_OVERCHARGE) ? 5 : 3;
 
-        for (Cube c : cubes) {
+        for (int i = 0; i < cubes.size(); i++) {
+            Cube c = cubes.get(i);
             if (c.isAlive && c != origin) {
                 float dx = c.centerX() - origin.centerX();
                 float dy = c.centerY() - origin.centerY();
@@ -1118,7 +1209,8 @@ public class Game {
     }
 
     private void triggerExplosion(float ex, float ey, float radius, int damage) {
-        for (Cube c : cubes) {
+        for (int i = 0; i < cubes.size(); i++) {
+            Cube c = cubes.get(i);
             if (c.isAlive) {
                 float dx = c.centerX() - ex;
                 float dy = c.centerY() - ey;
@@ -1147,7 +1239,8 @@ public class Game {
     private void triggerShrapnel(float sx, float sy) {
         float[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
         for (float[] d : dirs) {
-            for (Cube c : cubes) {
+            for (int i = 0; i < cubes.size(); i++) {
+                Cube c = cubes.get(i);
                 if (c.isAlive) {
                     float dx = c.centerX() - sx;
                     float dy = c.centerY() - sy;
@@ -1173,7 +1266,8 @@ public class Game {
 
     private void triggerSupernova(float x) {
         screenShake = 14f;
-        for (Cube c : cubes) {
+        for (int i = 0; i < cubes.size(); i++) {
+            Cube c = cubes.get(i);
             if (c.isAlive && Math.abs(c.centerX() - x) < 100f) {
                 c.hp -= 8;
                 c.hitFlash = 1f;
@@ -1256,6 +1350,7 @@ public class Game {
             progression.runsPlayed++;
             if (currentLevel > progression.bestSector) progression.bestSector = currentLevel;
             if (score > progression.highestScore) progression.highestScore = score;
+            progression.clearActiveRunState();
             state = State.GAME_OVER;
         } else {
             state = State.AIMING;
