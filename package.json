@@ -1,0 +1,13 @@
+{
+  "name": "cuboclast",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Minimalist Roguelike Peggle & Cube Breaker Android APK (Native SurfaceView 60 FPS)",
+  "scripts": {
+    "test": "./scripts/build-apk.sh",
+    "build": "./scripts/build-apk.sh",
+    "check": "python3 scripts/check-apk.py",
+    "icons": "python3 scripts/generate_icons.py"
+  }
+}
