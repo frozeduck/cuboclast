@@ -13,6 +13,7 @@ import { InfoModal } from './components/InfoModal';
 import { CodexModal } from './components/CodexModal';
 import { UnlockNotificationModal } from './components/UnlockNotificationModal';
 import { InstallModal } from './components/InstallModal';
+import { PauseMenuModal } from './components/PauseMenuModal';
 
 export const App: React.FC = () => {
   const engine = useMemo(() => new GameEngine(), []);
@@ -22,6 +23,7 @@ export const App: React.FC = () => {
   const [showShop, setShowShop] = useState(false);
   const [showCodex, setShowCodex] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
+  const [showPause, setShowPause] = useState(false);
   const [activeUnlock, setActiveUnlock] = useState<UnlockEventNotification | null>(null);
 
   useEffect(() => {
@@ -45,9 +47,7 @@ export const App: React.FC = () => {
           <HUD
             engine={engine}
             onOpenRelicList={() => setShowRelicList(true)}
-            onOpenInfo={() => setShowInfo(true)}
-            onOpenCodex={() => setShowCodex(true)}
-            onOpenInstall={() => setShowInstall(true)}
+            onOpenPause={() => setShowPause(true)}
           />
         )}
 
@@ -63,6 +63,17 @@ export const App: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* In-Game Pause & Options Modal */}
+      {showPause && (
+        <PauseMenuModal
+          engine={engine}
+          onClose={() => setShowPause(false)}
+          onOpenCodex={() => setShowCodex(true)}
+          onOpenInfo={() => setShowInfo(true)}
+          onOpenInstall={() => setShowInstall(true)}
+        />
+      )}
 
       {/* Relic Draft Modal during run */}
       {gameState === 'RELIC_DRAFT' && <RelicDraftModal engine={engine} />}

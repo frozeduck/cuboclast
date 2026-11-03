@@ -136,6 +136,10 @@ export class GameEngine {
 
     if (mode) this.gameMode = mode;
     this.currentArchetype = archetype;
+    this.score = 0;
+    this.quantumShardsRun = 0;
+    this.activeRelics = [];
+    this.isEndless = false;
     this.progression.recordRunStart();
 
     const archInfo = ARCHETYPES_DATA[archetype];
@@ -146,6 +150,11 @@ export class GameEngine {
     soundEngine.playRelicSelect();
     soundEngine.triggerHaptic(30);
     this.initLevel(1);
+  }
+
+  public abandonRun() {
+    this.progression.clearActiveRun();
+    this.initGame();
   }
 
   public resumeSavedRun(): boolean {
@@ -1499,7 +1508,7 @@ export class GameEngine {
   }
 
   public closeShop() {
-    this.setState('GAME_OVER');
+    this.setState('ARCHETYPE_SELECT');
   }
 
   public openCodex() {
