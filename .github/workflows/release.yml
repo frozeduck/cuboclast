@@ -20,37 +20,44 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build web application & PWA assets
         run: npm run build
 
-      - name: Create release zip
+      - name: Create release archive
         run: |
-          cd dist && zip -r ../cuboclast-build.zip . && cd ..
+          cd dist
+          zip -r ../cuboclast-build.zip .
+          cd ..
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
+          target_commitish: ${{ github.sha }}
           name: CuboClast ${{ github.event.inputs.tag_name || github.ref_name }}
+          generate_release_notes: false
           body: |
             ## 🎮 CuboClast Release
-            - Roguelike Peggle & Cube Breaker Web & Mobile Experience
-            - 7 Archetipi Core (Volt, Pyro, Swarm, Kinetic Titan, Crystal Singularity, Quantum Singularity, Chrono Pulse)
-            - 5 Nuove Combo Fusione Doppia (Sovraccarico Plasma, Scarica Magnetica, Sciame Detonante, Iper-Sciame, Superconduzione Criogenica)
-            - Boss Fight a 3 Fasi con The Monolith & Omega Tesseract
-            - PWA / WebAPK installabile su Android a schermo intero offline
+
+            ### 🌟 Caratteristiche Principali
+            - **Roguelike Peggle & Cube Breaker**: Fisica dinamica con traiettorie a doppio rimbalzo laser, cannone cyberpunk e cestello magnetico.
+            - **7 Archetipi Core**: Volt Overcharge, Pyro Detonator, Swarm Matrix, Kinetic Titan, Crystal Singularity, Quantum Singularity e Chrono Pulse.
+            - **5 Nuove Combo Fusione Doppia**: Sovraccarico Plasma, Scarica Magnetica, Sciame Detonante, Iper-Sciame Perforante e Superconduzione Criogenica.
+            - **Boss Fight a 3 Fasi**: Con satelliti difensivi, impulsi EMP repulsivi e discesa enrage.
+            - **PWA & WebAPK Standalone**: Installabile su Android a schermo intero offline a 60/120 FPS.
           files: |
             cuboclast-build.zip
-            dist/cuboclast-icon.png
+            public/cuboclast-icon.png
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
