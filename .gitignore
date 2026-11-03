@@ -7,3 +7,5 @@ dist-ssr/
 .env.*
 dev-dist/
 .playwright-cli/
+.gradle/
+**/build/

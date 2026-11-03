@@ -142,31 +142,32 @@ export const InstallModal: React.FC<InstallModalProps> = ({ onClose }) => {
           </a>
         </div>
 
-        {/* Option 3: Direct Download Release ZIP for GitHub / Offline */}
+        {/* Option 3: Direct Download Release APK & ZIP from GitHub */}
         <div className="p-4 rounded-2xl bg-[#0f172a] border border-[#1e2e48] flex flex-col gap-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                Opzione 3: Scarica Archivio Release (.zip) per GitHub
+                Opzione 3: Scarica APK v0.5.1 da GitHub Releases
               </h3>
             </div>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase">
-              Release GitHub
+              Release v0.5.1
             </span>
           </div>
 
           <p className="text-xs text-slate-300 leading-relaxed font-sans">
-            Scarica l'archivio compilato <strong>cuboclast-v0.5.0.zip</strong> pronto per essere caricato direttamente come allegato nella pagina <strong>GitHub Releases</strong> o ospitato ovunque.
+            Scarica direttamente il pacchetto nativo <strong>cuboclast-0.5.1-debug.apk</strong> dalla pagina ufficiale <strong>GitHub Releases</strong>.
           </p>
 
           <a
-            href="/cuboclast-v0.5.0.zip"
-            download="cuboclast-v0.5.0.zip"
+            href="https://github.com/frozeduck/cuboclast/releases/download/v0.5.1/cuboclast-0.5.1-debug.apk"
+            target="_blank"
+            rel="noopener noreferrer"
             className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/50 text-amber-300 font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer active:scale-98"
           >
             <Download className="w-4 h-4" />
-            <span>Scarica cuboclast-v0.5.0.zip (~296 KB)</span>
+            <span>Scarica cuboclast-0.5.1-debug.apk (GitHub Release)</span>
           </a>
         </div>
 
