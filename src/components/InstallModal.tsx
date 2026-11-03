@@ -35,8 +35,8 @@ export const InstallModal: React.FC<InstallModalProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="absolute inset-0 bg-[#04060a]/95 backdrop-blur-lg flex items-center justify-center p-3 sm:p-5 z-50 overflow-y-auto">
-      <div className="w-full max-w-xl bg-[#090d16] border-2 border-[#00e5ff] rounded-3xl p-5 sm:p-7 shadow-[0_0_60px_rgba(0,229,255,0.25)] text-left relative flex flex-col gap-4 max-h-[96vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-[#04060a]/95 backdrop-blur-lg overflow-hidden">
+      <div className="w-full max-w-xl bg-[#090d16] border-2 border-[#00e5ff] rounded-3xl p-4 sm:p-6 shadow-[0_0_60px_rgba(0,229,255,0.25)] text-left relative flex flex-col gap-3 sm:gap-4 max-h-[92dvh] overflow-y-auto touch-scroll overscroll-contain">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#1e2e48] pb-3">
           <div className="flex items-center gap-3">

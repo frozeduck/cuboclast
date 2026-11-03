@@ -1,12 +1,14 @@
 {
   "name": "cuboclast",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "description": "CuboClast — Roguelike Peggle & Cube Breaker Web & Mobile Experience",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "tsc && vite build",
+    "build:apk": "./scripts/build-apk.sh",
+    "release": "./scripts/release.sh",
     "preview": "vite preview --port 3000",
     "lint": "tsc --noEmit"
   },
@@ -19,12 +21,13 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
     "@types/canvas-confetti": "^1.9.0",
+    "@types/node": "^22.14.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
     "tailwindcss": "^4.0.0",
-    "typescript": "^5.7.0",
+    "typescript": "^5.7.2",
     "vite": "^6.2.0",
-    "vite-plugin-pwa": "^2.0.0"
+    "vite-plugin-pwa": "^0.21.1"
   }
 }

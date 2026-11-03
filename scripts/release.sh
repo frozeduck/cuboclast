@@ -6,7 +6,7 @@ cd "$PROJECT_DIR"
 
 version="$(grep "versionName" android/app/build.gradle | head -n1 | sed -E "s/.*['\"]([^'\"]+)['\"].*/\1/")"
 tag="v${version}"
-title="CuboClast v${version} — Google AI Studio Update & Standalone Android APK"
+title="CuboClast v${version} — Campagna Storia 25 Settori, 5 Boss, Fix Mobile Responsive & APK Android"
 apk="downloads/cuboclast-${version}-debug.apk"
 sha="${apk}.sha256"
 
@@ -25,7 +25,7 @@ sed -i -E "s/SHA256: .*/SHA256: ${sha_val}/" downloads/index.html
 echo "=== Commit e push su GitHub ==="
 git add -A
 if ! git diff --cached --quiet; then
-    git commit -m "feat: release ${tag} - Android APK & Google AI Studio Sync"
+    git commit -m "feat: release ${tag} - Campagna Storia 25 Settori, 5 Boss, Fix Mobile Responsive & APK Android"
 fi
 git push -u origin main
 
@@ -37,22 +37,35 @@ else
     gh release create "$tag" "$apk" "$sha" \
         --title "$title" \
         --notes-file - <<EOF
-# CuboClast ${tag} — Roguelike Peggle & Cube Breaker Android APK
+# CuboClast ${tag} — Campagna Storia 25 Settori & Mobile Responsive Android APK
 
-Aggiornamento sincronizzato con **Google AI Studio**: nuova espansione dei contenuti di gioco, 7 Archetipi Core, 5 Fusioni di Set Doppie, Codex Enciclopedico, audio procedurale avanzato e pacchetto APK nativo per **Android**.
+Questa release introduce la **Campagna Storia Estesa (25 Settori con 5 Boss unici)**, l'ottimizzazione completa del layout per smartphone senza schermate che escono fuori dal display e la pulizia del campo visivo centrale rimuovendo i chip delle sinergie in favore di una barra vita Boss elegante.
 
-### 🌟 Novità & Caratteristiche (${tag})
-- **7 Archetipi Core**: Volt Overcharge, Pyro Detonator, Swarm Matrix, Kinetic Titan, Crystal Singularity, Quantum Singularity e Chrono Pulse.
-- **5 Nuove Fusioni Doppie di Set**: Sovraccarico Plasma (Elettrico + Esplosivo), Scarica Magnetica (Elettrico + Cinetico), Sciame Detonante (Esplosivo + Multiball), Iper-Sciame Perforante (Multiball + Cinetico) e Superconduzione Criogenica (Elettrico + Cryo).
-- **Codex & Compendio Enciclopedico**: Schermata dedicata per consultare tutti i cubi, reliquie, archetipi e fusioni sbloccate durante le spedizioni.
-- **HUD & Modalità Ridisegnate**: Interfaccia ad alta leggibilità, animazioni fluida a 60/120 FPS, badge elementali fluorescenti e layout portrait per una sola mano.
-- **Salvataggio Continuo v2**: Ripresa istantanea della sessione attiva (Settore, Score, Sfere, Reliquie serializzate).
-- **100% Android Nativo & Offline**: Nessun tracciamento, zero permessi invasivi, esecuzione istantanea locale.
+### 🌟 Novità Principali (${tag})
+- 🗺️ **Nuova Modalità Storia Estesa**:
+  - **5 Capitoli tematici per un totale di 25 Settori**.
+  - **5 Boss Unici** con scudi balistici, sciami di satelliti orbitanti e fasi enrage dinamiche:
+    - *Settore 5*: **The Monolith** (Cap. 1 - Periferia Cyber-Neon)
+    - *Settore 10*: **Omega Tesseract** (Cap. 2 - Cintura al Plasma)
+    - *Settore 15*: **Void Leviathan** (Cap. 3 - Forgia del Vuoto Cinetico)
+    - *Settore 20*: **Chrono Weaver** (Cap. 4 - Singolarità Oscura)
+    - *Settore 25*: **Primordial Architect** (Cap. 5 - Orizzonte Primordiale, Boss Finale)
+  - Ricompensa di **+500 Frammenti Quantici** e sblocco dell'Abisso Infinito Endless (Settore 26+).
+- 🎮 **Selettore Modalità di Gioco**:
+  - **Campagna Storia** (25 Settori completi) o **Modalità Arcade** (10 Settori rapidi).
+- 📱 **Adattamento Mobile Responsive al 100%**:
+  - Correzione dei problemi di layout dove le schermate uscivano dallo schermo.
+  - Viewport bloccato con \`100dvh\` e classe touch dedicata (\`.touch-scroll\`) con \`overscroll-behavior: contain\`.
+  - Tutte le modali (Selezione Archetipo, Draft, Archivio Shop, Codex, Game Over, Vittoria, Guida) sono perfettamente centrate e scrollabili su qualsiasi schermo.
+- 🎯 **HUD Pulito al Centro**:
+  - Rimossa la visibilità delle sinergie dal centro dello schermo per non ostruire la mira e i rimbalzi delle sfere.
+  - Indicatore sinergie compatto con badge energetico (\`⚡\`) sul pulsante delle Reliquie.
+  - Nuova **Barra Salute Boss dinamica** con nome, fase e percentuale di vita.
+- ⚡ **100% Android Nativo & Offline**:
+  - Pacchetto APK Standalone ultra-leggero (~880 KB), caricamento locale istantaneo via WebViewAssetLoader, zero permessi invasivi.
 
-### 📲 Installazione
-1. Scarica l'APK allegato \`cuboclast-${version}-debug.apk\` (o \`cuboclast-latest-debug.apk\`).
-2. Conferma l'installazione su Android.
-3. Gioca in orientamento verticale con una mano!
+### 📲 Download Diretto APK Android
+- [cuboclast-${version}-debug.apk](https://github.com/sabotino/cuboclast/releases/download/${tag}/cuboclast-${version}-debug.apk)
 EOF
 fi
 

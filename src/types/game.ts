@@ -514,6 +514,110 @@ export interface FloatingText {
   vy: number;
 }
 
+export type GameMode = 'STORY' | 'ARCADE' | 'ENDLESS';
+
+export interface StoryChapter {
+  id: number;
+  title: string;
+  subtitle: string;
+  sectorsRange: [number, number];
+  bossSector: number;
+  bossName: string;
+  bossTitle: string;
+  bossColor: string;
+  bossHp: number;
+  satelliteCount: number;
+  description: string;
+  lore: string;
+  hazardNote: string;
+}
+
+export const STORY_CHAPTERS: Record<number, StoryChapter> = {
+  1: {
+    id: 1,
+    title: 'Periferia Cyber-Neon',
+    subtitle: 'Capitolo I · Settori 1-5',
+    sectorsRange: [1, 5],
+    bossSector: 5,
+    bossName: 'The Monolith',
+    bossTitle: 'Guardiano Tetragonale del Settore 5',
+    bossColor: '#00e5ff',
+    bossHp: 80,
+    satelliteCount: 6,
+    description: 'Introduzione ai rimbalzi balistici e alla geometria quantica di base.',
+    lore: "L'avanguardia del Tesseract ha eretto una prima barriera cibernetica ai margini dello spazio conosciuto.",
+    hazardNote: 'Cubi standard e cinetici a rimbalzo elastico.',
+  },
+  2: {
+    id: 2,
+    title: 'Cintura al Plasma',
+    subtitle: 'Capitolo II · Settori 6-10',
+    sectorsRange: [6, 10],
+    bossSector: 10,
+    bossName: 'Omega Tesseract',
+    bossTitle: 'Nucleo Entropico del Settore 10',
+    bossColor: '#ff007f',
+    bossHp: 160,
+    satelliteCount: 8,
+    description: 'Campi magnetici instabili e primi sciami di mine orbitali.',
+    lore: 'Il secondo guardiano canalizza tempeste di plasma repulsive che deviano ogni sfera.',
+    hazardNote: 'Impulsi EMP repulsivi e cubi esplosivi instabili.',
+  },
+  3: {
+    id: 3,
+    title: 'Forgia del Vuoto Cinetico',
+    subtitle: 'Capitolo III · Settori 11-15',
+    sectorsRange: [11, 15],
+    bossSector: 15,
+    bossName: 'Void Leviathan',
+    bossTitle: 'Serpente Meccanico del Settore 15',
+    bossColor: '#f59e0b',
+    bossHp: 260,
+    satelliteCount: 10,
+    description: 'Gravità amplificata e cubi pesantemente corazzati.',
+    lore: 'Nelle profondità della fucina del vuoto, un costrutto serpentino protegge i frammenti ancestrali.',
+    hazardNote: 'Satelliti a rotazione rapida e scudi multistrato.',
+  },
+  4: {
+    id: 4,
+    title: 'Singolarità Oscura',
+    subtitle: 'Capitolo IV · Settori 16-20',
+    sectorsRange: [16, 20],
+    bossSector: 20,
+    bossName: 'Chrono Weaver',
+    bossTitle: 'Manipolatore Temporale del Settore 20',
+    bossColor: '#10b981',
+    bossHp: 380,
+    satelliteCount: 10,
+    description: 'Anomalie temporali criogeniche e barriere a raggio allungato.',
+    lore: 'Il tempo si deforma attorno alla singolarità; le sfere rallentano se non colpiscono in fretta.',
+    hazardNote: 'Cubi congelati resistenti e barriere temporali a lungo raggio.',
+  },
+  5: {
+    id: 5,
+    title: 'Orizzonte Primordiale',
+    subtitle: 'Capitolo V · Settori 21-25 (Finale)',
+    sectorsRange: [21, 25],
+    bossSector: 25,
+    bossName: 'Primordial Architect',
+    bossTitle: 'La Mente del Tesseract (Boss Finale)',
+    bossColor: '#e11d48',
+    bossHp: 520,
+    satelliteCount: 12,
+    description: 'Il cuore della matrice universale. Sconfiggilo per purificare la galassia!',
+    lore: "L'Architetto Primordiale scende in campo con 4 fasi cataclismatiche per difendere l'origine del cosmo.",
+    hazardNote: "Doppio anello orbitale, onde d'urto continue e discesa enrage.",
+  },
+};
+
+export function getChapterForSector(sector: number): StoryChapter {
+  if (sector <= 5) return STORY_CHAPTERS[1];
+  if (sector <= 10) return STORY_CHAPTERS[2];
+  if (sector <= 15) return STORY_CHAPTERS[3];
+  if (sector <= 20) return STORY_CHAPTERS[4];
+  return STORY_CHAPTERS[5];
+}
+
 export interface SavedRunState {
   hasActiveRun: boolean;
   savedLevel: number;
@@ -523,6 +627,7 @@ export interface SavedRunState {
   savedRelics: RelicId[];
   savedShardsRun: number;
   savedIsEndless: boolean;
+  gameMode?: GameMode;
 }
 
 export interface UnlockEventNotification {
@@ -531,6 +636,20 @@ export interface UnlockEventNotification {
   name: string;
   description: string;
   color: string;
+}
+
+export interface StoryProgressData {
+  currentChapter: number;
+  highestChapterUnlocked: number;
+  highestStorySector: number;
+  storyCompleted: boolean;
+  bossesDefeated: {
+    monolithSector5: boolean;
+    tesseractSector10: boolean;
+    leviathanSector15: boolean;
+    chronoWeaverSector20: boolean;
+    primordialArchitectSector25: boolean;
+  };
 }
 
 export interface GameProgressionData {
@@ -555,6 +674,9 @@ export interface GameProgressionData {
     monolithSector5: boolean;
     tesseractSector10: boolean;
     leviathanSector15: boolean;
+    chronoWeaverSector20?: boolean;
+    primordialArchitectSector25?: boolean;
   };
+  storyProgress: StoryProgressData;
   savedRun: SavedRunState;
 }

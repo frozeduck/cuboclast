@@ -7,6 +7,8 @@ import {
   ARCHETYPES_DATA,
   RELICS_DATA,
   FUSION_COMBOS,
+  GameMode,
+  StoryProgressData,
 } from '../types/game';
 
 const STORAGE_KEY = 'cuboclast_meta_progression_v2';
@@ -49,6 +51,21 @@ const defaultProgression: GameProgressionData = {
     monolithSector5: false,
     tesseractSector10: false,
     leviathanSector15: false,
+    chronoWeaverSector20: false,
+    primordialArchitectSector25: false,
+  },
+  storyProgress: {
+    currentChapter: 1,
+    highestChapterUnlocked: 1,
+    highestStorySector: 1,
+    storyCompleted: false,
+    bossesDefeated: {
+      monolithSector5: false,
+      tesseractSector10: false,
+      leviathanSector15: false,
+      chronoWeaverSector20: false,
+      primordialArchitectSector25: false,
+    },
   },
   savedRun: {
     hasActiveRun: false,
@@ -59,6 +76,7 @@ const defaultProgression: GameProgressionData = {
     savedRelics: [],
     savedShardsRun: 0,
     savedIsEndless: false,
+    gameMode: 'STORY',
   },
 };
 
@@ -96,6 +114,14 @@ export class ProgressionManager {
             ...defaultProgression.bossesDefeated,
             ...(parsed.bossesDefeated || {}),
           },
+          storyProgress: {
+            ...defaultProgression.storyProgress,
+            ...(parsed.storyProgress || {}),
+            bossesDefeated: {
+              ...defaultProgression.storyProgress.bossesDefeated,
+              ...((parsed.storyProgress && parsed.storyProgress.bossesDefeated) || {}),
+            },
+          },
           savedRun: {
             ...defaultProgression.savedRun,
             ...(parsed.savedRun || {}),
@@ -109,6 +135,10 @@ export class ProgressionManager {
       ...defaultProgression,
       savedRun: { ...defaultProgression.savedRun },
       bossesDefeated: { ...defaultProgression.bossesDefeated },
+      storyProgress: {
+        ...defaultProgression.storyProgress,
+        bossesDefeated: { ...defaultProgression.storyProgress.bossesDefeated },
+      },
     };
   }
 
@@ -159,15 +189,66 @@ export class ProgressionManager {
   }
 
   public recordBossDefeated(level: number) {
+    if (!this.data.storyProgress) {
+      this.data.storyProgress = {
+        currentChapter: 1,
+        highestChapterUnlocked: 1,
+        highestStorySector: 1,
+        storyCompleted: false,
+        bossesDefeated: {
+          monolithSector5: false,
+          tesseractSector10: false,
+          leviathanSector15: false,
+          chronoWeaverSector20: false,
+          primordialArchitectSector25: false,
+        },
+      };
+    }
+
     if (level === 5) {
       this.data.bossesDefeated.monolithSector5 = true;
+      this.data.storyProgress.bossesDefeated.monolithSector5 = true;
+      this.data.storyProgress.highestChapterUnlocked = Math.max(this.data.storyProgress.highestChapterUnlocked, 2);
     } else if (level === 10) {
       this.data.bossesDefeated.tesseractSector10 = true;
-    } else if (level >= 15) {
+      this.data.storyProgress.bossesDefeated.tesseractSector10 = true;
+      this.data.storyProgress.highestChapterUnlocked = Math.max(this.data.storyProgress.highestChapterUnlocked, 3);
+    } else if (level === 15) {
       this.data.bossesDefeated.leviathanSector15 = true;
+      this.data.storyProgress.bossesDefeated.leviathanSector15 = true;
+      this.data.storyProgress.highestChapterUnlocked = Math.max(this.data.storyProgress.highestChapterUnlocked, 4);
+    } else if (level === 20) {
+      this.data.bossesDefeated.chronoWeaverSector20 = true;
+      this.data.storyProgress.bossesDefeated.chronoWeaverSector20 = true;
+      this.data.storyProgress.highestChapterUnlocked = Math.max(this.data.storyProgress.highestChapterUnlocked, 5);
+    } else if (level >= 25) {
+      this.data.bossesDefeated.primordialArchitectSector25 = true;
+      this.data.storyProgress.bossesDefeated.primordialArchitectSector25 = true;
+      this.recordStoryCompleted();
     }
+
+    this.data.storyProgress.highestStorySector = Math.max(
+      this.data.storyProgress.highestStorySector,
+      level
+    );
+
     this.checkAndTriggerUnlocks();
     this.save();
+  }
+
+  public recordStoryCompleted() {
+    if (!this.data.storyProgress.storyCompleted) {
+      this.data.storyProgress.storyCompleted = true;
+      this.data.quantumShards += 500;
+      this.pendingUnlocks.push({
+        title: 'CAMPAGNA STORIA COMPLETATA!',
+        type: 'ARCHETYPE',
+        name: 'Vittoria Galattica Cosmica',
+        description: 'Hai sconfitto l Architetto Primordiale! +500 Schegge Quantiche e sbloccato l Abisso Infinito!',
+        color: '#e11d48',
+      });
+      this.save();
+    }
   }
 
   public checkAndTriggerUnlocks(): UnlockEventNotification[] {
@@ -369,7 +450,8 @@ export class ProgressionManager {
     archetype: ArchetypeId,
     relics: RelicId[],
     shardsRun: number,
-    isEndless: boolean
+    isEndless: boolean,
+    gameMode: GameMode = 'STORY'
   ) {
     this.data.savedRun = {
       hasActiveRun: true,
@@ -380,6 +462,7 @@ export class ProgressionManager {
       savedRelics: [...relics],
       savedShardsRun: shardsRun,
       savedIsEndless: isEndless,
+      gameMode,
     };
     this.recordScoreAndLevel(score, level);
     this.save();
@@ -395,6 +478,7 @@ export class ProgressionManager {
       savedRelics: [],
       savedShardsRun: 0,
       savedIsEndless: false,
+      gameMode: 'STORY',
     };
     this.save();
   }

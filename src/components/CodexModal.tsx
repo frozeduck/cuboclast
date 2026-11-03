@@ -42,8 +42,8 @@ export const CodexModal: React.FC<CodexModalProps> = ({ engine, onClose }) => {
   );
 
   return (
-    <div className="absolute inset-0 bg-[#04060a]/95 backdrop-blur-lg flex items-center justify-center p-3 sm:p-5 z-50 overflow-y-auto">
-      <div className="w-full max-w-2xl bg-[#090d16] border-2 border-purple-500 rounded-3xl p-5 sm:p-6 shadow-[0_0_60px_rgba(168,85,247,0.25)] text-left relative flex flex-col gap-4 max-h-[96vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-[#04060a]/95 backdrop-blur-lg overflow-hidden">
+      <div className="w-full max-w-2xl bg-[#090d16] border-2 border-purple-500 rounded-3xl p-4 sm:p-6 shadow-[0_0_60px_rgba(168,85,247,0.25)] text-left relative flex flex-col gap-3 sm:gap-4 max-h-[92dvh] overflow-y-auto touch-scroll overscroll-contain">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#1e2e48] pb-3">
           <div className="flex items-center gap-2.5">
@@ -374,14 +374,14 @@ export const CodexModal: React.FC<CodexModalProps> = ({ engine, onClose }) => {
               </div>
             </div>
 
-            {/* Sector 15 Endless Boss */}
-            <div className="p-4 rounded-2xl bg-[#0f172a] border-2 border-purple-500/40 flex flex-col gap-2">
+            {/* Sector 15 Boss */}
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-[#0f172a] border-2 border-amber-500/40 flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30">
-                    Settore 15 Endless Boss
+                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    Capitolo III · Settore 15 Boss
                   </span>
-                  <h4 className="text-base font-bold text-white mt-1">The Void Leviathan</h4>
+                  <h4 className="text-base font-bold text-white mt-1">Void Leviathan</h4>
                 </div>
                 {progData.bossesDefeated.leviathanSector15 ? (
                   <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center gap-1">
@@ -394,8 +394,65 @@ export const CodexModal: React.FC<CodexModalProps> = ({ engine, onClose }) => {
                 )}
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
-                180+ HP, griglie cinetiche multiple, doppi impulsi shockwave a 360 gradi.
+                260 HP, 10 satelliti a rotazione cinetica rapida, onde d'urto doppie e griglie corazzate.
               </p>
+              <div className="text-xs font-mono text-cyan-300 pt-1 border-t border-slate-800">
+                Sblocca l'accesso al <strong>Capitolo IV: Singolarità Oscura</strong>!
+              </div>
+            </div>
+
+            {/* Sector 20 Boss */}
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-[#0f172a] border-2 border-emerald-500/40 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    Capitolo IV · Settore 20 Boss
+                  </span>
+                  <h4 className="text-base font-bold text-white mt-1">Chrono Weaver</h4>
+                </div>
+                {progData.bossesDefeated.chronoWeaverSector20 ? (
+                  <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-4 h-4" /> Sconfitto
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 rounded-full bg-slate-800 text-slate-400 border border-slate-700 text-xs font-bold flex items-center gap-1">
+                    <Lock className="w-4 h-4" /> Non ancora battuto
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                380 HP, 10 satelliti multistrato, distorsione temporale criogenica e barriere repulse.
+              </p>
+              <div className="text-xs font-mono text-cyan-300 pt-1 border-t border-slate-800">
+                Sblocca l'accesso al <strong>Capitolo Finale V: Orizzonte Primordiale</strong>!
+              </div>
+            </div>
+
+            {/* Sector 25 Final Boss */}
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-[#0f172a] border-2 border-rose-500/40 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 animate-pulse">
+                    Capitolo V · Settore 25 Boss Finale
+                  </span>
+                  <h4 className="text-base font-bold text-white mt-1">Primordial Architect</h4>
+                </div>
+                {progData.bossesDefeated.primordialArchitectSector25 ? (
+                  <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-4 h-4" /> Campione Galattico
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 rounded-full bg-slate-800 text-slate-400 border border-slate-700 text-xs font-bold flex items-center gap-1">
+                    <Lock className="w-4 h-4" /> Trono Inviolato
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                520 HP, 12 satelliti orbitanti in doppio anello concavo, 4 fasi cataclismatiche con discesa enrage sul cannone.
+              </p>
+              <div className="text-xs font-mono text-amber-300 pt-1 border-t border-slate-800">
+                Ricompensa: <strong>+500 Schegge Quantiche</strong> & <strong>Accesso all'Abisso Infinito Endless</strong>!
+              </div>
             </div>
           </div>
         )}

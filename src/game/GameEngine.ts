@@ -20,6 +20,8 @@ import {
   Basket,
   Shard,
   FloatingText,
+  GameMode,
+  getChapterForSector,
 } from '../types/game';
 import { ProgressionManager, progressionManager } from './progression';
 import { soundEngine } from '../audio/soundEngine';
@@ -47,6 +49,7 @@ export class GameEngine {
   public state: GameState = 'ARCHETYPE_SELECT';
   public currentArchetype: ArchetypeId | null = null;
   public progression: ProgressionManager;
+  public gameMode: GameMode = 'STORY';
 
   public currentLevel: number = 1;
   public isEndless: boolean = false;
@@ -102,10 +105,11 @@ export class GameEngine {
       vx: 230,
     };
     this.highScore = progression.getData().highestScore;
-    this.initGame();
+    this.initGame('STORY');
   }
 
-  public initGame() {
+  public initGame(mode?: GameMode) {
+    if (mode) this.gameMode = mode;
     this.currentLevel = 1;
     this.isEndless = false;
     this.score = 0;
@@ -124,12 +128,13 @@ export class GameEngine {
     }
   }
 
-  public selectArchetype(archetype: ArchetypeId) {
+  public selectArchetype(archetype: ArchetypeId, mode?: GameMode) {
     if (!this.progression.isArchetypeUnlocked(archetype)) {
       // If locked, cannot select unless unlocked
       return;
     }
 
+    if (mode) this.gameMode = mode;
     this.currentArchetype = archetype;
     this.progression.recordRunStart();
 
@@ -153,6 +158,7 @@ export class GameEngine {
       const restoredBalls = data.savedRun.savedBalls;
       const restoredShards = data.savedRun.savedShardsRun;
       const restoredEndless = data.savedRun.savedIsEndless;
+      this.gameMode = data.savedRun.gameMode || 'STORY';
 
       if (data.savedRun.savedArchetype) {
         this.currentArchetype = data.savedRun.savedArchetype;
@@ -176,7 +182,8 @@ export class GameEngine {
         this.currentArchetype,
         this.activeRelics,
         this.quantumShardsRun,
-        this.isEndless
+        this.isEndless,
+        this.gameMode
       );
 
       this.setState('AIMING');
@@ -201,7 +208,8 @@ export class GameEngine {
         this.currentArchetype,
         this.activeRelics,
         this.quantumShardsRun,
-        this.isEndless
+        this.isEndless,
+        this.gameMode
       );
     }
 
@@ -408,7 +416,14 @@ export class GameEngine {
     const bossH = 180;
     const bossX = (VIRTUAL_WIDTH - bossW) / 2;
     const bossY = startY + 120;
-    const bossHp = level === 5 ? 65 : level === 10 ? 140 : 180 + (level - 10) * 20;
+
+    const chapter = getChapterForSector(level);
+    let bossHp = chapter ? chapter.bossHp : 80;
+    let satelliteCount = chapter ? chapter.satelliteCount : 6;
+    if (level > 25) {
+      bossHp = 520 + (level - 25) * 35;
+      satelliteCount = 12;
+    }
 
     this.activeBoss = {
       id: this.nextCubeId++,
@@ -428,19 +443,50 @@ export class GameEngine {
     };
     this.cubes.push(this.activeBoss);
 
-    const satelliteCount = level === 5 ? 6 : 8;
-    for (let i = 0; i < satelliteCount; i++) {
-      const ang = ((2 * Math.PI) / satelliteCount) * i;
-      this.bossSatellites.push({
-        id: this.nextSatId++,
-        angle: ang,
-        distance: 250,
-        isAlive: true,
-        hp: 8,
-        maxHp: 8,
-        width: 50,
-        height: 50,
-      });
+    const satHp = level <= 5 ? 6 : level <= 10 ? 8 : level <= 15 ? 12 : level <= 20 ? 15 : 20;
+
+    if (satelliteCount === 12) {
+      // Double ring orbit for final boss & deep endless
+      for (let i = 0; i < 6; i++) {
+        const ang = ((2 * Math.PI) / 6) * i;
+        this.bossSatellites.push({
+          id: this.nextSatId++,
+          angle: ang,
+          distance: 210,
+          isAlive: true,
+          hp: satHp,
+          maxHp: satHp,
+          width: 46,
+          height: 46,
+        });
+      }
+      for (let i = 0; i < 6; i++) {
+        const ang = ((2 * Math.PI) / 6) * i + Math.PI / 6;
+        this.bossSatellites.push({
+          id: this.nextSatId++,
+          angle: ang,
+          distance: 300,
+          isAlive: true,
+          hp: satHp,
+          maxHp: satHp,
+          width: 50,
+          height: 50,
+        });
+      }
+    } else {
+      for (let i = 0; i < satelliteCount; i++) {
+        const ang = ((2 * Math.PI) / satelliteCount) * i;
+        this.bossSatellites.push({
+          id: this.nextSatId++,
+          angle: ang,
+          distance: 250,
+          isAlive: true,
+          hp: satHp,
+          maxHp: satHp,
+          width: 50,
+          height: 50,
+        });
+      }
     }
 
     // Kinetic top cubes for rebounds
@@ -697,8 +743,12 @@ export class GameEngine {
       }
       this.progression.recordScoreAndLevel(this.score, this.currentLevel);
 
-      if (this.currentLevel === 10 && !this.isEndless) {
+      const maxLevel = this.gameMode === 'STORY' ? 25 : 10;
+      if (this.currentLevel === maxLevel && !this.isEndless) {
         this.progression.recordVictory();
+        if (this.gameMode === 'STORY') {
+          this.progression.recordBossDefeated(25);
+        }
         const unlocks = this.progression.checkAndTriggerUnlocks();
         if (unlocks.length > 0 && this.listener.onNewUnlock) {
           this.listener.onNewUnlock(unlocks[0]);
@@ -1047,7 +1097,15 @@ export class GameEngine {
           }
 
           if (c.type === 'BOSS') {
-            this.addQuantumShards(50);
+            const shardReward =
+              this.currentLevel === 25
+                ? 150
+                : this.currentLevel === 20
+                ? 100
+                : this.currentLevel >= 15
+                ? 75
+                : 50;
+            this.addQuantumShards(shardReward);
             this.progression.recordBossDefeated(this.currentLevel);
             const newUnlocks = this.progression.checkAndTriggerUnlocks();
             if (newUnlocks.length > 0 && this.listener.onNewUnlock) {
@@ -1413,12 +1471,6 @@ export class GameEngine {
       if (tier > 0) {
         soundEngine.playResonanceFanfare();
         soundEngine.triggerHaptic(60);
-        this.addFloatingText(
-          CANNON_X,
-          320,
-          `★ RISONANZA ${info.family} TIER ${tier}! ★`,
-          RELICS_DATA[relic].family === 'ELECTRIC' ? '#00e5ff' : '#ffe600'
-        );
         if (this.listener.onResonanceUnlocked) {
           this.listener.onResonanceUnlocked(info.family, tier);
         }
@@ -1438,7 +1490,8 @@ export class GameEngine {
     if (newUnlocks.length > 0 && this.listener.onNewUnlock) {
       this.listener.onNewUnlock(newUnlocks[0]);
     }
-    this.initLevel(11);
+    const nextLevel = this.gameMode === 'STORY' ? 26 : 11;
+    this.initLevel(nextLevel);
   }
 
   public openShop() {

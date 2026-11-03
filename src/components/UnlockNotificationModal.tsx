@@ -29,9 +29,9 @@ export const UnlockNotificationModal: React.FC<UnlockNotificationModalProps> = (
   }, []);
 
   return (
-    <div className="absolute inset-0 bg-[#04060a]/92 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#04060a]/92 backdrop-blur-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
       <div
-        className="w-full max-w-md bg-[#090d16] border-2 rounded-3xl p-6 sm:p-7 text-center relative flex flex-col gap-4 shadow-2xl"
+        className="w-full max-w-md bg-[#090d16] border-2 rounded-3xl p-5 sm:p-7 text-center relative flex flex-col gap-3 sm:gap-4 shadow-2xl max-h-[90dvh] overflow-y-auto touch-scroll overscroll-contain"
         style={{
           borderColor: unlock.color || '#ffe600',
           boxShadow: `0 0 50px ${unlock.color || '#ffe600'}40`,

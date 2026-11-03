@@ -35,9 +35,9 @@ export const App: React.FC = () => {
   }, [engine]);
 
   return (
-    <div className="relative w-screen h-[100dvh] overflow-hidden bg-[#04060a] flex items-center justify-center font-sans">
+    <div className="fixed inset-0 w-full h-full h-[100dvh] overflow-hidden bg-[#04060a] flex items-center justify-center font-sans select-none">
       {/* Game Playfield Container */}
-      <div className="relative w-full h-full max-w-[580px] max-h-[1020px] aspect-[9/16] shadow-2xl flex items-center justify-center">
+      <div className="relative w-full h-full max-w-[500px] max-h-[100dvh] flex items-center justify-center overflow-hidden">
         <GameCanvas engine={engine} />
 
         {/* In-Game HUD (visible during AIMING, BALL_IN_PLAY, and FEVER) */}
@@ -53,7 +53,7 @@ export const App: React.FC = () => {
 
         {/* FEVER Banner Overlay */}
         {gameState === 'FEVER' && (
-          <div className="pointer-events-none absolute inset-x-0 top-1/4 flex flex-col items-center justify-center z-30 animate-pulse">
+          <div className="pointer-events-none absolute inset-x-0 top-1/4 flex flex-col items-center justify-center z-30 animate-pulse px-4">
             <div className="bg-gradient-to-r from-amber-500/90 via-yellow-400 to-amber-500/90 text-slate-950 font-black text-2xl sm:text-3xl px-8 py-3 rounded-2xl shadow-[0_0_50px_rgba(255,230,0,0.8)] tracking-widest border-2 border-white uppercase text-center transform rotate-[-2deg]">
               ★ CuboClast Fever! ★
             </div>
@@ -62,20 +62,20 @@ export const App: React.FC = () => {
             </span>
           </div>
         )}
-
-        {/* Draft Modal during run */}
-        {gameState === 'RELIC_DRAFT' && <RelicDraftModal engine={engine} />}
-
-        {/* Active Relics In-Game Drawer */}
-        {showRelicList && (
-          <RelicListModal engine={engine} onClose={() => setShowRelicList(false)} />
-        )}
-
-        {/* In-Game Guide Modal */}
-        {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
       </div>
 
-      {/* Full-Screen Modals for optimal readability and accessibility across all screen sizes */}
+      {/* Relic Draft Modal during run */}
+      {gameState === 'RELIC_DRAFT' && <RelicDraftModal engine={engine} />}
+
+      {/* Active Relics In-Game Drawer */}
+      {showRelicList && (
+        <RelicListModal engine={engine} onClose={() => setShowRelicList(false)} />
+      )}
+
+      {/* In-Game Guide Modal */}
+      {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
+
+      {/* Archetype Select & Mode Screen */}
       {gameState === 'ARCHETYPE_SELECT' && (
         <ArchetypeSelectModal
           engine={engine}
@@ -85,10 +85,12 @@ export const App: React.FC = () => {
         />
       )}
 
+      {/* Game Over Screen */}
       {gameState === 'GAME_OVER' && (
         <GameOverModal engine={engine} onOpenShop={() => setShowShop(true)} />
       )}
 
+      {/* Victory Screen */}
       {gameState === 'VICTORY' && <VictoryModal engine={engine} />}
 
       {/* Meta Upgrade Shop Overlay */}
@@ -116,7 +118,6 @@ export const App: React.FC = () => {
           unlock={activeUnlock}
           onDismiss={() => {
             setActiveUnlock(null);
-            // Check if there are more pending unlocks
             const next = engine.progression.popNextUnlock();
             if (next) {
               setTimeout(() => setActiveUnlock(next), 200);

@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace 'eu.sabotino.cuboclast'
-    compileSdk 35
+    compileSdk 36
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -15,8 +15,8 @@ android {
         applicationId 'eu.sabotino.cuboclast'
         minSdk 26
         targetSdk 35
-        versionCode 6
-        versionName '0.5.1'
+        versionCode 7
+        versionName '0.6.0'
     }
 
     signingConfigs {

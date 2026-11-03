@@ -7,8 +7,8 @@ interface InfoModalProps {
 
 export const InfoModal: React.FC<InfoModalProps> = ({ onClose }) => {
   return (
-    <div className="absolute inset-0 bg-[#04060a]/92 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="w-full max-w-lg my-auto bg-[#090d16] border-2 border-cyan-400 rounded-3xl p-6 sm:p-7 shadow-[0_0_50px_rgba(0,229,255,0.25)] text-left relative flex flex-col gap-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#04060a]/92 backdrop-blur-md overflow-hidden">
+      <div className="w-full max-w-lg bg-[#090d16] border-2 border-cyan-400 rounded-3xl p-5 sm:p-6 shadow-[0_0_50px_rgba(0,229,255,0.25)] text-left relative flex flex-col gap-3 sm:gap-4 max-h-[90dvh] overflow-y-auto touch-scroll overscroll-contain">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#1e2e48] pb-3">
           <div className="flex items-center gap-2">
