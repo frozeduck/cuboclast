@@ -35,7 +35,7 @@ export const App: React.FC = () => {
   }, [engine]);
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-[#04060a] flex items-center justify-center font-sans">
+    <div className="relative w-screen h-[100dvh] overflow-hidden bg-[#04060a] flex items-center justify-center font-sans">
       {/* Game Playfield Container */}
       <div className="relative w-full h-full max-w-[580px] max-h-[1020px] aspect-[9/16] shadow-2xl flex items-center justify-center">
         <GameCanvas engine={engine} />
