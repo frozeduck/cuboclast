@@ -9,6 +9,9 @@ import {
   RelicFamilyId,
   RelicId,
   ArchetypeId,
+  FusionComboId,
+  FUSION_COMBOS,
+  UnlockEventNotification,
   ARCHETYPES_DATA,
   RELICS_DATA,
   Ball,
@@ -34,6 +37,8 @@ export interface GameEngineListener {
   onBossPhaseChange?: (phase: number) => void;
   onShardCollect?: () => void;
   onResonanceUnlocked?: (family: RelicFamilyId, tier: number) => void;
+  onFusionUnlocked?: (comboId: FusionComboId) => void;
+  onNewUnlock?: (unlock: UnlockEventNotification) => void;
   onReroll?: () => void;
   onStateChange?: (newState: GameState) => void;
 }
@@ -59,6 +64,8 @@ export class GameEngine {
   public ballsCaughtInCurrentShot: number = 0;
   private nextFreeBallThreshold: number = 6000;
   public rerollsAvailable: number = 1;
+
+  public isNextBallElectrified: boolean = false;
 
   public activeBoss: Cube | null = null;
   public bossPhase: number = 1;
@@ -105,11 +112,12 @@ export class GameEngine {
     this.quantumShardsRun = 0;
     this.activeRelics = [];
     this.totalCubesDestroyed = 0;
+    this.isNextBallElectrified = false;
     this.rerollsAvailable = 1 + this.progression.getData().upgradeRerolls;
     this.setState('ARCHETYPE_SELECT');
   }
 
-  private setState(newState: GameState) {
+  public setState(newState: GameState) {
     this.state = newState;
     if (this.listener.onStateChange) {
       this.listener.onStateChange(newState);
@@ -117,6 +125,11 @@ export class GameEngine {
   }
 
   public selectArchetype(archetype: ArchetypeId) {
+    if (!this.progression.isArchetypeUnlocked(archetype)) {
+      // If locked, cannot select unless unlocked
+      return;
+    }
+
     this.currentArchetype = archetype;
     this.progression.recordRunStart();
 
@@ -211,7 +224,7 @@ export class GameEngine {
     }
 
     let basketWidth = 220 + this.progression.getData().upgradeBasketWidth * 15;
-    if (this.currentArchetype === 'KINETIC_TITAN') basketWidth += 30;
+    if (this.currentArchetype === 'KINETIC_TITAN') basketWidth += 40;
     if (this.activeRelics.includes('MAGNETIC_BASKET')) basketWidth += 50;
     this.basket.width = basketWidth;
     this.basket.x = (VIRTUAL_WIDTH - basketWidth) / 2;
@@ -241,6 +254,35 @@ export class GameEngine {
     if (count >= 3) return 2; // Mastery
     if (count >= 2) return 1; // Synergy
     return 0;
+  }
+
+  // Check active Dual-Element Fusion Combos
+  public getActiveFusionCombos(): FusionComboId[] {
+    const counts = this.getActiveResonances();
+    const active: FusionComboId[] = [];
+
+    // Plasma Overload: Electric 2+ and Explosive 2+
+    if (counts.ELECTRIC >= 2 && counts.EXPLOSIVE >= 2 && this.progression.isFusionComboUnlocked('PLASMA_OVERLOAD')) {
+      active.push('PLASMA_OVERLOAD');
+    }
+    // Magnetic Surge: Kinetic 2+ and Electric 2+
+    if (counts.KINETIC >= 2 && counts.ELECTRIC >= 2 && this.progression.isFusionComboUnlocked('MAGNETIC_SURGE')) {
+      active.push('MAGNETIC_SURGE');
+    }
+    // Swarm Detonator: Multiball 2+ and Explosive 2+
+    if (counts.MULTIBALL >= 2 && counts.EXPLOSIVE >= 2 && this.progression.isFusionComboUnlocked('SWARM_DETONATOR')) {
+      active.push('SWARM_DETONATOR');
+    }
+    // Hyper Swarm: Multiball 2+ and Kinetic 2+
+    if (counts.MULTIBALL >= 2 && counts.KINETIC >= 2 && this.progression.isFusionComboUnlocked('HYPER_SWARM')) {
+      active.push('HYPER_SWARM');
+    }
+    // Cryo Shock: Electric 2+ and Kinetic 2+
+    if (counts.ELECTRIC >= 2 && counts.KINETIC >= 2 && this.progression.isFusionComboUnlocked('CRYO_SHOCK')) {
+      active.push('CRYO_SHOCK');
+    }
+
+    return active;
   }
 
   public getRemainingCoreCubes(): number {
@@ -463,6 +505,12 @@ export class GameEngine {
     if (this.activeRelics.includes('HYPER_VELOCITY')) baseDamage += 1;
     if (this.currentArchetype === 'KINETIC_TITAN') baseDamage += 1;
 
+    const isElectrified = this.isNextBallElectrified;
+    if (isElectrified) {
+      baseDamage += 2;
+      this.isNextBallElectrified = false;
+    }
+
     const b: Ball = {
       x: CANNON_X,
       y: CANNON_Y + 25,
@@ -475,6 +523,7 @@ export class GameEngine {
       baseDamage,
       trail: [],
       hasSavedOnce: false,
+      isElectrified,
     };
 
     this.balls.push(b);
@@ -649,6 +698,11 @@ export class GameEngine {
       this.progression.recordScoreAndLevel(this.score, this.currentLevel);
 
       if (this.currentLevel === 10 && !this.isEndless) {
+        this.progression.recordVictory();
+        const unlocks = this.progression.checkAndTriggerUnlocks();
+        if (unlocks.length > 0 && this.listener.onNewUnlock) {
+          this.listener.onNewUnlock(unlocks[0]);
+        }
         this.progression.clearActiveRun();
         this.setState('VICTORY');
       } else {
@@ -659,6 +713,7 @@ export class GameEngine {
 
   private updateBalls(dt: number) {
     const newBalls: Ball[] = [];
+    const fusionCombos = this.getActiveFusionCombos();
 
     for (let i = this.balls.length - 1; i >= 0; i--) {
       const b = this.balls[i];
@@ -727,6 +782,13 @@ export class GameEngine {
           const catchPoints = 350 * Math.max(1, this.currentCombo);
           this.addScore(catchPoints);
           this.addFloatingText(b.x, this.basket.y - 50, '+1 SFERA! CATTURA!', '#00ff88');
+
+          // Fusion Combo: Magnetic Surge electrifies next ball
+          if (fusionCombos.includes('MAGNETIC_SURGE')) {
+            this.isNextBallElectrified = true;
+            this.addFloatingText(b.x, this.basket.y - 80, '⚡ SCARICA MAGNETICA!', '#06b6d4');
+          }
+
           soundEngine.playCatch();
           soundEngine.triggerHaptic(40);
 
@@ -753,6 +815,13 @@ export class GameEngine {
       // Out of bounds bottom
       if (b.y - b.radius > VIRTUAL_HEIGHT + 20) {
         b.isAlive = false;
+
+        // Fusion Combo: Swarm Detonator explodes on fall
+        if (b.isMini && fusionCombos.includes('SWARM_DETONATOR')) {
+          this.triggerExplosion(b.x, 1800, 150, 6);
+          this.addFloatingText(b.x, 1780, 'SWARM BOOM!', '#ec4899');
+        }
+
         this.balls.splice(i, 1);
         if (this.activeRelics.includes('SUPERNOVA')) {
           this.triggerSupernova(b.x);
@@ -809,6 +878,7 @@ export class GameEngine {
     const electricTier = this.getResonanceTier('ELECTRIC');
     const explosiveTier = this.getResonanceTier('EXPLOSIVE');
     const multiballTier = this.getResonanceTier('MULTIBALL');
+    const fusionCombos = this.getActiveFusionCombos();
 
     for (let j = this.cubes.length - 1; j >= 0; j--) {
       const c = this.cubes[j];
@@ -831,7 +901,9 @@ export class GameEngine {
         const overlapBottom = c.y + c.height - (b.y - b.radius);
 
         const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
-        const pierceThrough = hasPiercing && c.hp <= 2 && c.type !== 'BOSS';
+        const pierceThrough =
+          (hasPiercing && c.hp <= 2 && c.type !== 'BOSS') ||
+          (b.isMini && fusionCombos.includes('HYPER_SWARM') && c.hp <= 3);
 
         if (!pierceThrough) {
           if (minOverlap === overlapLeft) {
@@ -869,6 +941,10 @@ export class GameEngine {
 
         if (c.isFrozen) {
           damage *= 2;
+          if (fusionCombos.includes('CRYO_SHOCK')) {
+            damage += 3;
+            this.addFloatingText(c.x + c.width / 2, c.y - 50, 'CRYO SHOCK!', '#38bdf8');
+          }
         }
 
         let isCrit = false;
@@ -877,6 +953,13 @@ export class GameEngine {
           isCrit = true;
           this.screenShake = Math.max(this.screenShake, 14);
           this.addFloatingText(c.x + c.width / 2, c.y - 40, 'CRIT! x3', '#ff007f');
+        }
+
+        // Chrono Pulse archetype passive
+        if (this.currentArchetype === 'CHRONO_PULSE' && this.currentCombo >= 5 && this.currentCombo % 3 === 0) {
+          this.screenShake = 10;
+          this.addFloatingText(c.x + c.width / 2, c.y - 45, 'CHRONO PULSE!', '#10b981');
+          damage += 4;
         }
 
         const isShielded = this.isCubeProtectedByShield(c);
@@ -915,7 +998,10 @@ export class GameEngine {
         }
 
         // Cryo archetype freeze
-        if (this.currentArchetype === 'CRYSTAL_SINGULARITY' && !c.isFrozen) {
+        if (
+          (this.currentArchetype === 'CRYSTAL_SINGULARITY' || this.activeRelics.includes('POLAR_VORTEX')) &&
+          !c.isFrozen
+        ) {
           c.isFrozen = true;
           this.addFloatingText(c.x + c.width / 2, c.y - 30, 'FROZEN', '#38bdf8');
         }
@@ -962,6 +1048,11 @@ export class GameEngine {
 
           if (c.type === 'BOSS') {
             this.addQuantumShards(50);
+            this.progression.recordBossDefeated(this.currentLevel);
+            const newUnlocks = this.progression.checkAndTriggerUnlocks();
+            if (newUnlocks.length > 0 && this.listener.onNewUnlock) {
+              this.listener.onNewUnlock(newUnlocks[0]);
+            }
           }
 
           if (this.getRemainingCoreCubes() === 0) {
@@ -1015,10 +1106,14 @@ export class GameEngine {
         const dx = cx - ox;
         const dy = cy - oy;
         if (dx * dx + dy * dy < 460 * 460) {
-          c.hp -= dmg;
+          let zapDmg = dmg;
+          if (this.activeRelics.includes('PLASMA_CONDUIT') && c.hp < c.maxHp) {
+            zapDmg *= 2;
+          }
+          c.hp -= zapDmg;
           c.hitFlash = 1;
           c.wobble = 1;
-          this.addFloatingText(cx, cy, `ZAP -${dmg}`, '#00e5ff');
+          this.addFloatingText(cx, cy, `ZAP -${zapDmg}`, '#00e5ff');
           this.spawnSparks(cx, cy, '#00e5ff', 6);
           zaps++;
           if (c.hp <= 0) {
@@ -1040,13 +1135,19 @@ export class GameEngine {
   }
 
   private triggerExplosion(ex: number, ey: number, radius: number, damage: number) {
+    const fusionCombos = this.getActiveFusionCombos();
+    let finalRadius = radius;
+    if (this.activeRelics.includes('SUPERNOVA_CATALYST')) {
+      finalRadius *= 1.5;
+    }
+
     for (const c of this.cubes) {
       if (c.isAlive) {
         const cx = c.x + c.width / 2;
         const cy = c.y + c.height / 2;
         const dx = cx - ex;
         const dy = cy - ey;
-        if (dx * dx + dy * dy <= radius * radius) {
+        if (dx * dx + dy * dy <= finalRadius * finalRadius) {
           c.hp -= damage;
           c.hitFlash = 1;
           c.wobble = 1.2;
@@ -1062,6 +1163,15 @@ export class GameEngine {
         }
       }
     }
+
+    // Fusion Combo: Plasma Overload fires chain lightning from explosion
+    if (fusionCombos.includes('PLASMA_OVERLOAD')) {
+      this.triggerChainLightning(
+        { id: -1, x: ex - 20, y: ey - 20, width: 40, height: 40, hp: 1, maxHp: 1, type: 'NORMAL', isCore: false, wobble: 0, hitFlash: 0, isAlive: true, shieldPulse: 0, isFrozen: false },
+        2
+      );
+    }
+
     this.spawnSparks(ex, ey, '#ff6b00', 18);
     soundEngine.playExplosion();
     soundEngine.triggerHaptic(60);
@@ -1262,6 +1372,11 @@ export class GameEngine {
     if (this.ballsRemaining <= 0) {
       if (this.score > this.highScore) this.highScore = this.score;
       this.progression.recordScoreAndLevel(this.score, this.currentLevel);
+      this.progression.recordRunEnd();
+      const newUnlocks = this.progression.checkAndTriggerUnlocks();
+      if (newUnlocks.length > 0 && this.listener.onNewUnlock) {
+        this.listener.onNewUnlock(newUnlocks[0]);
+      }
       this.progression.clearActiveRun();
       this.setState('GAME_OVER');
     } else {
@@ -1271,8 +1386,8 @@ export class GameEngine {
 
   public prepareRelicDraft() {
     this.draftChoices = [];
-    const allRelicKeys = Object.keys(RELICS_DATA) as RelicId[];
-    const available = allRelicKeys.filter((r) => !this.activeRelics.includes(r));
+    const unlockedPool = this.progression.getData().unlockedRelics;
+    const available = unlockedPool.filter((r) => !this.activeRelics.includes(r));
     const shuffled = [...available].sort(() => Math.random() - 0.5);
     this.draftChoices = shuffled.slice(0, Math.min(3, shuffled.length));
     this.setState('RELIC_DRAFT');
@@ -1319,6 +1434,10 @@ export class GameEngine {
   public startEndlessLoop() {
     this.isEndless = true;
     this.progression.recordVictory();
+    const newUnlocks = this.progression.checkAndTriggerUnlocks();
+    if (newUnlocks.length > 0 && this.listener.onNewUnlock) {
+      this.listener.onNewUnlock(newUnlocks[0]);
+    }
     this.initLevel(11);
   }
 
@@ -1328,5 +1447,9 @@ export class GameEngine {
 
   public closeShop() {
     this.setState('GAME_OVER');
+  }
+
+  public openCodex() {
+    this.setState('CODEX');
   }
 }

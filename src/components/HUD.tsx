@@ -1,16 +1,35 @@
 import React, { useState } from 'react';
 import { GameEngine } from '../game/GameEngine';
 import { soundEngine } from '../audio/soundEngine';
-import { RELIC_FAMILIES, RELICS_DATA, RelicFamilyId } from '../types/game';
-import { Volume2, VolumeX, FastForward, Sparkles, ShieldAlert, Info, Layers } from 'lucide-react';
+import { RELIC_FAMILIES, RELICS_DATA, RelicFamilyId, FUSION_COMBOS } from '../types/game';
+import {
+  Volume2,
+  VolumeX,
+  FastForward,
+  Sparkles,
+  ShieldAlert,
+  Info,
+  Layers,
+  BookOpen,
+  Zap,
+  Smartphone,
+} from 'lucide-react';
 
 interface HUDProps {
   engine: GameEngine;
   onOpenRelicList?: () => void;
   onOpenInfo?: () => void;
+  onOpenCodex?: () => void;
+  onOpenInstall?: () => void;
 }
 
-export const HUD: React.FC<HUDProps> = ({ engine, onOpenRelicList, onOpenInfo }) => {
+export const HUD: React.FC<HUDProps> = ({
+  engine,
+  onOpenRelicList,
+  onOpenInfo,
+  onOpenCodex,
+  onOpenInstall,
+}) => {
   const [soundActive, setSoundActive] = useState(soundEngine.isEnabled());
   const [speedActive, setSpeedActive] = useState(engine.speedBoost);
 
@@ -28,6 +47,7 @@ export const HUD: React.FC<HUDProps> = ({ engine, onOpenRelicList, onOpenInfo })
   const totalCores = engine.getTotalCoreCubes();
   const isBossSector = engine.currentLevel % 5 === 0;
   const resonances = engine.getActiveResonances();
+  const activeFusions = engine.getActiveFusionCombos();
 
   return (
     <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-3 select-none">
@@ -75,11 +95,29 @@ export const HUD: React.FC<HUDProps> = ({ engine, onOpenRelicList, onOpenInfo })
 
         {/* Right: Quick Action Controls */}
         <div className="flex items-center gap-1.5">
+          {/* Install / APK */}
+          <button
+            onClick={onOpenInstall}
+            title="Installa APK / App su Android"
+            className="p-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 hover:text-emerald-300 hover:border-emerald-400 transition"
+          >
+            <Smartphone className="w-4 h-4" />
+          </button>
+
+          {/* Codex Button */}
+          <button
+            onClick={onOpenCodex}
+            title="Codex Poteri & Combo"
+            className="p-1.5 rounded-lg bg-[#141d2d] border border-purple-500/40 text-purple-400 hover:text-purple-300 hover:border-purple-400 transition"
+          >
+            <BookOpen className="w-4 h-4" />
+          </button>
+
           {/* Relic count / Synergies */}
           <button
             onClick={onOpenRelicList}
             title="Reliquie Attive e Sinergie"
-            className="p-1.5 rounded-lg bg-[#141d2d] border border-[#1e2e48] text-purple-400 hover:text-purple-300 hover:border-purple-500/50 transition flex items-center gap-1 text-xs font-mono font-bold"
+            className="p-1.5 rounded-lg bg-[#141d2d] border border-[#1e2e48] text-cyan-400 hover:text-cyan-300 hover:border-cyan-500/50 transition flex items-center gap-1 text-xs font-mono font-bold"
           >
             <Layers className="w-4 h-4" />
             <span>{engine.activeRelics.length}</span>
@@ -114,7 +152,7 @@ export const HUD: React.FC<HUDProps> = ({ engine, onOpenRelicList, onOpenInfo })
           {/* Guide / Info */}
           <button
             onClick={onOpenInfo}
-            title="Info & Archetipi"
+            title="Guida di Gioco"
             className="p-1.5 rounded-lg bg-[#141d2d] border border-[#1e2e48] text-slate-400 hover:text-white transition"
           >
             <Info className="w-4 h-4" />
@@ -122,8 +160,29 @@ export const HUD: React.FC<HUDProps> = ({ engine, onOpenRelicList, onOpenInfo })
         </div>
       </div>
 
-      {/* Active Resonance Tiers Chips (if any synergy active) */}
+      {/* Active Resonance Tiers & Fusion Combo Chips */}
       <div className="w-full max-w-xl mx-auto flex flex-wrap items-center justify-center gap-1.5 mt-1 pointer-events-auto">
+        {/* Dual-Element Fusion Combos */}
+        {activeFusions.map((fusionId) => {
+          const fInfo = FUSION_COMBOS[fusionId];
+          return (
+            <div
+              key={fusionId}
+              className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider backdrop-blur border shadow-md animate-pulse"
+              style={{
+                backgroundColor: `${fInfo.color}25`,
+                borderColor: fInfo.color,
+                color: fInfo.color,
+                boxShadow: `0 0 10px ${fInfo.color}40`,
+              }}
+            >
+              <Zap className="w-3 h-3" />
+              <span>FUSIONE: {fInfo.title}</span>
+            </div>
+          );
+        })}
+
+        {/* Family Resonances */}
         {(Object.keys(resonances) as RelicFamilyId[]).map((fam) => {
           const tier = engine.getResonanceTier(fam);
           if (tier === 0) return null;
@@ -163,7 +222,9 @@ export const HUD: React.FC<HUDProps> = ({ engine, onOpenRelicList, onOpenInfo })
             <span className="text-xs font-black text-white tracking-wide">
               {engine.ballsRemaining} {engine.ballsRemaining === 1 ? 'SFERA' : 'SFERE'}
             </span>
-            <span className="text-[10px] font-mono text-cyan-400">Pronto al tiro</span>
+            <span className="text-[10px] font-mono text-cyan-400">
+              {engine.isNextBallElectrified ? '⚡ Sfera Sovraccarica!' : 'Pronto al tiro'}
+            </span>
           </div>
         </div>
 

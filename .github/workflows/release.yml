@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag version (e.g. v0.5.0)'
+        required: true
+        default: 'v0.5.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web application & PWA assets
+        run: npm run build
+
+      - name: Create release zip
+        run: |
+          cd dist && zip -r ../cuboclast-build.zip . && cd ..
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
+          name: CuboClast ${{ github.event.inputs.tag_name || github.ref_name }}
+          body: |
+            ## 🎮 CuboClast Release
+            - Roguelike Peggle & Cube Breaker Web & Mobile Experience
+            - 7 Archetipi Core (Volt, Pyro, Swarm, Kinetic Titan, Crystal Singularity, Quantum Singularity, Chrono Pulse)
+            - 5 Nuove Combo Fusione Doppia (Sovraccarico Plasma, Scarica Magnetica, Sciame Detonante, Iper-Sciame, Superconduzione Criogenica)
+            - Boss Fight a 3 Fasi con The Monolith & Omega Tesseract
+            - PWA / WebAPK installabile su Android a schermo intero offline
+          files: |
+            cuboclast-build.zip
+            dist/cuboclast-icon.png
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

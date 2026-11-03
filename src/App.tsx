@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { GameEngine } from './game/GameEngine';
-import { GameState } from './types/game';
+import { GameState, UnlockEventNotification } from './types/game';
 import { GameCanvas } from './components/GameCanvas';
 import { HUD } from './components/HUD';
 import { ArchetypeSelectModal } from './components/ArchetypeSelectModal';
@@ -10,6 +10,9 @@ import { GameOverModal } from './components/GameOverModal';
 import { VictoryModal } from './components/VictoryModal';
 import { RelicListModal } from './components/RelicListModal';
 import { InfoModal } from './components/InfoModal';
+import { CodexModal } from './components/CodexModal';
+import { UnlockNotificationModal } from './components/UnlockNotificationModal';
+import { InstallModal } from './components/InstallModal';
 
 export const App: React.FC = () => {
   const engine = useMemo(() => new GameEngine(), []);
@@ -17,16 +20,23 @@ export const App: React.FC = () => {
   const [showRelicList, setShowRelicList] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showShop, setShowShop] = useState(false);
+  const [showCodex, setShowCodex] = useState(false);
+  const [showInstall, setShowInstall] = useState(false);
+  const [activeUnlock, setActiveUnlock] = useState<UnlockEventNotification | null>(null);
 
   useEffect(() => {
     engine.listener.onStateChange = (newState: GameState) => {
       setGameState(newState);
     };
+
+    engine.listener.onNewUnlock = (unlock: UnlockEventNotification) => {
+      setActiveUnlock(unlock);
+    };
   }, [engine]);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#04060a] flex items-center justify-center font-sans">
-      {/* Game Canvas */}
+      {/* Game Playfield Container */}
       <div className="relative w-full h-full max-w-[580px] max-h-[1020px] aspect-[9/16] shadow-2xl flex items-center justify-center">
         <GameCanvas engine={engine} />
 
@@ -36,6 +46,8 @@ export const App: React.FC = () => {
             engine={engine}
             onOpenRelicList={() => setShowRelicList(true)}
             onOpenInfo={() => setShowInfo(true)}
+            onOpenCodex={() => setShowCodex(true)}
+            onOpenInstall={() => setShowInstall(true)}
           />
         )}
 
@@ -51,50 +63,67 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* State Modals */}
-        {gameState === 'ARCHETYPE_SELECT' && (
-          <ArchetypeSelectModal
-            engine={engine}
-            onOpenShop={() => setShowShop(true)}
-          />
-        )}
+        {/* Draft Modal during run */}
+        {gameState === 'RELIC_DRAFT' && <RelicDraftModal engine={engine} />}
 
-        {gameState === 'RELIC_DRAFT' && (
-          <RelicDraftModal engine={engine} />
-        )}
-
-        {gameState === 'GAME_OVER' && (
-          <GameOverModal
-            engine={engine}
-            onOpenShop={() => setShowShop(true)}
-          />
-        )}
-
-        {gameState === 'VICTORY' && (
-          <VictoryModal engine={engine} />
-        )}
-
-        {/* Meta Upgrade Shop Overlay */}
-        {showShop && (
-          <ShopModal
-            engine={engine}
-            onClose={() => setShowShop(false)}
-          />
-        )}
-
-        {/* Active Relics Drawer/Modal */}
+        {/* Active Relics In-Game Drawer */}
         {showRelicList && (
-          <RelicListModal
-            engine={engine}
-            onClose={() => setShowRelicList(false)}
-          />
+          <RelicListModal engine={engine} onClose={() => setShowRelicList(false)} />
         )}
 
-        {/* Guide / Info Modal */}
-        {showInfo && (
-          <InfoModal onClose={() => setShowInfo(false)} />
-        )}
+        {/* In-Game Guide Modal */}
+        {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
       </div>
+
+      {/* Full-Screen Modals for optimal readability and accessibility across all screen sizes */}
+      {gameState === 'ARCHETYPE_SELECT' && (
+        <ArchetypeSelectModal
+          engine={engine}
+          onOpenShop={() => setShowShop(true)}
+          onOpenCodex={() => setShowCodex(true)}
+          onOpenInstall={() => setShowInstall(true)}
+        />
+      )}
+
+      {gameState === 'GAME_OVER' && (
+        <GameOverModal engine={engine} onOpenShop={() => setShowShop(true)} />
+      )}
+
+      {gameState === 'VICTORY' && <VictoryModal engine={engine} />}
+
+      {/* Meta Upgrade Shop Overlay */}
+      {showShop && <ShopModal engine={engine} onClose={() => setShowShop(false)} />}
+
+      {/* Roguelike Codex & Compendium */}
+      {(showCodex || gameState === 'CODEX') && (
+        <CodexModal
+          engine={engine}
+          onClose={() => {
+            setShowCodex(false);
+            if (gameState === 'CODEX') {
+              engine.setState('ARCHETYPE_SELECT');
+            }
+          }}
+        />
+      )}
+
+      {/* Install / APK Modal */}
+      {showInstall && <InstallModal onClose={() => setShowInstall(false)} />}
+
+      {/* Unlock Notification Celebration Modal */}
+      {activeUnlock && (
+        <UnlockNotificationModal
+          unlock={activeUnlock}
+          onDismiss={() => {
+            setActiveUnlock(null);
+            // Check if there are more pending unlocks
+            const next = engine.progression.popNextUnlock();
+            if (next) {
+              setTimeout(() => setActiveUnlock(next), 200);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

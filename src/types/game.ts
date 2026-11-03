@@ -12,7 +12,8 @@ export type GameState =
   | 'RELIC_DRAFT'
   | 'SHOP'
   | 'GAME_OVER'
-  | 'VICTORY';
+  | 'VICTORY'
+  | 'CODEX';
 
 export type CubeType =
   | 'NORMAL'
@@ -64,16 +65,20 @@ export type ArchetypeId =
   | 'PYRO_DETONATOR'
   | 'SWARM_MATRIX'
   | 'KINETIC_TITAN'
-  | 'CRYSTAL_SINGULARITY';
+  | 'CRYSTAL_SINGULARITY'
+  | 'QUANTUM_SINGULARITY'
+  | 'CHRONO_PULSE';
 
 export interface ArchetypeInfo {
   id: ArchetypeId;
   title: string;
+  passiveName: string;
   description: string;
   family: RelicFamilyId;
   color: string;
   initialRelic: RelicId;
   unlockedByDefault: boolean;
+  unlockCondition: string;
   unlockCost?: number;
 }
 
@@ -83,16 +88,19 @@ export type RelicId =
   | 'VOLT_DISCHARGE'
   | 'TESLA_COIL'
   | 'EMP_BURST'
+  | 'PLASMA_CONDUIT'
   // EXPLOSIVE
   | 'BOUNCING_BOMB'
   | 'SHRAPNEL_BURST'
   | 'CLUSTER_CHARGE'
   | 'SUPERNOVA'
+  | 'SUPERNOVA_CATALYST'
   // MULTIBALL
   | 'MULTIBALL_REACTOR'
   | 'QUANTUM_DUPLICATION'
   | 'SPLIT_STORM'
   | 'MICRO_SWARM'
+  | 'GRAVITY_WELL'
   // KINETIC
   | 'KINETIC_SURGE'
   | 'CRITICAL_OVERDRIVE'
@@ -100,13 +108,17 @@ export type RelicId =
   | 'HEAVY_MASS'
   | 'SAFETY_NET'
   | 'PIERCING_RAIL'
-  | 'HYPER_VELOCITY';
+  | 'HYPER_VELOCITY'
+  | 'CHRONO_WARP'
+  | 'POLAR_VORTEX';
 
 export interface RelicInfo {
   id: RelicId;
   family: RelicFamilyId;
   title: string;
   description: string;
+  unlockCondition?: string;
+  isSecret?: boolean;
 }
 
 export const RELICS_DATA: Record<RelicId, RelicInfo> = {
@@ -121,19 +133,27 @@ export const RELICS_DATA: Record<RelicId, RelicInfo> = {
     id: 'VOLT_DISCHARGE',
     family: 'ELECTRIC',
     title: 'Scarica di Tensione',
-    description: 'Ogni 4 cubi colpiti rilascia un arco voltaico circolare.',
+    description: 'Ogni 4 cubi colpiti rilascia un arco voltaico circolare da 4 danni.',
   },
   TESLA_COIL: {
     id: 'TESLA_COIL',
     family: 'ELECTRIC',
     title: 'Bobina Tesla',
-    description: 'Il cestello emette scariche verso i cubi più vicini quando si muove.',
+    description: 'Il cestello emette scariche elettriche verso i cubi più vicini quando si sposta.',
   },
   EMP_BURST: {
     id: 'EMP_BURST',
     family: 'ELECTRIC',
     title: 'Impulso EMP',
-    description: "All'inizio del settore disattiva gli scudi nemici per 10 secondi.",
+    description: "All'inizio di ogni settore disattiva gli scudi nemici per 10 secondi.",
+  },
+  PLASMA_CONDUIT: {
+    id: 'PLASMA_CONDUIT',
+    family: 'ELECTRIC',
+    title: 'Condotto di Plasma',
+    description: 'I fulmini infliggono il +100% danno se colpiscono cubi già danneggiati.',
+    unlockCondition: 'Distruggi 150 cubi totali',
+    isSecret: true,
   },
 
   // Explosive
@@ -141,25 +161,33 @@ export const RELICS_DATA: Record<RelicId, RelicInfo> = {
     id: 'BOUNCING_BOMB',
     family: 'EXPLOSIVE',
     title: 'Sfera Bomba',
-    description: "All'8° rimbalzo la sfera genera una massiccia detonazione ad area.",
+    description: "All'8° rimbalzo la sfera genera una massiccia detonazione ad area (230px).",
   },
   SHRAPNEL_BURST: {
     id: 'SHRAPNEL_BURST',
     family: 'EXPLOSIVE',
     title: 'Schegge Taglienti',
-    description: 'I cubi distrutti proiettano 4 schegge geometriche perforanti.',
+    description: 'I cubi distrutti proiettano 4 schegge geometriche perforanti ad alta velocità.',
   },
   CLUSTER_CHARGE: {
     id: 'CLUSTER_CHARGE',
     family: 'EXPLOSIVE',
     title: 'Carica a Grappolo',
-    description: 'Le esplosioni rilasciano 3 micro-bombe ad impatto.',
+    description: 'Le esplosioni rilasciano 3 micro-bombe a impatto secondario.',
   },
   SUPERNOVA: {
     id: 'SUPERNOVA',
     family: 'EXPLOSIVE',
-    title: 'Supernova',
-    description: "Quando una sfera cade sul fondo, scatena un fascio d'energia verso l'alto.",
+    title: 'Supernova Ascendente',
+    description: "Quando una sfera cade sul fondo, scatena un fascio d'energia verticale verso l'alto per 8 danni.",
+  },
+  SUPERNOVA_CATALYST: {
+    id: 'SUPERNOVA_CATALYST',
+    family: 'EXPLOSIVE',
+    title: 'Catalizzatore Nova',
+    description: 'Le detonazioni aumentano di raggio del +50% e lasciano una scia infuocata.',
+    unlockCondition: 'Distruggi 300 cubi totali',
+    isSecret: true,
   },
 
   // Multiball
@@ -173,19 +201,27 @@ export const RELICS_DATA: Record<RelicId, RelicInfo> = {
     id: 'QUANTUM_DUPLICATION',
     family: 'MULTIBALL',
     title: 'Duplicazione Quantica',
-    description: 'Al 10° rimbalzo duplica la sfera in campo.',
+    description: 'Al 10° rimbalzo duplica la sfera in campo con piena energia cinetica.',
   },
   SPLIT_STORM: {
     id: 'SPLIT_STORM',
     family: 'MULTIBALL',
     title: 'Tempesta di Scissione',
-    description: 'I cubi Splitter generano 3 mini-sfere invece di 2.',
+    description: 'I cubi Splitter generano 3 mini-sfere invece di 2 con velocità aumentata.',
   },
   MICRO_SWARM: {
     id: 'MICRO_SWARM',
     family: 'MULTIBALL',
     title: 'Micro-Sciame',
     description: 'La sfera è accompagnata da 2 micro-orbi orbitanti protettivi.',
+  },
+  GRAVITY_WELL: {
+    id: 'GRAVITY_WELL',
+    family: 'MULTIBALL',
+    title: 'Pozzo Gravitazionale',
+    description: 'Genera un micro-buco nero temporaneo che attira le mini-sfere verso i cubi core.',
+    unlockCondition: 'Completa 2 Run o sconfiggi il Boss Settore 5',
+    isSecret: true,
   },
 
   // Kinetic
@@ -199,13 +235,13 @@ export const RELICS_DATA: Record<RelicId, RelicInfo> = {
     id: 'CRITICAL_OVERDRIVE',
     family: 'KINETIC',
     title: 'Sovraccarico Critico',
-    description: "30% di probabilità di colpo critico (danno x3 e onda d'urto).",
+    description: "30% di probabilità di colpo critico (danno x3 e potente onda d'urto).",
   },
   MAGNETIC_BASKET: {
     id: 'MAGNETIC_BASKET',
     family: 'KINETIC',
     title: 'Cestello Magnetico',
-    description: 'Il cestello è più largo (+50px) e cattura le sfere con forte attrazione.',
+    description: 'Il cestello è più largo (+50px) e cattura le sfere con forte attrazione magnetica.',
   },
   HEAVY_MASS: {
     id: 'HEAVY_MASS',
@@ -231,54 +267,177 @@ export const RELICS_DATA: Record<RelicId, RelicInfo> = {
     title: 'Iper-Velocità',
     description: 'Le sfere viaggiano il 25% più veloci e infliggono +1 danno base.',
   },
+  CHRONO_WARP: {
+    id: 'CHRONO_WARP',
+    family: 'KINETIC',
+    title: 'Distorsione Crono',
+    description: 'Quando una sfera scende sotto il cestello, rallenta il tempo permettendo al cestello di raggiungerla.',
+    unlockCondition: 'Sconfiggi il Boss Omega Tesseract (Settore 10)',
+    isSecret: true,
+  },
+  POLAR_VORTEX: {
+    id: 'POLAR_VORTEX',
+    family: 'ELECTRIC',
+    title: 'Vortice Polare',
+    description: 'I fulmini congelano i cubi colpiti e raddoppiano le schegge quantiche rilasciate.',
+    unlockCondition: 'Sconfiggi il Boss The Monolith (Settore 5)',
+    isSecret: true,
+  },
 };
 
 export const ARCHETYPES_DATA: Record<ArchetypeId, ArchetypeInfo> = {
   VOLT_OVERCHARGE: {
     id: 'VOLT_OVERCHARGE',
     title: 'Volt Overcharge',
-    description: 'I fulmini infliggono +50% danno e si propagano a +1 bersaglio extra. Rilascia scariche elettrostatiche.',
+    passiveName: 'Sovraccarico Voltaico',
+    description: 'Tutti i fulmini infliggono +50% danno e si propagano a +1 bersaglio extra. Rilascia scariche elettrostatiche ad arco su ogni terzo rimbalzo.',
     family: 'ELECTRIC',
     color: '#00e5ff',
     initialRelic: 'CHAIN_LIGHTNING',
     unlockedByDefault: true,
+    unlockCondition: 'Sbloccato di Default',
   },
   PYRO_DETONATOR: {
     id: 'PYRO_DETONATOR',
     title: 'Pyro Detonator',
-    description: 'Raggio di tutte le esplosioni aumentato del +40%. I cubi esplosivi infliggono +3 danni extra.',
+    passiveName: 'Reazione Termonucleare',
+    description: 'Raggio di tutte le esplosioni aumentato del +40%. I cubi esplosivi infliggono +3 danni extra ad area e generano onde durto a catena.',
     family: 'EXPLOSIVE',
     color: '#ff6b00',
     initialRelic: 'BOUNCING_BOMB',
     unlockedByDefault: true,
+    unlockCondition: 'Sbloccato di Default',
   },
   SWARM_MATRIX: {
     id: 'SWARM_MATRIX',
     title: 'Swarm Matrix',
-    description: 'Le mini-sfere rimbalzano 1 volta se cadono nel vuoto e hanno il +25% di probabilità di replicarsi.',
+    passiveName: 'Protocollo Sciame',
+    description: 'Le mini-sfere rimbalzano 1 volta se cadono nel vuoto e hanno il +25% di probabilita di replicarsi a contatto con i cubi splitter.',
     family: 'MULTIBALL',
     color: '#a855f7',
     initialRelic: 'MULTIBALL_REACTOR',
     unlockedByDefault: true,
+    unlockCondition: 'Sbloccato di Default',
   },
   KINETIC_TITAN: {
     id: 'KINETIC_TITAN',
     title: 'Kinetic Titan',
-    description: 'Inizia con cestello maggiorato (260px), forte imbuto magnetico e +1 danno base naturale.',
+    passiveName: 'Colosso Cinetico',
+    description: 'Inizia con cestello maggiorato (260px), forte imbuto magnetico ad alta portata e +1 danno base naturale su ogni impatto.',
     family: 'KINETIC',
     color: '#ffe600',
     initialRelic: 'KINETIC_SURGE',
-    unlockedByDefault: true,
+    unlockedByDefault: false,
+    unlockCondition: 'Completa 1 Run o 75 ◆',
+    unlockCost: 75,
   },
   CRYSTAL_SINGULARITY: {
     id: 'CRYSTAL_SINGULARITY',
     title: 'Crystal Singularity',
-    description: 'Ogni impatto applica congelamento; i cubi congelati subiscono il doppio del danno e rilasciano schegge.',
+    passiveName: 'Criotempesta Quantica',
+    description: 'Ogni impatto applica congelamento; i cubi congelati subiscono il doppio del danno (2x) e rilasciano schegge perforanti quando distrutti.',
     family: 'ELECTRIC',
     color: '#38bdf8',
     initialRelic: 'PIERCING_RAIL',
-    unlockedByDefault: true, // or unlocked via shop progression
-    unlockCost: 100,
+    unlockedByDefault: false,
+    unlockCondition: 'Sconfiggi il Boss The Monolith (Settore 5) o 150 ◆',
+    unlockCost: 150,
+  },
+  QUANTUM_SINGULARITY: {
+    id: 'QUANTUM_SINGULARITY',
+    title: 'Quantum Singularity',
+    passiveName: 'Orizzonte degli Eventi',
+    description: 'Spara sfere gravitazionali che piegano lo spazio. Ogni rimbalzo genera una micro-lente gravitazionale che attira i frammenti e danneggia i cubi adiacenti.',
+    family: 'MULTIBALL',
+    color: '#f43f5e',
+    initialRelic: 'GRAVITY_WELL',
+    unlockedByDefault: false,
+    unlockCondition: 'Sconfiggi il Boss Omega Tesseract (Settore 10) o 250 ◆',
+    unlockCost: 250,
+  },
+  CHRONO_PULSE: {
+    id: 'CHRONO_PULSE',
+    title: 'Chrono Pulse',
+    passiveName: 'Sovraccarico Temporale',
+    description: 'Ad ogni combo superiore a 5, il tempo rallenta e rilascia un impulso temporale che infligge danni diretti a tutti i cubi core presenti nel settore.',
+    family: 'KINETIC',
+    color: '#10b981',
+    initialRelic: 'CHRONO_WARP',
+    unlockedByDefault: false,
+    unlockCondition: 'Completa 3 Run o 200 ◆',
+    unlockCost: 200,
+  },
+};
+
+// --- Nuove Combo Fusione Roguelike ---
+export type FusionComboId =
+  | 'PLASMA_OVERLOAD'
+  | 'MAGNETIC_SURGE'
+  | 'SWARM_DETONATOR'
+  | 'HYPER_SWARM'
+  | 'CRYO_SHOCK';
+
+export interface FusionComboInfo {
+  id: FusionComboId;
+  title: string;
+  familyA: RelicFamilyId;
+  familyB: RelicFamilyId;
+  description: string;
+  unlockCondition: string;
+  isUnlocked: boolean;
+  color: string;
+}
+
+export const FUSION_COMBOS: Record<FusionComboId, FusionComboInfo> = {
+  PLASMA_OVERLOAD: {
+    id: 'PLASMA_OVERLOAD',
+    title: 'Sovraccarico Plasma',
+    familyA: 'ELECTRIC',
+    familyB: 'EXPLOSIVE',
+    description: 'Le detonazioni esplosive scatenano archi di fulmini concatenati verso 3 cubi distanti, infliggendo danni critici.',
+    unlockCondition: 'Sconfiggi il Boss Settore 5 con una build mista o 100 ◆',
+    isUnlocked: false,
+    color: '#f97316',
+  },
+  MAGNETIC_SURGE: {
+    id: 'MAGNETIC_SURGE',
+    title: 'Scarica Magnetica',
+    familyA: 'KINETIC',
+    familyB: 'ELECTRIC',
+    description: 'Ogni sfera catturata nel cestello magnetico potenzia il tiro successivo con un raggio elettrificato al +100% di danno.',
+    unlockCondition: 'Completa 1 Run con 3+ catture nel cestello',
+    isUnlocked: false,
+    color: '#06b6d4',
+  },
+  SWARM_DETONATOR: {
+    id: 'SWARM_DETONATOR',
+    title: 'Sciame Detonante',
+    familyA: 'MULTIBALL',
+    familyB: 'EXPLOSIVE',
+    description: 'Tutte le mini-sfere esplodono al loro ultimo rimbalzo o prima di cadere, infliggendo 6 danni ad area.',
+    unlockCondition: 'Sblocca 4 reliquie di famiglia Multiball ed Esplosiva',
+    isUnlocked: false,
+    color: '#ec4899',
+  },
+  HYPER_SWARM: {
+    id: 'HYPER_SWARM',
+    title: 'Iper-Sciame Perforante',
+    familyA: 'MULTIBALL',
+    familyB: 'KINETIC',
+    description: 'Le mini-sfere ereditano la velocita cinetica massima e perforano i cubi con 3 o meno HP.',
+    unlockCondition: 'Raggiungi una combo x8 in qualsiasi settore',
+    isUnlocked: false,
+    color: '#eab308',
+  },
+  CRYO_SHOCK: {
+    id: 'CRYO_SHOCK',
+    title: 'Superconduzione Criogenica',
+    familyA: 'ELECTRIC',
+    familyB: 'KINETIC',
+    description: 'I fulmini e gli impatti cinetici contro cubi congelati innescano una reazione a catena criogenica che raddoppia i punti.',
+    unlockCondition: 'Sconfiggi il Boss Omega Tesseract (Settore 10)',
+    isUnlocked: false,
+    color: '#38bdf8',
   },
 };
 
@@ -294,6 +453,7 @@ export interface Ball {
   baseDamage: number;
   trail: [number, number][];
   hasSavedOnce: boolean;
+  isElectrified?: boolean;
 }
 
 export interface Cube {
@@ -365,9 +525,18 @@ export interface SavedRunState {
   savedIsEndless: boolean;
 }
 
+export interface UnlockEventNotification {
+  title: string;
+  type: 'ARCHETYPE' | 'RELIC' | 'COMBO' | 'BOSS';
+  name: string;
+  description: string;
+  color: string;
+}
+
 export interface GameProgressionData {
   quantumShards: number;
   runsPlayed: number;
+  runsCompleted: number;
   victories: number;
   bestSector: number;
   highestScore: number;
@@ -375,7 +544,17 @@ export interface GameProgressionData {
   upgradeExtraBalls: number;
   upgradeBasketWidth: number;
   upgradeRerolls: number;
-  unlockedCryo: boolean;
-  unlockedSingularity: boolean;
+  // Archetypes unlocked
+  unlockedArchetypes: ArchetypeId[];
+  // Relics unlocked
+  unlockedRelics: RelicId[];
+  // Fusion Combos unlocked
+  unlockedFusionCombos: FusionComboId[];
+  // Boss kill tracking
+  bossesDefeated: {
+    monolithSector5: boolean;
+    tesseractSector10: boolean;
+    leviathanSector15: boolean;
+  };
   savedRun: SavedRunState;
 }
