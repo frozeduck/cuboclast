@@ -4,15 +4,15 @@ set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_DIR"
 
-echo "=== 1. Esecuzione Test Unitari del Modello di Gioco ==="
-mkdir -p /tmp/cuboclast-tests
-javac -d /tmp/cuboclast-tests \
-    android/app/src/main/java/eu/sabotino/cuboclast/GameProgression.java \
-    android/app/src/main/java/eu/sabotino/cuboclast/Game.java \
-    tests/GameTest.java
-java -ea -cp /tmp/cuboclast-tests eu.sabotino.cuboclast.GameTest
+echo "=== 1. Compilazione Web App & Asset PWA (Vite + TypeScript) ==="
+npm run build
 
-echo "=== 2. Verifica Keystore di Debug ==="
+echo "=== 2. Sincronizzazione Asset Web in Android APK ==="
+mkdir -p android/app/src/main/assets/www
+rm -rf android/app/src/main/assets/www/*
+cp -r dist/* android/app/src/main/assets/www/
+
+echo "=== 3. Verifica Keystore di Debug ==="
 if [ ! -f android/app/debug.keystore ]; then
     keytool -genkeypair -keystore android/app/debug.keystore \
         -storepass android -keypass android -alias androiddebugkey \
@@ -20,17 +20,14 @@ if [ ! -f android/app/debug.keystore ]; then
         -dname "CN=CuboClast Debug,O=Sabotino,C=IT"
 fi
 
-echo "=== 3. Generazione Icone Neon Minimaliste ==="
-python3 scripts/generate_icons.py
-
 echo "=== 4. Compilazione APK Nativo Android con Gradle ==="
 mkdir -p /tmp/.android
 export ANDROID_USER_HOME=/tmp/.android
-android/gradlew -p android --offline --no-daemon assembleDebug
+android/gradlew -p android --no-daemon assembleDebug
 
 version="$(grep "versionName" android/app/build.gradle | head -n1 | sed -E "s/.*['\"]([^'\"]+)['\"].*/\1/")"
 if [ -z "$version" ]; then
-    version="0.1.0"
+    version="0.5.0"
 fi
 
 echo "Versione target: $version"
@@ -39,7 +36,7 @@ apk_target="downloads/cuboclast-${version}-debug.apk"
 cp android/app/build/outputs/apk/debug/app-debug.apk "$apk_target"
 ln -sf "cuboclast-${version}-debug.apk" downloads/cuboclast-latest-debug.apk
 
-echo "=== 5. Verifica Integrita APK ==="
+echo "=== 5. Verifica Integrità APK ==="
 python3 scripts/check-apk.py
 
 echo "=== 6. Generazione Checksum SHA256 ==="

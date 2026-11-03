@@ -6,6 +6,14 @@ L'estetica è rigorosamente **cyberpunk minimalista e geometrica**: tonalità sc
 
 ---
 
+## ⚡ Download e Release APK Android
+
+* **[Scarica l'APK v0.5.0 su GitHub Release](https://github.com/frozeduck/cuboclast/releases/tag/v0.5.0)** · [Repository GitHub](https://github.com/frozeduck/cuboclast)
+* **Server locale di download**: [http://192.168.1.200:8144](http://192.168.1.200:8144) (file: `cuboclast-latest-debug.apk`)
+* **Versione Web / PWA**: compilabile con `npm run build` o visualizzabile in locale.
+
+---
+
 ## 🌟 Caratteristiche Principali
 
 ### 1. 🛡️ 5 Archetipi Core Iniziali
