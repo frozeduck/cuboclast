@@ -20,21 +20,34 @@ const PENTATONIC_SCALE = [
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private soundEnabled: boolean = true;
+  private userInteracted: boolean = false;
 
   constructor() {
-    const saved = localStorage.getItem('cuboclast_sound_enabled');
-    if (saved !== null) {
-      this.soundEnabled = saved === 'true';
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem('cuboclast_sound_enabled');
+      if (saved !== null) {
+        this.soundEnabled = saved === 'true';
+      }
+    }
+    if (typeof window !== 'undefined') {
+      const markInteracted = () => {
+        this.userInteracted = true;
+      };
+      window.addEventListener('pointerdown', markInteracted, { once: true, passive: true });
+      window.addEventListener('keydown', markInteracted, { once: true, passive: true });
+      window.addEventListener('touchstart', markInteracted, { once: true, passive: true });
     }
   }
 
   private initContext() {
+    if (typeof window === 'undefined' || !this.userInteracted) return;
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
       this.ctx = new AudioCtx();
     }
     if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      this.ctx.resume().catch(() => {});
     }
   }
 
@@ -44,16 +57,21 @@ class SoundEngine {
 
   public toggleSound(): boolean {
     this.soundEnabled = !this.soundEnabled;
-    localStorage.setItem('cuboclast_sound_enabled', String(this.soundEnabled));
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('cuboclast_sound_enabled', String(this.soundEnabled));
+    }
     return this.soundEnabled;
   }
 
   public setSoundEnabled(enabled: boolean) {
     this.soundEnabled = enabled;
-    localStorage.setItem('cuboclast_sound_enabled', String(this.soundEnabled));
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('cuboclast_sound_enabled', String(this.soundEnabled));
+    }
   }
 
   public triggerHaptic(ms: number = 20) {
+    if (!this.userInteracted) return;
     if (typeof window !== 'undefined' && 'navigator' in window && 'vibrate' in navigator) {
       try {
         navigator.vibrate(ms);

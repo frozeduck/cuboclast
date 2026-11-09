@@ -1,5 +1,4 @@
 import React from 'react';
-import { X, Target, Award, Shield, Zap, Sparkles, HelpCircle } from 'lucide-react';
 
 interface InfoModalProps {
   onClose: () => void;
@@ -7,113 +6,83 @@ interface InfoModalProps {
 
 export const InfoModal: React.FC<InfoModalProps> = ({ onClose }) => {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#04060a]/92 backdrop-blur-md overflow-hidden">
-      <div className="w-full max-w-lg bg-[#090d16] border-2 border-cyan-400 rounded-3xl p-5 sm:p-6 shadow-[0_0_50px_rgba(0,229,255,0.25)] text-left relative flex flex-col gap-3 sm:gap-4 max-h-[90dvh] overflow-y-auto touch-scroll overscroll-contain">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#1e2e48] pb-3">
-          <div className="flex items-center gap-2">
-            <HelpCircle className="w-5 h-5 text-cyan-400" />
-            <h3 className="text-xl font-black text-white uppercase tracking-wider">
-              Guida di Gioco
-            </h3>
-          </div>
+    <div
+      role="dialog"
+      aria-label="Guida di Gioco"
+      className="fixed inset-0 z-50 bg-[#080b12]/96 flex items-center justify-center sm:p-4"
+    >
+      <div className="w-full h-full sm:h-auto sm:max-h-[90dvh] max-w-lg bg-[#090d16] sm:border-2 border-[#00e5ff] sm:rounded-2xl flex flex-col overflow-hidden">
+        {/* Fixed Header */}
+        <div className="shrink-0 bg-[#090d16] border-b border-[#1e2e48] px-4 py-3 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-[#00e5ff] uppercase tracking-wider">
+            GUIDA DI GIOCO
+          </h3>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-[#141d2d] hover:bg-[#1e2e48] text-slate-400 hover:text-white transition"
+            className="min-h-[38px] px-3 rounded-lg bg-[#141d2d] border border-[#1e2e48] text-white font-bold text-xs uppercase cursor-pointer active:scale-95"
           >
-            <X className="w-5 h-5" />
+            ✕ CHIUDI
           </button>
         </div>
 
-        {/* Content list */}
-        <div className="flex flex-col gap-3 max-h-[420px] overflow-y-auto pr-1 text-xs text-slate-300 leading-relaxed">
-          {/* Rules */}
-          <div className="p-3.5 rounded-2xl bg-[#0f172a] border border-[#1e2e48] flex flex-col gap-1.5">
-            <h4 className="font-bold text-white text-sm flex items-center gap-2">
-              <Target className="w-4 h-4 text-cyan-400" /> Come si Gioca
-            </h4>
+        {/* Single Scrollable Body (Zero Nested Scroll Containers!) */}
+        <div className="flex-1 min-h-0 modal-scroll p-4 space-y-3 text-xs text-slate-200 leading-relaxed">
+          <div className="p-3.5 rounded-xl bg-[#141d2d] border-2 border-[#00e5ff] space-y-1">
+            <h4 className="font-bold text-[#00e5ff] uppercase">1. PUNTAMENTO & FEVER</h4>
             <p>
-              Tieni premuto e trascina con il cursore o con il tocco per calibrare l'angolo del cannone
-              lungo la linea di traiettoria laser. Rilascia per scagliare la sfera quantica!
-            </p>
-            <p>
-              L'obiettivo principale in ogni settore è distruggere tutti i <strong>Cubi Core Dorati ★</strong>.
-              Una volta eliminati, si scatena l'irresistibile <strong>CuboClast FEVER</strong> che
-              polverizza tutti i restanti cubi moltiplicando i punti e le Schegge Quantiche!
+              Trascina il dito sullo schermo per orientare il raggio laser e rilascia per lanciare
+              la sfera. Distruggi tutti i <strong>Cubi Core Dorati ★</strong> per attivare la{' '}
+              <strong>CuboClast Fever</strong> e purificare il settore.
             </p>
           </div>
 
-          {/* Basket & Refunds */}
-          <div className="p-3.5 rounded-2xl bg-[#0f172a] border border-[#1e2e48] flex flex-col gap-1.5">
-            <h4 className="font-bold text-white text-sm flex items-center gap-2">
-              <Award className="w-4 h-4 text-emerald-400" /> Cestello & Rimborso di Grazia
-            </h4>
+          <div className="p-3.5 rounded-xl bg-[#141d2d] border-2 border-[#00ff88] space-y-1">
+            <h4 className="font-bold text-[#00ff88] uppercase">2. CESTELLO & RIMBORSO</h4>
             <p>
-              <strong>Cestello Mobile:</strong> Cattura le sfere in caduta nel cestello magnetico sul
-              fondo per recuperarle istantaneamente (+1 Sfera) e guadagnare ricchi punti bonus.
-            </p>
-            <p>
-              <strong>Mercy Refund:</strong> Se un tiro è sfortunato e colpisce 1 o 0 cubi senza
-              cattura, ti viene rimborsata 1 sfera per non penalizzare i tiri mancati!
+              Cattura le sfere nel cestello magnetico sul fondo per ricevere subito{' '}
+              <strong>+1 Sfera</strong>. Se un tiro colpisce 0 o 1 solo cubo, ricevi un rimborso
+              automatico di grazia.
             </p>
           </div>
 
-          {/* Cube Types */}
-          <div className="p-3.5 rounded-2xl bg-[#0f172a] border border-[#1e2e48] flex flex-col gap-2">
-            <h4 className="font-bold text-white text-sm flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-amber-400" /> Tipi di Cubi
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-              <div className="p-2 rounded-xl bg-[#141d2d] border border-cyan-500/30">
-                <span className="font-bold text-cyan-300">Normale & Core ★</span>
-                <p className="text-slate-400 mt-0.5">I Core dorati devono essere distrutti per superare il settore.</p>
-              </div>
-              <div className="p-2 rounded-xl bg-[#141d2d] border border-blue-500/30">
-                <span className="font-bold text-blue-300">Armor (Corazzato)</span>
-                <p className="text-slate-400 mt-0.5">HP elevati, richiede impatti ripetuti o danni inerziali.</p>
-              </div>
-              <div className="p-2 rounded-xl bg-[#141d2d] border border-orange-500/30">
-                <span className="font-bold text-orange-300">Explosive (Bomba)</span>
-                <p className="text-slate-400 mt-0.5">Detona distruggendo tutti i cubi nel raggio d'azione.</p>
-              </div>
-              <div className="p-2 rounded-xl bg-[#141d2d] border border-purple-500/30">
-                <span className="font-bold text-purple-300">Splitter (Scissione)</span>
-                <p className="text-slate-400 mt-0.5">All'impatto libera 2 o 3 mini-sfere autonome in gioco!</p>
-              </div>
-              <div className="p-2 rounded-xl bg-[#141d2d] border border-yellow-500/30">
-                <span className="font-bold text-yellow-300">Kinetic (Cinetico)</span>
-                <p className="text-slate-400 mt-0.5">Fornisce una poderosa spinta cinetica e bonus al danno.</p>
-              </div>
-              <div className="p-2 rounded-xl bg-[#141d2d] border border-emerald-500/30">
-                <span className="font-bold text-emerald-300">Shield (Scudo Aura)</span>
-                <p className="text-slate-400 mt-0.5">Genera un campo protettivo che dimezza i danni ai cubi vicini.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Bosses & Meta-Progression */}
-          <div className="p-3.5 rounded-2xl bg-[#0f172a] border border-[#1e2e48] flex flex-col gap-1.5">
-            <h4 className="font-bold text-white text-sm flex items-center gap-2">
-              <Zap className="w-4 h-4 text-pink-400" /> Boss Fight a 3 Fasi & Archivio Upgrade
-            </h4>
-            <p>
-              Ogni 5 settori affronterai il <strong>Tesseract Boss</strong>: possiede satelliti orbitanti
-              difensivi, rilascia onde repulsive EMP e scende in discesa frenetica nella fase enrage!
-            </p>
-            <p>
-              Accumula le <strong>Schegge Quantiche ◆</strong> frantumando cubi e settori per sbloccare
-              miglioramenti permanenti nell'Archivio Upgrade.
-            </p>
+          <div className="p-3.5 rounded-xl bg-[#141d2d] border-2 border-[#ffe600] space-y-1.5">
+            <h4 className="font-bold text-[#ffe600] uppercase">3. CODICE COLORI CUBI</h4>
+            <ul className="space-y-1 font-mono text-[11px]">
+              <li>
+                <span className="text-[#ffe600] font-bold">[GIALLO ★]</span> Core obiettivo del
+                settore o cubo Cinetico.
+              </li>
+              <li>
+                <span className="text-[#00e5ff] font-bold">[CIANO]</span> Cubo geometrico standard.
+              </li>
+              <li>
+                <span className="text-[#ff6b00] font-bold">[ARANCIO]</span> Cubo Esplosivo ad area.
+              </li>
+              <li>
+                <span className="text-[#a855f7] font-bold">[VIOLA]</span> Cubo Splitter (genera
+                mini-sfere).
+              </li>
+              <li>
+                <span className="text-[#00ff88] font-bold">[VERDE]</span> Cubo Scudo protettivo.
+              </li>
+              <li>
+                <span className="text-[#3b82f6] font-bold">[BLU]</span> Cubo Corazzato ad alti HP.
+              </li>
+            </ul>
           </div>
         </div>
 
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="w-full py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-md shadow-cyan-500/20"
-        >
-          Ho Capito, Gioca!
-        </button>
+        {/* Fixed Footer */}
+        <div className="shrink-0 bg-[#090d16] border-t border-[#1e2e48] p-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full min-h-[46px] rounded-xl bg-[#00e5ff] text-[#080b12] font-bold text-xs uppercase tracking-wider cursor-pointer active:scale-[0.99]"
+          >
+            HO CAPITO, GIOCA!
+          </button>
+        </div>
       </div>
     </div>
   );

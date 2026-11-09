@@ -34,15 +34,64 @@ export const App: React.FC = () => {
     engine.listener.onNewUnlock = (unlock: UnlockEventNotification) => {
       setActiveUnlock(unlock);
     };
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('autostart') === '1' && engine.state === 'ARCHETYPE_SELECT') {
+      engine.selectArchetype('VOLT_OVERCHARGE', 'STORY');
+    }
   }, [engine]);
 
-  return (
-    <div className="fixed inset-0 w-full h-full h-[100dvh] overflow-hidden bg-[#04060a] flex items-center justify-center font-sans select-none">
-      {/* Game Playfield Container */}
-      <div className="relative w-full h-full max-w-[500px] max-h-[100dvh] flex items-center justify-center overflow-hidden">
-        <GameCanvas engine={engine} />
+  // Keep document.body.dataset.state synced with game state and modal state
+  const isAnyModalOpen =
+    gameState === 'ARCHETYPE_SELECT' ||
+    gameState === 'RELIC_DRAFT' ||
+    gameState === 'GAME_OVER' ||
+    gameState === 'VICTORY' ||
+    gameState === 'CODEX' ||
+    showPause ||
+    showRelicList ||
+    showInfo ||
+    showShop ||
+    showCodex ||
+    showInstall ||
+    activeUnlock !== null;
 
-        {/* In-Game HUD (visible during AIMING, BALL_IN_PLAY, and FEVER) */}
+  useEffect(() => {
+    if (gameState === 'ARCHETYPE_SELECT') {
+      document.body.dataset.state = 'title';
+    } else if (showPause) {
+      document.body.dataset.state = 'paused';
+    } else if (gameState === 'GAME_OVER' || gameState === 'VICTORY') {
+      document.body.dataset.state = 'gameover';
+    } else {
+      document.body.dataset.state = 'playing';
+    }
+  }, [gameState, showPause]);
+
+  // Bind Escape / P to toggle pause during gameplay
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+        if (
+          gameState === 'AIMING' ||
+          gameState === 'BALL_IN_PLAY' ||
+          gameState === 'FEVER'
+        ) {
+          setShowPause((prev) => !prev);
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [gameState]);
+
+  return (
+    <div className="relative w-full h-[100dvh] overflow-hidden bg-[#080b12] flex items-center justify-center font-sans select-none">
+      {/* Game Playfield Container */}
+      <div className="relative w-full h-full max-w-[520px] max-h-[100dvh] flex items-center justify-center overflow-hidden">
+        <GameCanvas engine={engine} disabled={isAnyModalOpen} />
+
+        {/* In-Game HUD */}
         {(gameState === 'AIMING' || gameState === 'BALL_IN_PLAY' || gameState === 'FEVER') && (
           <HUD
             engine={engine}
@@ -51,20 +100,20 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* FEVER Banner Overlay */}
+        {/* Minimalist FEVER Banner (v0.4.0 Style) */}
         {gameState === 'FEVER' && (
-          <div className="pointer-events-none absolute inset-x-0 top-1/4 flex flex-col items-center justify-center z-30 animate-pulse px-4">
-            <div className="bg-gradient-to-r from-amber-500/90 via-yellow-400 to-amber-500/90 text-slate-950 font-black text-2xl sm:text-3xl px-8 py-3 rounded-2xl shadow-[0_0_50px_rgba(255,230,0,0.8)] tracking-widest border-2 border-white uppercase text-center transform rotate-[-2deg]">
-              ★ CuboClast Fever! ★
+          <div className="pointer-events-none absolute inset-x-0 top-1/3 bg-[#080b12]/90 border-y-4 border-[#ffe600] py-4 flex flex-col items-center justify-center z-30">
+            <div className="text-[#ffe600] font-bold text-xl sm:text-2xl tracking-widest uppercase">
+              ★ CUBOCLAST FEVER! ★
             </div>
-            <span className="text-sm font-bold text-yellow-300 mt-2 font-mono drop-shadow-md">
-              Bonificando il settore...
+            <span className="text-xs font-mono text-white mt-1">
+              TUTTI I CORE DISTRUTTI · POLVERIZZAZIONE IN CORSO
             </span>
           </div>
         )}
       </div>
 
-      {/* In-Game Pause & Options Modal */}
+      {/* In-Game Pause Modal */}
       {showPause && (
         <PauseMenuModal
           engine={engine}
@@ -75,18 +124,18 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Relic Draft Modal during run */}
+      {/* Relic Draft Modal */}
       {gameState === 'RELIC_DRAFT' && <RelicDraftModal engine={engine} />}
 
-      {/* Active Relics In-Game Drawer */}
+      {/* Active Relics Modal */}
       {showRelicList && (
         <RelicListModal engine={engine} onClose={() => setShowRelicList(false)} />
       )}
 
-      {/* In-Game Guide Modal */}
+      {/* Guide Modal */}
       {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
 
-      {/* Archetype Select & Mode Screen */}
+      {/* Archetype Select Screen */}
       {gameState === 'ARCHETYPE_SELECT' && (
         <ArchetypeSelectModal
           engine={engine}
@@ -104,10 +153,10 @@ export const App: React.FC = () => {
       {/* Victory Screen */}
       {gameState === 'VICTORY' && <VictoryModal engine={engine} />}
 
-      {/* Meta Upgrade Shop Overlay */}
+      {/* Meta Upgrade Shop */}
       {showShop && <ShopModal engine={engine} onClose={() => setShowShop(false)} />}
 
-      {/* Roguelike Codex & Compendium */}
+      {/* Codex */}
       {(showCodex || gameState === 'CODEX') && (
         <CodexModal
           engine={engine}
@@ -120,10 +169,10 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Install / APK Modal */}
+      {/* APK / Install Modal */}
       {showInstall && <InstallModal onClose={() => setShowInstall(false)} />}
 
-      {/* Unlock Notification Celebration Modal */}
+      {/* Unlock Notification Modal */}
       {activeUnlock && (
         <UnlockNotificationModal
           unlock={activeUnlock}

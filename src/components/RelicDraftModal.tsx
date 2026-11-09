@@ -1,7 +1,6 @@
 import React from 'react';
 import { GameEngine } from '../game/GameEngine';
-import { RELICS_DATA, RELIC_FAMILIES, RelicId } from '../types/game';
-import { RefreshCw, Sparkles, Award } from 'lucide-react';
+import { RELICS_DATA, RELIC_FAMILIES } from '../types/game';
 
 interface RelicDraftModalProps {
   engine: GameEngine;
@@ -12,23 +11,27 @@ export const RelicDraftModal: React.FC<RelicDraftModalProps> = ({ engine }) => {
   const resonances = engine.getActiveResonances();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#04060a]/92 backdrop-blur-md overflow-hidden">
-      <div className="w-full max-w-lg bg-[#090d16] border-2 border-[#00e5ff] rounded-3xl p-5 sm:p-6 shadow-[0_0_50px_rgba(0,229,255,0.2)] text-center relative flex flex-col gap-3 sm:gap-4 max-h-[90dvh] overflow-y-auto touch-scroll overscroll-contain">
-        {/* Header */}
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 text-xs font-bold tracking-widest uppercase mb-1">
-            <Sparkles className="w-3.5 h-3.5" /> Settore {engine.currentLevel} Purificato
+    <div
+      role="dialog"
+      aria-label="Draft Reliquia Roguelike"
+      className="fixed inset-0 z-50 bg-[#080b12]/96 flex items-center justify-center sm:p-4"
+    >
+      <div className="w-full h-full sm:h-auto sm:max-h-[92dvh] max-w-lg bg-[#090d16] sm:border-2 border-[#00e5ff] sm:rounded-2xl flex flex-col overflow-hidden">
+        {/* Fixed Header */}
+        <div className="shrink-0 bg-[#090d16] border-b border-[#1e2e48] px-4 py-3 text-center">
+          <div className="text-xs font-mono text-[#00ff88] uppercase tracking-wider">
+            SETTORE {engine.currentLevel} PURIFICATO
           </div>
-          <h2 className="text-xl sm:text-2xl font-black tracking-wider text-white uppercase">
-            Draft <span className="text-cyan-400">Reliquia</span>
+          <h2 className="text-lg sm:text-xl font-bold text-[#00e5ff] uppercase tracking-wider mt-0.5">
+            SCEGLI UNA RELIQUIA ROGUELIKE
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Scegli una tecnologia quantica per potenziare la tua run
+            Combina poteri della stessa famiglia per attivare Risonanze di Set
           </p>
         </div>
 
-        {/* Relic Choice Cards */}
-        <div className="flex flex-col gap-2.5">
+        {/* Single Scrollable Body (v0.4.0 Minimalist Relic Cards) */}
+        <div className="flex-1 min-h-0 modal-scroll p-4 space-y-3">
           {choices.map((relicId) => {
             const relic = RELICS_DATA[relicId];
             if (!relic) return null;
@@ -39,71 +42,64 @@ export const RelicDraftModal: React.FC<RelicDraftModalProps> = ({ engine }) => {
 
             return (
               <button
+                type="button"
                 key={relic.id}
                 onClick={() => engine.selectRelic(relic.id)}
-                className="group w-full text-left p-3.5 sm:p-4 rounded-2xl bg-[#0f172a] hover:bg-[#141d2d] border-2 transition-all duration-150 relative overflow-hidden active:scale-[0.99] flex flex-col gap-1.5 shadow-md cursor-pointer"
-                style={{
-                  borderColor: `${fam.color}50`,
-                }}
+                className="w-full text-left p-4 rounded-xl bg-[#141d2d] hover:bg-[#1a263b] border-2 transition cursor-pointer active:scale-[0.99] flex flex-col gap-1.5"
+                style={{ borderColor: fam.color }}
               >
-                {/* Title & Element Badge */}
-                <div className="flex items-center justify-between">
-                  <span className="font-black text-sm sm:text-base text-white group-hover:text-cyan-300 transition">
-                    {relic.title}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    {(willTriggerSynergy || willTriggerMastery) && (
-                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/50 flex items-center gap-1">
-                        <Award className="w-3 h-3" />
-                        {willTriggerMastery ? 'MAESTRIA' : 'SINERGIA'}
-                      </span>
-                    )}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <span
-                      className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border"
-                      style={{
-                        backgroundColor: `${fam.color}15`,
-                        borderColor: `${fam.color}40`,
-                        color: fam.color,
-                      }}
-                    >
-                      {fam.label}
+                      className="w-4 h-4 rounded-full shrink-0"
+                      style={{ backgroundColor: fam.color }}
+                    />
+                    <span className="font-bold text-sm sm:text-base text-white truncate">
+                      {relic.title}
                     </span>
                   </div>
+
+                  <span
+                    className="text-xs font-mono font-bold shrink-0"
+                    style={{ color: fam.color }}
+                  >
+                    [{fam.label.toUpperCase()}]
+                  </span>
                 </div>
 
-                {/* Description */}
-                <p className="text-xs text-slate-300 leading-relaxed">
+                <p className="text-xs text-slate-200 leading-relaxed">
                   {relic.description}
                 </p>
 
-                {/* Synergy counter hint */}
-                <div className="text-[11px] font-mono text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800">
-                  <span>
-                    Famiglia {fam.label}:{' '}
-                    <strong style={{ color: fam.color }}>
-                      {currentFamCount} possedute → {currentFamCount + 1}
-                    </strong>
+                <div className="pt-1.5 border-t border-[#1e2e48] flex items-center justify-between text-[11px] font-mono">
+                  <span style={{ color: fam.color }}>
+                    Set {fam.label}: {currentFamCount} → {currentFamCount + 1}
+                    {willTriggerMastery
+                      ? ' (★ MAESTRIA 3x!)'
+                      : willTriggerSynergy
+                      ? ' (★ SINERGIA 2x!)'
+                      : ''}
                   </span>
-                  <span className="text-cyan-400 group-hover:underline">Seleziona →</span>
+                  <span className="text-[#00e5ff] font-bold">SELEZIONA →</span>
                 </div>
               </button>
             );
           })}
         </div>
 
-        {/* Reroll Button */}
-        <div className="pt-2 border-t border-[#1e2e48] flex items-center justify-center">
+        {/* Fixed Footer: Reroll Button */}
+        <div className="shrink-0 bg-[#090d16] border-t border-[#1e2e48] p-3">
           <button
+            type="button"
             onClick={() => engine.rerollDraft()}
             disabled={engine.rerollsAvailable <= 0}
-            className={`px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition active:scale-95 ${
+            className={`w-full min-h-[46px] rounded-xl font-bold text-xs sm:text-sm uppercase tracking-wider transition ${
               engine.rerollsAvailable > 0
-                ? 'bg-[#141d2d] hover:bg-[#1e2e48] border border-cyan-500 text-cyan-300 shadow-sm cursor-pointer'
-                : 'bg-slate-900 border border-slate-800 text-slate-600 cursor-not-allowed'
+                ? 'bg-[#141d2d] border-2 border-[#ffe600] text-[#ffe600] cursor-pointer active:scale-[0.99]'
+                : 'bg-[#0e1524] border border-[#1e2e48] text-slate-600 cursor-not-allowed'
             }`}
           >
-            <RefreshCw className="w-4 h-4" />
-            <span>Reroll ({engine.rerollsAvailable} disponibili)</span>
+            REROLL RELIQUIE ({engine.rerollsAvailable} DISPONIBILI)
           </button>
         </div>
       </div>

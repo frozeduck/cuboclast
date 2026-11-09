@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { GameEngine } from '../game/GameEngine';
 import { soundEngine } from '../audio/soundEngine';
-import { ShoppingBag, ArrowLeft, PlusCircle, Maximize2, RefreshCw, Check } from 'lucide-react';
 
 interface ShopModalProps {
   engine: GameEngine;
@@ -35,63 +34,55 @@ export const ShopModal: React.FC<ShopModalProps> = ({ engine, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#04060a]/92 backdrop-blur-md overflow-hidden">
-      <div className="w-full max-w-lg bg-[#090d16] border-2 border-sky-400 rounded-3xl p-5 sm:p-6 shadow-[0_0_50px_rgba(56,189,248,0.2)] text-center relative flex flex-col gap-3 sm:gap-4 max-h-[90dvh] overflow-y-auto touch-scroll overscroll-contain">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#1e2e48] pb-3">
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl bg-[#141d2d] hover:bg-[#1e2e48] border border-[#1e2e48] text-slate-300 hover:text-white transition flex items-center gap-1.5 text-xs font-bold cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Indietro</span>
-          </button>
+    <div
+      role="dialog"
+      aria-label="Archivio Upgrade"
+      className="fixed inset-0 z-50 bg-[#080b12]/96 flex items-center justify-center sm:p-4"
+    >
+      <div className="w-full h-full sm:h-auto sm:max-h-[90dvh] max-w-lg bg-[#090d16] sm:border-2 border-[#38bdf8] sm:rounded-2xl flex flex-col overflow-hidden">
+        {/* Fixed Header */}
+        <div className="shrink-0 bg-[#090d16] border-b border-[#1e2e48] px-4 py-3 flex items-center justify-between gap-2">
+          <div>
+            <h2 className="text-lg sm:text-xl font-bold text-[#38bdf8] uppercase tracking-wider leading-none">
+              ARCHIVIO UPGRADE
+            </h2>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Potenziamenti permanenti tra tutte le run
+            </p>
+          </div>
 
-          <div className="flex items-center gap-2 bg-sky-950/60 border border-sky-500/40 rounded-full px-3.5 py-1 text-sky-300 font-mono font-bold text-sm">
-            <span>◆ {data.quantumShards} Schegge</span>
+          <div className="px-3 py-1.5 rounded-lg bg-[#082a2e] border border-[#38bdf8] text-[#38bdf8] font-mono font-bold text-xs tabular-nums">
+            ◆ {data.quantumShards}
           </div>
         </div>
 
-        <div>
-          <h2 className="text-xl sm:text-2xl font-black tracking-wider text-white uppercase">
-            Archivio <span className="text-sky-400">Upgrade</span>
-          </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Miglioramenti permanenti salvati tra tutte le run
-          </p>
-        </div>
-
-        {/* Upgrade Cards List */}
-        <div className="flex flex-col gap-2.5">
-          {/* 1. Sfere Iniziali Extra */}
-          <div className="p-3.5 rounded-2xl bg-[#0f172a] border border-[#1e2e48] flex items-center justify-between gap-3 text-left">
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
-                <PlusCircle className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="font-bold text-sm text-white">Sfere Iniziali Extra</h4>
-                <p className="text-xs text-slate-400">
-                  +1 sfera garantita all'inizio di ogni settore
-                </p>
-                <div className="flex items-center gap-1 mt-0.5 text-[11px] font-mono text-cyan-400">
-                  Livello: {data.upgradeExtraBalls} / 3
-                </div>
+        {/* Single Scrollable Body */}
+        <div className="flex-1 min-h-0 modal-scroll p-4 space-y-3">
+          {/* Slot 1: Extra Balls */}
+          <div className="rounded-xl bg-[#141d2d] border-2 border-[#00e5ff] p-3.5 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-bold text-white">SFERE INIZIALI EXTRA</div>
+              <p className="text-xs text-slate-300 mt-0.5">
+                +1 sfera garantita all'inizio di ogni settore
+              </p>
+              <div className="text-xs font-mono text-[#00e5ff] mt-1 tabular-nums">
+                Livello: {data.upgradeExtraBalls} / 3
               </div>
             </div>
 
             {data.upgradeExtraBalls >= 3 ? (
-              <span className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/30 flex items-center gap-1">
-                <Check className="w-4 h-4" /> MAX
+              <span className="px-3 py-2 rounded-lg bg-[#063528] border border-[#00ff88] text-[#00ff88] text-xs font-bold">
+                MAX
               </span>
             ) : (
               <button
+                type="button"
                 onClick={handleBuyBalls}
                 disabled={data.quantumShards < prog.getCostExtraBalls()}
-                className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition ${
+                className={`min-h-[42px] px-4 rounded-lg text-xs font-bold uppercase tracking-wider shrink-0 ${
                   data.quantumShards >= prog.getCostExtraBalls()
-                    ? 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-md shadow-cyan-500/20 cursor-pointer active:scale-95'
-                    : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                    ? 'bg-[#00e5ff] text-[#080b12] cursor-pointer active:scale-95'
+                    : 'bg-[#1e2e48] text-slate-400 cursor-not-allowed'
                 }`}
               >
                 ◆ {prog.getCostExtraBalls()}
@@ -99,35 +90,31 @@ export const ShopModal: React.FC<ShopModalProps> = ({ engine, onClose }) => {
             )}
           </div>
 
-          {/* 2. Ampiezza Cestello */}
-          <div className="p-3.5 rounded-2xl bg-[#0f172a] border border-[#1e2e48] flex items-center justify-between gap-3 text-left">
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-                <Maximize2 className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="font-bold text-sm text-white">Larghezza Cestello</h4>
-                <p className="text-xs text-slate-400">
-                  +15px larghezza per catture e sfere extra più facili
-                </p>
-                <div className="flex items-center gap-1 mt-0.5 text-[11px] font-mono text-emerald-400">
-                  Livello: {data.upgradeBasketWidth} / 3
-                </div>
+          {/* Slot 2: Basket Width */}
+          <div className="rounded-xl bg-[#141d2d] border-2 border-[#00ff88] p-3.5 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-bold text-white">AMPIEZZA CESTELLO</div>
+              <p className="text-xs text-slate-300 mt-0.5">
+                +15px larghezza per catture e sfere extra più facili
+              </p>
+              <div className="text-xs font-mono text-[#00ff88] mt-1 tabular-nums">
+                Livello: {data.upgradeBasketWidth} / 3
               </div>
             </div>
 
             {data.upgradeBasketWidth >= 3 ? (
-              <span className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/30 flex items-center gap-1">
-                <Check className="w-4 h-4" /> MAX
+              <span className="px-3 py-2 rounded-lg bg-[#063528] border border-[#00ff88] text-[#00ff88] text-xs font-bold">
+                MAX
               </span>
             ) : (
               <button
+                type="button"
                 onClick={handleBuyBasket}
                 disabled={data.quantumShards < prog.getCostBasketWidth()}
-                className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition ${
+                className={`min-h-[42px] px-4 rounded-lg text-xs font-bold uppercase tracking-wider shrink-0 ${
                   data.quantumShards >= prog.getCostBasketWidth()
-                    ? 'bg-emerald-400 hover:bg-emerald-300 text-slate-950 shadow-md shadow-emerald-500/20 cursor-pointer active:scale-95'
-                    : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                    ? 'bg-[#00ff88] text-[#080b12] cursor-pointer active:scale-95'
+                    : 'bg-[#1e2e48] text-slate-400 cursor-not-allowed'
                 }`}
               >
                 ◆ {prog.getCostBasketWidth()}
@@ -135,57 +122,66 @@ export const ShopModal: React.FC<ShopModalProps> = ({ engine, onClose }) => {
             )}
           </div>
 
-          {/* 3. Reroll Bonus */}
-          <div className="p-3.5 rounded-2xl bg-[#0f172a] border border-[#1e2e48] flex items-center justify-between gap-3 text-left">
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400">
-                <RefreshCw className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="font-bold text-sm text-white">Reroll Aggiuntivo</h4>
-                <p className="text-xs text-slate-400">
-                  +1 cambio di carte reliquia utilizzabile per partita
-                </p>
-                <div className="flex items-center gap-1 mt-0.5 text-[11px] font-mono text-purple-400">
-                  Livello: {data.upgradeRerolls} / 2
-                </div>
+          {/* Slot 3: Reroll */}
+          <div className="rounded-xl bg-[#141d2d] border-2 border-[#a855f7] p-3.5 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-bold text-white">REROLL AGGIUNTIVO</div>
+              <p className="text-xs text-slate-300 mt-0.5">
+                +1 cambio di carte reliquia utilizzabile per partita
+              </p>
+              <div className="text-xs font-mono text-[#a855f7] mt-1 tabular-nums">
+                Livello: {data.upgradeRerolls} / 2
               </div>
             </div>
 
             {data.upgradeRerolls >= 2 ? (
-              <span className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/30 flex items-center gap-1">
-                <Check className="w-4 h-4" /> MAX
+              <span className="px-3 py-2 rounded-lg bg-[#063528] border border-[#00ff88] text-[#00ff88] text-xs font-bold">
+                MAX
               </span>
             ) : (
               <button
+                type="button"
                 onClick={handleBuyReroll}
                 disabled={data.quantumShards < prog.getCostRerolls()}
-                className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition ${
+                className={`min-h-[42px] px-4 rounded-lg text-xs font-bold uppercase tracking-wider shrink-0 ${
                   data.quantumShards >= prog.getCostRerolls()
-                    ? 'bg-purple-400 hover:bg-purple-300 text-slate-950 shadow-md shadow-purple-500/20 cursor-pointer active:scale-95'
-                    : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                    ? 'bg-[#a855f7] text-[#080b12] cursor-pointer active:scale-95'
+                    : 'bg-[#1e2e48] text-slate-400 cursor-not-allowed'
                 }`}
               >
                 ◆ {prog.getCostRerolls()}
               </button>
             )}
           </div>
+
+          {/* Stats Summary */}
+          <div className="grid grid-cols-3 gap-2 pt-2 text-center font-mono text-xs">
+            <div className="p-2.5 rounded-xl bg-[#141d2d] border border-[#1e2e48]">
+              <div className="text-white font-bold tabular-nums">{data.runsPlayed}</div>
+              <div className="text-[10px] text-slate-400">PARTITE</div>
+            </div>
+            <div className="p-2.5 rounded-xl bg-[#141d2d] border border-[#1e2e48]">
+              <div className="text-[#00ff88] font-bold tabular-nums">{data.victories}</div>
+              <div className="text-[10px] text-slate-400">VITTORIE</div>
+            </div>
+            <div className="p-2.5 rounded-xl bg-[#141d2d] border border-[#1e2e48]">
+              <div className="text-[#00e5ff] font-bold tabular-nums">
+                {data.totalCubesDestroyed}
+              </div>
+              <div className="text-[10px] text-slate-400">CUBI</div>
+            </div>
+          </div>
         </div>
 
-        {/* Global Stats Footer */}
-        <div className="pt-2 border-t border-[#1e2e48] grid grid-cols-3 gap-2 text-center text-xs font-mono text-slate-400">
-          <div className="p-2 rounded-xl bg-[#141d2d]/60">
-            <div className="text-white font-bold">{data.runsPlayed}</div>
-            <div className="text-[10px] text-slate-400">Partite</div>
-          </div>
-          <div className="p-2 rounded-xl bg-[#141d2d]/60">
-            <div className="text-emerald-400 font-bold">{data.victories}</div>
-            <div className="text-[10px] text-slate-400">Vittorie</div>
-          </div>
-          <div className="p-2 rounded-xl bg-[#141d2d]/60">
-            <div className="text-cyan-400 font-bold">{data.totalCubesDestroyed}</div>
-            <div className="text-[10px] text-slate-400">Cubi Distrutti</div>
-          </div>
+        {/* Fixed Footer */}
+        <div className="shrink-0 bg-[#090d16] border-t border-[#1e2e48] p-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full min-h-[46px] rounded-xl bg-[#00e5ff] text-[#080b12] font-bold text-sm uppercase tracking-wider cursor-pointer active:scale-[0.99]"
+          >
+            INDIETRO
+          </button>
         </div>
       </div>
     </div>

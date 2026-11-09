@@ -6,32 +6,41 @@ import {
   CANNON_Y,
   Cube,
   ARCHETYPES_DATA,
+  getChapterForSector,
 } from '../types/game';
 import { GameEngine } from '../game/GameEngine';
 
 interface GameCanvasProps {
   engine: GameEngine;
-  onAimAngleChange?: (angle: number) => void;
+  disabled?: boolean;
 }
 
-export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
+export const GameCanvas: React.FC<GameCanvasProps> = ({ engine, disabled = false }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const isPointerDownRef = useRef(false);
+  const disabledRef = useRef(disabled);
+  disabledRef.current = disabled;
 
-  // Resize canvas scale based on container
   const getScaleInfo = useCallback(() => {
-    if (!containerRef.current) return { scale: 1, offsetX: 0, offsetY: 0, width: 1080, height: 1920 };
+    if (!containerRef.current) {
+      return { scale: 1, offsetX: 0, offsetY: 0, width: 1080, height: 1920 };
+    }
     const rect = containerRef.current.getBoundingClientRect();
     const scaleX = rect.width / VIRTUAL_WIDTH;
     const scaleY = rect.height / VIRTUAL_HEIGHT;
     const scale = Math.min(scaleX, scaleY);
     const offsetX = (rect.width - VIRTUAL_WIDTH * scale) / 2;
     const offsetY = (rect.height - VIRTUAL_HEIGHT * scale) / 2;
-    return { scale, offsetX, offsetY, width: rect.width || 1080, height: rect.height || 1920 };
+    return {
+      scale,
+      offsetX,
+      offsetY,
+      width: rect.width || 1080,
+      height: rect.height || 1920,
+    };
   }, []);
 
-  // Main Render Loop
   useEffect(() => {
     let animId: number;
     let lastTime = performance.now();
@@ -40,8 +49,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
       const dt = Math.min((now - lastTime) / 1000, 0.05);
       lastTime = now;
 
-      // Update simulation
-      engine.update(dt);
+      if (!disabledRef.current) {
+        engine.update(dt);
+      }
 
       const canvas = canvasRef.current;
       if (!canvas) {
@@ -57,7 +67,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
 
       const { scale, offsetX, offsetY, width, height } = getScaleInfo();
 
-      // Ensure canvas internal resolution matches display size
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const targetCanvasW = Math.round(width * dpr);
       const targetCanvasH = Math.round(height * dpr);
@@ -70,32 +79,33 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
       ctx.save();
       ctx.scale(dpr, dpr);
 
-      // Clear full background
-      ctx.fillStyle = '#04060a';
+      // Outer letterbox background
+      ctx.fillStyle = '#080b12';
       ctx.fillRect(0, 0, width, height);
 
-      // Apply letterbox centering and screen shake
-      const shakeX = engine.screenShake > 0 ? (Math.random() - 0.5) * engine.screenShake : 0;
-      const shakeY = engine.screenShake > 0 ? (Math.random() - 0.5) * engine.screenShake : 0;
+      const shakeX =
+        !disabledRef.current && engine.screenShake > 0
+          ? (Math.random() - 0.5) * engine.screenShake
+          : 0;
+      const shakeY =
+        !disabledRef.current && engine.screenShake > 0
+          ? (Math.random() - 0.5) * engine.screenShake
+          : 0;
 
       ctx.translate(offsetX + shakeX, offsetY + shakeY);
       ctx.scale(scale, scale);
 
-      // Clip to virtual playfield
       ctx.beginPath();
       ctx.rect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
       ctx.clip();
 
-      // Draw cyber background
       drawBackground(ctx);
 
-      // Draw aim trajectory if aiming
-      if (engine.state === 'AIMING') {
+      if (engine.state === 'AIMING' && !disabledRef.current) {
         drawAimTrajectory(ctx, engine);
       }
 
-      // Draw game elements
-      drawCubes(ctx, engine.cubes);
+      drawCubes(ctx, engine);
       drawBossSatellites(ctx, engine);
       drawBasket(ctx, engine);
       drawShards(ctx, engine);
@@ -112,21 +122,24 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     return () => cancelAnimationFrame(animId);
   }, [engine, getScaleInfo]);
 
-  // Pointer event handlers for aiming and shooting
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (engine.state !== 'AIMING') return;
+    if (disabled || engine.state !== 'AIMING') return;
     isPointerDownRef.current = true;
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    try {
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
     updateAim(e);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isPointerDownRef.current || engine.state !== 'AIMING') return;
+    if (disabled || !isPointerDownRef.current || engine.state !== 'AIMING') return;
     updateAim(e);
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
-    if (!isPointerDownRef.current || engine.state !== 'AIMING') return;
+    if (disabled || !isPointerDownRef.current || engine.state !== 'AIMING') return;
     isPointerDownRef.current = false;
     try {
       (e.target as HTMLElement).releasePointerCapture(e.pointerId);
@@ -155,7 +168,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full flex items-center justify-center overflow-hidden touch-none select-none"
+      data-testid="game-canvas-container"
+      className={`relative w-full h-full flex items-center justify-center overflow-hidden select-none ${
+        disabled ? 'pointer-events-none' : 'touch-none'
+      }`}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -169,14 +185,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
   );
 };
 
-// ----------------- Canvas Rendering Subroutines -----------------
+// ----------------- Minimalist Neon Geometric Rendering (v0.4.0 Style) -----------------
 
 function drawBackground(ctx: CanvasRenderingContext2D) {
-  // Deep space cyber background
   ctx.fillStyle = '#090d16';
   ctx.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
 
-  // Grid lines
   ctx.strokeStyle = '#141d2d';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
@@ -190,7 +204,6 @@ function drawBackground(ctx: CanvasRenderingContext2D) {
   }
   ctx.stroke();
 
-  // Outer neon glowing walls
   ctx.strokeStyle = '#1e2e48';
   ctx.lineWidth = 8;
   ctx.strokeRect(4, 4, VIRTUAL_WIDTH - 8, VIRTUAL_HEIGHT - 8);
@@ -203,27 +216,27 @@ function drawBackground(ctx: CanvasRenderingContext2D) {
 function drawCannon(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   const cx = CANNON_X;
   const cy = CANNON_Y;
-  const archColor = engine.currentArchetype ? ARCHETYPES_DATA[engine.currentArchetype]?.color : '#00e5ff';
+  const cannonColor = engine.currentArchetype
+    ? ARCHETYPES_DATA[engine.currentArchetype]?.color || '#00e5ff'
+    : '#00e5ff';
 
-  // Base socket
   ctx.fillStyle = '#141d2d';
   ctx.beginPath();
-  ctx.arc(cx, cy, 42, 0, Math.PI * 2);
+  ctx.arc(cx, cy, 38, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = archColor || '#00e5ff';
-  ctx.lineWidth = 4;
+  ctx.strokeStyle = cannonColor;
+  ctx.lineWidth = 3.5;
   ctx.beginPath();
-  ctx.arc(cx, cy, 42, 0, Math.PI * 2);
+  ctx.arc(cx, cy, 38, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Barrel
   const barrelLen = 52;
   const barrelX = cx + Math.cos(engine.aimAngle) * barrelLen;
   const barrelY = cy + Math.sin(engine.aimAngle) * barrelLen;
 
-  ctx.strokeStyle = archColor || '#00e5ff';
-  ctx.lineWidth = 14;
+  ctx.strokeStyle = cannonColor;
+  ctx.lineWidth = 12;
   ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.moveTo(cx, cy);
@@ -231,7 +244,6 @@ function drawCannon(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   ctx.stroke();
   ctx.lineCap = 'butt';
 
-  // Center glowing energy core
   ctx.fillStyle = '#ffffff';
   ctx.beginPath();
   ctx.arc(cx, cy, 14, 0, Math.PI * 2);
@@ -248,7 +260,6 @@ function drawAimTrajectory(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   let normX = 0;
   let normY = 1;
 
-  // Wall collisions
   if (dirX < -0.001) {
     const t = (25 - startX) / dirX;
     if (t > 0 && t < minT) {
@@ -266,7 +277,6 @@ function drawAimTrajectory(ctx: CanvasRenderingContext2D, engine: GameEngine) {
     }
   }
 
-  // Cubes collisions
   const r = 18;
   for (const c of engine.cubes) {
     if (!c.isAlive) continue;
@@ -312,174 +322,182 @@ function drawAimTrajectory(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   const hitX = startX + dirX * minT;
   const hitY = startY + dirY * minT;
 
-  // Draw main dashed line
   ctx.save();
-  ctx.strokeStyle = 'rgba(0, 229, 255, 0.7)';
+  ctx.strokeStyle = 'rgba(0, 229, 255, 0.55)';
   ctx.lineWidth = 3.5;
   ctx.setLineDash([14, 12]);
   ctx.beginPath();
   ctx.moveTo(startX, startY);
   ctx.lineTo(hitX, hitY);
   ctx.stroke();
-  ctx.setLineDash([]);
 
-  // Trajectory laser dots
-  ctx.fillStyle = '#00e5ff';
+  ctx.fillStyle = 'rgba(0, 229, 255, 0.93)';
   const steps1 = Math.max(3, Math.floor(minT / 42));
   for (let i = 1; i <= steps1; i++) {
     const frac = i / steps1;
     ctx.beginPath();
-    ctx.arc(startX + (hitX - startX) * frac, startY + (hitY - startY) * frac, 4, 0, Math.PI * 2);
+    ctx.arc(startX + (hitX - startX) * frac, startY + (hitY - startY) * frac, 4.5, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Draw bounce preview ray
   const dot = dirX * normX + dirY * normY;
   const refX = dirX - 2 * dot * normX;
   const refY = dirY - 2 * dot * normY;
-  const bounceLen = 220;
-  const bEndX = hitX + refX * bounceLen;
-  const bEndY = hitY + refY * bounceLen;
+  const len2 = 360;
+  const refEndX = hitX + refX * len2;
+  const refEndY = hitY + refY * len2;
 
-  ctx.strokeStyle = 'rgba(0, 255, 136, 0.6)';
-  ctx.lineWidth = 2.5;
-  ctx.setLineDash([8, 8]);
   ctx.beginPath();
   ctx.moveTo(hitX, hitY);
-  ctx.lineTo(bEndX, bEndY);
+  ctx.lineTo(refEndX, refEndY);
   ctx.stroke();
+  ctx.setLineDash([]);
 
-  // Impact reticle at hit point
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = 'rgba(0, 255, 136, 0.67)';
+  const steps2 = 8;
+  for (let i = 1; i <= steps2; i++) {
+    const frac = i / steps2;
+    ctx.beginPath();
+    ctx.arc(hitX + (refEndX - hitX) * frac, hitY + (refEndY - hitY) * frac, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.strokeStyle = '#ffe600';
+  ctx.lineWidth = 2.5;
   ctx.beginPath();
-  ctx.arc(hitX, hitY, 6, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.arc(hitX, hitY, 14, 0, Math.PI * 2);
+  ctx.stroke();
 
   ctx.restore();
 }
 
-function drawCubes(ctx: CanvasRenderingContext2D, cubes: Cube[]) {
-  for (const c of cubes) {
+function drawCubes(ctx: CanvasRenderingContext2D, engine: GameEngine) {
+  for (const c of engine.cubes) {
     if (!c.isAlive) continue;
 
     ctx.save();
-    let cx = c.x;
-    let cy = c.y;
+    const wScale = 1.0 + c.wobble * 0.18;
+    const hScale = 1.0 - c.wobble * 0.14;
+    const centerX = c.x + c.width / 2;
+    const centerY = c.y + c.height / 2;
+    const drawW = c.width * wScale;
+    const drawH = c.height * hScale;
+    const rx = centerX - drawW / 2;
+    const ry = centerY - drawH / 2;
 
-    // Wobble shake on hit
-    if (c.wobble > 0) {
-      cx += (Math.random() - 0.5) * c.wobble * 8;
-      cy += (Math.random() - 0.5) * c.wobble * 8;
-    }
-
-    // Color definitions
-    let baseColor = '#00e5ff';
-    let borderColor = '#38bdf8';
-    let badgeText = '';
-
-    switch (c.type) {
-      case 'ARMOR':
-        baseColor = '#1e3a8a';
-        borderColor = '#3b82f6';
-        badgeText = 'ARMOR';
-        break;
-      case 'EXPLOSIVE':
-        baseColor = '#9a3412';
-        borderColor = '#ff6b00';
-        badgeText = 'BOMB';
-        break;
-      case 'SPLITTER':
-        baseColor = '#581c87';
-        borderColor = '#a855f7';
-        badgeText = 'SPLIT';
-        break;
-      case 'KINETIC':
-        baseColor = '#713f12';
-        borderColor = '#ffe600';
-        badgeText = 'KINETIC';
-        break;
-      case 'SHIELD':
-        baseColor = '#064e3b';
-        borderColor = '#00ff88';
-        badgeText = 'SHIELD';
-        break;
-      case 'BOSS':
-        baseColor = '#4a044e';
-        borderColor = '#ff007f';
-        badgeText = 'BOSS';
-        break;
-      default:
-        baseColor = '#0f172a';
-        borderColor = c.isCore ? '#ffe600' : '#00e5ff';
-        break;
-    }
+    let baseColor = '#082635';
+    let strokeColor = '#00e5ff';
 
     if (c.isCore && c.type !== 'BOSS') {
-      borderColor = '#ffe600';
+      baseColor = '#352b08';
+      strokeColor = '#ffe600';
+    } else {
+      switch (c.type) {
+        case 'EXPLOSIVE':
+          baseColor = '#351a08';
+          strokeColor = '#ff6b00';
+          break;
+        case 'SPLITTER':
+          baseColor = '#2b0f3a';
+          strokeColor = '#a855f7';
+          break;
+        case 'KINETIC':
+          baseColor = '#353008';
+          strokeColor = '#ffe600';
+          break;
+        case 'SHIELD':
+          baseColor = '#08351e';
+          strokeColor = '#00ff88';
+          break;
+        case 'ARMOR':
+          baseColor = '#0e1a38';
+          strokeColor = '#3b82f6';
+          break;
+        case 'BOSS':
+          baseColor = engine.bossPhase === 3 ? '#4a0826' : '#36081e';
+          strokeColor = engine.bossPhase === 3 ? '#ff0055' : '#ff007f';
+          break;
+        default:
+          baseColor = '#082635';
+          strokeColor = '#00e5ff';
+          break;
+      }
     }
 
-    // Hit flash
-    if (c.hitFlash > 0) {
-      baseColor = '#ffffff';
+    if (c.isFrozen) {
+      baseColor = '#0e2a4a';
+      strokeColor = '#38bdf8';
     }
 
-    // Draw cube body with rounded corners
+    // Minimalist rounded rect body
     ctx.fillStyle = baseColor;
-    ctx.strokeStyle = borderColor;
-    ctx.lineWidth = c.isCore ? 3.5 : 2;
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = c.isCore ? 4.5 : 3.0;
 
-    roundRect(ctx, cx, cy, c.width, c.height, 10);
+    roundRect(ctx, rx, ry, drawW, drawH, 12);
     ctx.fill();
     ctx.stroke();
 
-    // Shield aura pulse if SHIELD cube
-    if (c.type === 'SHIELD') {
-      const pulseR = 30 + Math.sin(c.shieldPulse) * 8;
-      ctx.strokeStyle = 'rgba(0, 255, 136, 0.4)';
-      ctx.lineWidth = 2;
-      roundRect(ctx, cx - pulseR / 4, cy - pulseR / 4, c.width + pulseR / 2, c.height + pulseR / 2, 14);
-      ctx.stroke();
-    }
-
-    // Core star/glow indicator
+    // Pulsing inner circle for Core cubes (authentic v0.4.0 style)
     if (c.isCore && c.type !== 'BOSS') {
-      ctx.fillStyle = '#ffe600';
+      const pulse = 0.5 + Math.sin(c.shieldPulse) * 0.35;
+      ctx.strokeStyle = `rgba(255, 230, 0, ${pulse.toFixed(2)})`;
+      ctx.lineWidth = 1.8;
       ctx.beginPath();
-      ctx.arc(cx + c.width / 2, cy + 14, 4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Frozen ice crystals
-    if (c.isFrozen) {
-      ctx.fillStyle = 'rgba(56, 189, 248, 0.35)';
-      roundRect(ctx, cx, cy, c.width, c.height, 10);
-      ctx.fill();
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 1.5;
+      ctx.arc(centerX, centerY, (drawH / 2) * 0.7, 0, Math.PI * 2);
       ctx.stroke();
     }
 
-    // Health / Type label
-    ctx.fillStyle = c.hitFlash > 0 ? '#000000' : '#ffffff';
+    // Subtle shield aura for SHIELD cubes
+    if (c.type === 'SHIELD') {
+      const pulseR = 12 + Math.sin(c.shieldPulse) * 4;
+      ctx.strokeStyle = 'rgba(0, 255, 136, 0.35)';
+      ctx.lineWidth = 1.8;
+      roundRect(ctx, rx - pulseR / 2, ry - pulseR / 2, drawW + pulseR, drawH + pulseR, 14);
+      ctx.stroke();
+    }
+
+    // Hit flash overlay
+    if (c.hitFlash > 0) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(1, c.hitFlash * 0.7)})`;
+      roundRect(ctx, rx, ry, drawW, drawH, 12);
+      ctx.fill();
+    }
+
+    // Clean numeric HP only (minimalist v0.4.0 style)
+    ctx.fillStyle = c.isCore && c.type !== 'BOSS' ? '#ffe600' : '#ffffff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.font =
+      c.type === 'BOSS'
+        ? 'bold 44px "Chakra Petch", sans-serif'
+        : 'bold 24px "Chakra Petch", sans-serif';
+    ctx.fillText(String(c.hp), centerX, centerY);
 
+    // Boss HP bar above the Boss cube
     if (c.type === 'BOSS') {
-      ctx.font = 'bold 24px "Chakra Petch", sans-serif';
-      ctx.fillText(`TESSERACT HP: ${c.hp}/${c.maxHp}`, cx + c.width / 2, cy + c.height / 2 - 15);
-      // Health bar
-      const barW = c.width - 40;
-      const barH = 12;
-      const barX = cx + 20;
-      const barY = cy + c.height / 2 + 15;
-      ctx.fillStyle = '#141d2d';
+      const barW = 340;
+      const barH = 14;
+      const barX = centerX - barW / 2;
+      const barY = ry - 38;
+      ctx.fillStyle = '#1e2e48';
       ctx.fillRect(barX, barY, barW, barH);
+      const hpRatio = Math.max(0, c.hp / c.maxHp);
+      ctx.fillStyle =
+        engine.bossPhase === 3 ? '#ff0055' : engine.bossPhase === 2 ? '#ff6b00' : '#ff007f';
+      ctx.fillRect(barX, barY, barW * hpRatio, barH);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(barX, barY, barW, barH);
+
+      const chapter = getChapterForSector(engine.currentLevel);
       ctx.fillStyle = '#ff007f';
-      ctx.fillRect(barX, barY, Math.max(0, barW * (c.hp / c.maxHp)), barH);
-    } else {
-      ctx.font = 'bold 18px "Chakra Petch", sans-serif';
-      const label = c.hp > 1 ? `${c.hp}` : badgeText;
-      ctx.fillText(label, cx + c.width / 2, cy + c.height / 2);
+      ctx.font = 'bold 20px "Chakra Petch", sans-serif';
+      ctx.fillText(
+        `${chapter.bossName.toUpperCase()} · FASE ${engine.bossPhase}/3`,
+        centerX,
+        barY - 14
+      );
     }
 
     ctx.restore();
@@ -496,20 +514,18 @@ function drawBossSatellites(ctx: CanvasRenderingContext2D, engine: GameEngine) {
     const sx = bx + Math.cos(sat.angle) * sat.distance;
     const sy = by + Math.sin(sat.angle) * sat.distance;
 
-    // Laser connection tether to boss
-    ctx.strokeStyle = 'rgba(255, 0, 127, 0.3)';
+    ctx.strokeStyle = 'rgba(255, 0, 127, 0.28)';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(bx, by);
     ctx.lineTo(sx, sy);
     ctx.stroke();
 
-    // Satellite diamond body
     ctx.save();
     ctx.translate(sx, sy);
     ctx.rotate(sat.angle * 2);
 
-    ctx.fillStyle = '#4a044e';
+    ctx.fillStyle = '#36081e';
     ctx.strokeStyle = '#ff007f';
     ctx.lineWidth = 2.5;
 
@@ -518,9 +534,8 @@ function drawBossSatellites(ctx: CanvasRenderingContext2D, engine: GameEngine) {
     ctx.fill();
     ctx.stroke();
 
-    // Sat health
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 14px "Chakra Petch", sans-serif';
+    ctx.font = 'bold 15px "Chakra Petch", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(`${sat.hp}`, 0, 0);
@@ -531,31 +546,36 @@ function drawBossSatellites(ctx: CanvasRenderingContext2D, engine: GameEngine) {
 
 function drawBasket(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   const b = engine.basket;
-
-  // Basket glowing aura
   ctx.save();
-  ctx.fillStyle = 'rgba(0, 255, 136, 0.15)';
-  roundRect(ctx, b.x - 8, b.y - 6, b.width + 16, b.height + 12, 16);
-  ctx.fill();
 
-  // Basket main hull
-  ctx.fillStyle = '#141d2d';
+  ctx.fillStyle = '#0f2538';
   ctx.strokeStyle = '#00ff88';
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 3.5;
   roundRect(ctx, b.x, b.y, b.width, b.height, 12);
   ctx.fill();
   ctx.stroke();
 
-  // Catch zone indicator
-  ctx.fillStyle = '#00ff88';
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.arc(b.x + b.width / 2, b.y + b.height / 2, 8, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.moveTo(b.x + 20, b.y + b.height / 2);
+  ctx.lineTo(b.x + b.width - 20, b.y + b.height / 2);
+  ctx.stroke();
 
-  // Side thruster glows
-  ctx.fillStyle = '#00e5ff';
-  ctx.fillRect(b.x + 4, b.y + b.height - 4, 12, 6);
-  ctx.fillRect(b.x + b.width - 16, b.y + b.height - 4, 12, 6);
+  // Subtle magnetic arc above basket (authentic v0.4.0 style)
+  ctx.strokeStyle = 'rgba(0, 229, 255, 0.4)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(
+    b.x + b.width / 2,
+    b.y - 8,
+    Math.max(20, b.width / 2 - 12),
+    20,
+    0,
+    Math.PI,
+    Math.PI * 2
+  );
+  ctx.stroke();
 
   ctx.restore();
 }
@@ -564,36 +584,38 @@ function drawBalls(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   for (const b of engine.balls) {
     if (!b.isAlive) continue;
 
-    // Draw motion trail
     if (b.trail.length > 1) {
+      ctx.save();
+      ctx.lineCap = 'round';
       for (let i = 0; i < b.trail.length - 1; i++) {
         const p1 = b.trail[i];
         const p2 = b.trail[i + 1];
-        const alpha = (i / b.trail.length) * 0.5;
-        ctx.strokeStyle = b.isMini ? `rgba(168, 85, 247, ${alpha})` : `rgba(0, 229, 255, ${alpha})`;
-        ctx.lineWidth = b.radius * (i / b.trail.length);
+        const ratio = i / b.trail.length;
+        ctx.strokeStyle = b.isMini
+          ? `rgba(168, 85, 247, ${(ratio * 0.6).toFixed(2)})`
+          : `rgba(0, 229, 255, ${(ratio * 0.6).toFixed(2)})`;
+        ctx.lineWidth = b.radius * 1.4 * ratio;
         ctx.beginPath();
         ctx.moveTo(p1[0], p1[1]);
         ctx.lineTo(p2[0], p2[1]);
         ctx.stroke();
       }
+      ctx.restore();
     }
 
-    // Ball glowing outer halo
-    ctx.fillStyle = b.isMini ? 'rgba(168, 85, 247, 0.4)' : 'rgba(0, 229, 255, 0.4)';
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, b.radius + 6, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Ball inner core
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = b.isMini ? '#a855f7' : '#00e5ff';
     ctx.beginPath();
     ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.strokeStyle = b.isMini ? '#a855f7' : '#00e5ff';
+    ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2.5;
     ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(b.x - b.radius * 0.35, b.y - b.radius * 0.35, b.radius * 0.35, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 
@@ -603,12 +625,8 @@ function drawShards(ctx: CanvasRenderingContext2D, engine: GameEngine) {
     ctx.translate(s.x, s.y);
     ctx.rotate((s.rotation * Math.PI) / 180);
     ctx.fillStyle = s.color;
-    ctx.globalAlpha = Math.max(0, s.life);
-
-    ctx.beginPath();
-    ctx.rect(-s.size / 2, -s.size / 2, s.size, s.size);
-    ctx.fill();
-
+    ctx.globalAlpha = Math.max(0, Math.min(1, s.life));
+    ctx.fillRect(-s.size / 2, -s.size / 2, s.size, s.size);
     ctx.restore();
   }
 }
@@ -617,7 +635,7 @@ function drawFloatingTexts(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = 'bold 24px "Chakra Petch", sans-serif';
+  ctx.font = 'bold 26px "Chakra Petch", sans-serif';
 
   for (const ft of engine.floatingTexts) {
     ctx.globalAlpha = Math.max(0, Math.min(1, ft.life));

@@ -1,7 +1,5 @@
 import React, { useEffect } from 'react';
 import { UnlockEventNotification } from '../types/game';
-import confetti from 'canvas-confetti';
-import { Sparkles, Trophy, Zap, Check } from 'lucide-react';
 import { soundEngine } from '../audio/soundEngine';
 
 interface UnlockNotificationModalProps {
@@ -16,67 +14,43 @@ export const UnlockNotificationModal: React.FC<UnlockNotificationModalProps> = (
   useEffect(() => {
     soundEngine.playResonanceFanfare();
     soundEngine.triggerHaptic(80);
-    try {
-      confetti({
-        particleCount: 60,
-        spread: 80,
-        origin: { y: 0.5 },
-        colors: ['#00e5ff', '#00ff88', '#ffe600', '#a855f7'],
-      });
-    } catch {
-      // ignore
-    }
   }, []);
 
+  const accentColor = unlock.color || '#ffe600';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#04060a]/92 backdrop-blur-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div
+      role="dialog"
+      aria-label="Nuovo Sblocco"
+      className="fixed inset-0 z-50 bg-[#080b12]/96 flex items-center justify-center p-4"
+    >
       <div
-        className="w-full max-w-md bg-[#090d16] border-2 rounded-3xl p-5 sm:p-7 text-center relative flex flex-col gap-3 sm:gap-4 shadow-2xl max-h-[90dvh] overflow-y-auto touch-scroll overscroll-contain"
-        style={{
-          borderColor: unlock.color || '#ffe600',
-          boxShadow: `0 0 50px ${unlock.color || '#ffe600'}40`,
-        }}
+        className="w-full max-w-md bg-[#090d16] border-2 rounded-2xl p-5 text-center space-y-4"
+        style={{ borderColor: accentColor }}
       >
-        <div className="flex flex-col items-center">
+        <div>
           <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center border shadow-lg mb-3"
-            style={{
-              backgroundColor: `${unlock.color || '#ffe600'}20`,
-              borderColor: unlock.color || '#ffe600',
-            }}
+            className="text-xs font-mono font-bold uppercase tracking-wider"
+            style={{ color: accentColor }}
           >
-            <Sparkles className="w-7 h-7" style={{ color: unlock.color || '#ffe600' }} />
+            [{unlock.title}]
           </div>
-
-          <span
-            className="text-xs font-black tracking-widest uppercase px-3 py-1 rounded-full border mb-1"
-            style={{
-              backgroundColor: `${unlock.color || '#ffe600'}15`,
-              borderColor: `${unlock.color || '#ffe600'}50`,
-              color: unlock.color || '#ffe600',
-            }}
-          >
-            {unlock.title}
-          </span>
-
-          <h3 className="text-2xl font-black text-white mt-1 uppercase tracking-wide">
+          <h3 className="text-xl font-bold text-white uppercase tracking-wide mt-1">
             {unlock.name}
           </h3>
         </div>
 
-        <div className="bg-[#141d2d] rounded-2xl p-4 border border-[#1e2e48] text-xs text-slate-200 leading-relaxed font-sans">
+        <div className="bg-[#141d2d] rounded-xl p-3.5 border border-[#1e2e48] text-xs text-slate-200 leading-relaxed">
           {unlock.description}
         </div>
 
         <button
+          type="button"
           onClick={onDismiss}
-          className="w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider text-slate-950 transition active:scale-95 shadow-md flex items-center justify-center gap-2 cursor-pointer"
-          style={{
-            backgroundColor: unlock.color || '#00e5ff',
-          }}
+          className="w-full min-h-[46px] rounded-xl font-bold text-xs uppercase tracking-wider text-[#080b12] cursor-pointer active:scale-95"
+          style={{ backgroundColor: accentColor }}
         >
-          <Check className="w-4 h-4 stroke-[3]" />
-          Continua l'Avventura
+          CONTINUA
         </button>
       </div>
     </div>

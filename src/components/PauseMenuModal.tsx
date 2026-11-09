@@ -1,17 +1,6 @@
 import React, { useState } from 'react';
 import { GameEngine } from '../game/GameEngine';
 import { soundEngine } from '../audio/soundEngine';
-import {
-  Play,
-  Volume2,
-  VolumeX,
-  BookOpen,
-  HelpCircle,
-  Smartphone,
-  LogOut,
-  X,
-  ShieldAlert,
-} from 'lucide-react';
 
 interface PauseMenuModalProps {
   engine: GameEngine;
@@ -42,132 +31,126 @@ export const PauseMenuModal: React.FC<PauseMenuModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#04060a]/92 backdrop-blur-md overflow-hidden animate-in fade-in duration-150">
-      <div className="w-full max-w-sm bg-[#090d16] border-2 border-cyan-400 rounded-3xl p-5 sm:p-6 shadow-[0_0_50px_rgba(0,229,255,0.25)] text-center relative flex flex-col gap-3.5 max-h-[90dvh] overflow-y-auto touch-scroll overscroll-contain">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#1e2e48] pb-3">
-          <div className="text-left">
-            <h3 className="text-lg font-black text-white uppercase tracking-wider">
-              Partita in Pausa
+    <div
+      role="dialog"
+      aria-label="Partita in Pausa"
+      className="fixed inset-0 z-50 bg-[#080b12]/96 flex items-center justify-center sm:p-4"
+    >
+      <div className="w-full h-full sm:h-auto sm:max-h-[90dvh] max-w-sm bg-[#090d16] sm:border-2 border-[#00e5ff] sm:rounded-2xl flex flex-col overflow-hidden">
+        {/* Fixed Header */}
+        <div className="shrink-0 bg-[#090d16] border-b border-[#1e2e48] px-4 py-3 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-[#00e5ff] uppercase tracking-wider leading-none">
+              PAUSA
             </h3>
-            <p className="text-[11px] font-mono text-cyan-400">
-              {engine.gameMode === 'STORY' ? 'Campagna Storia' : 'Arcade'} · Settore {engine.currentLevel}
+            <p className="text-xs font-mono text-slate-400 mt-1 tabular-nums">
+              {engine.gameMode === 'STORY' ? 'Storia' : 'Arcade'} · Settore {engine.currentLevel}
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-[#141d2d] hover:bg-[#1e2e48] text-slate-400 hover:text-white transition cursor-pointer"
+            className="min-h-[38px] px-3 rounded-lg bg-[#141d2d] border border-[#1e2e48] text-white font-bold text-xs uppercase cursor-pointer active:scale-95"
           >
-            <X className="w-5 h-5" />
+            ✕
           </button>
         </div>
 
-        {/* Options List */}
-        <div className="flex flex-col gap-2">
-          {/* Resume */}
+        {/* Single Scrollable Body */}
+        <div className="flex-1 min-h-0 modal-scroll p-4 space-y-2.5">
           <button
+            type="button"
             onClick={onClose}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-slate-950 font-black text-sm uppercase tracking-wider transition shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
+            className="w-full min-h-[48px] rounded-xl bg-[#00e5ff] text-[#080b12] font-bold text-sm uppercase tracking-wider cursor-pointer active:scale-[0.99]"
           >
-            <Play className="w-4 h-4 fill-current" />
-            Riprendi Gioco
+            RIPRENDI PARTITA
           </button>
 
-          {/* Sound Toggle */}
           <button
+            type="button"
             onClick={toggleSound}
-            className="w-full py-3 rounded-2xl bg-[#141d2d] hover:bg-[#1e2e48] border border-[#1e2e48] text-slate-200 font-bold text-xs uppercase tracking-wider transition flex items-center justify-between px-4 active:scale-98 cursor-pointer"
+            className="w-full min-h-[46px] px-4 rounded-xl bg-[#141d2d] border-2 border-[#1e2e48] text-white font-bold text-xs uppercase tracking-wider flex items-center justify-between cursor-pointer active:scale-[0.99]"
           >
-            <div className="flex items-center gap-2.5">
-              {soundActive ? <Volume2 className="w-4 h-4 text-cyan-400" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
-              <span>Effetti Sonori</span>
-            </div>
-            <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-black ${soundActive ? 'bg-cyan-500/20 text-cyan-300' : 'bg-slate-800 text-slate-500'}`}>
-              {soundActive ? 'ATTIVI' : 'MUTI'}
+            <span>AUDIO & SUONI</span>
+            <span
+              className={`font-mono font-bold ${
+                soundActive ? 'text-[#00ff88]' : 'text-[#ff007f]'
+              }`}
+            >
+              {soundActive ? '[♪ ON]' : '[♪ OFF]'}
             </span>
           </button>
 
-          {/* Codex */}
           <button
+            type="button"
             onClick={() => {
               onClose();
               onOpenCodex();
             }}
-            className="w-full py-3 rounded-2xl bg-[#141d2d] hover:bg-[#1e2e48] border border-purple-500/30 text-purple-300 font-bold text-xs uppercase tracking-wider transition flex items-center justify-between px-4 active:scale-98 cursor-pointer"
+            className="w-full min-h-[46px] px-4 rounded-xl bg-[#141d2d] border-2 border-[#a855f7] text-[#a855f7] font-bold text-xs uppercase tracking-wider flex items-center justify-between cursor-pointer active:scale-[0.99]"
           >
-            <div className="flex items-center gap-2.5">
-              <BookOpen className="w-4 h-4 text-purple-400" />
-              <span>Codex Poteri & Combo</span>
-            </div>
-            <span className="text-slate-500 text-sm">→</span>
+            <span>CODEX POTERI & COMBO</span>
+            <span>→</span>
           </button>
 
-          {/* Guide / Info */}
           <button
+            type="button"
             onClick={() => {
               onClose();
               onOpenInfo();
             }}
-            className="w-full py-3 rounded-2xl bg-[#141d2d] hover:bg-[#1e2e48] border border-[#1e2e48] text-slate-300 font-bold text-xs uppercase tracking-wider transition flex items-center justify-between px-4 active:scale-98 cursor-pointer"
+            className="w-full min-h-[46px] px-4 rounded-xl bg-[#141d2d] border-2 border-[#1e2e48] text-slate-200 font-bold text-xs uppercase tracking-wider flex items-center justify-between cursor-pointer active:scale-[0.99]"
           >
-            <div className="flex items-center gap-2.5">
-              <HelpCircle className="w-4 h-4 text-slate-400" />
-              <span>Guida & Meccaniche</span>
-            </div>
-            <span className="text-slate-500 text-sm">→</span>
+            <span>GUIDA DI GIOCO</span>
+            <span>→</span>
           </button>
 
-          {/* Install / APK */}
           <button
+            type="button"
             onClick={() => {
               onClose();
               onOpenInstall();
             }}
-            className="w-full py-3 rounded-2xl bg-[#141d2d] hover:bg-[#1e2e48] border border-emerald-500/30 text-emerald-300 font-bold text-xs uppercase tracking-wider transition flex items-center justify-between px-4 active:scale-98 cursor-pointer"
+            className="w-full min-h-[46px] px-4 rounded-xl bg-[#141d2d] border-2 border-[#00ff88] text-[#00ff88] font-bold text-xs uppercase tracking-wider flex items-center justify-between cursor-pointer active:scale-[0.99]"
           >
-            <div className="flex items-center gap-2.5">
-              <Smartphone className="w-4 h-4 text-emerald-400" />
-              <span>Scarica APK Android</span>
-            </div>
-            <span className="text-slate-500 text-sm">→</span>
+            <span>SCARICA APK ANDROID</span>
+            <span>→</span>
           </button>
-        </div>
 
-        {/* Abandon Run Section */}
-        <div className="pt-2 border-t border-[#1e2e48]">
-          {!showConfirmQuit ? (
-            <button
-              onClick={() => setShowConfirmQuit(true)}
-              className="w-full py-2.5 rounded-xl bg-rose-950/30 hover:bg-rose-950/50 border border-rose-500/40 text-rose-400 font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Termina / Abbandona Partita</span>
-            </button>
-          ) : (
-            <div className="flex flex-col gap-2 p-2.5 rounded-xl bg-rose-950/40 border border-rose-500/50 text-left">
-              <div className="flex items-center gap-1.5 text-xs text-rose-300 font-bold">
-                <ShieldAlert className="w-4 h-4 text-rose-400" />
-                <span>Sei sicuro di voler abbandonare?</span>
+          {/* Abandon Run */}
+          <div className="pt-2 border-t border-[#1e2e48]">
+            {!showConfirmQuit ? (
+              <button
+                type="button"
+                onClick={() => setShowConfirmQuit(true)}
+                className="w-full min-h-[44px] rounded-xl bg-[#141d2d] border-2 border-[#ff007f] text-[#ff007f] font-bold text-xs uppercase tracking-wider cursor-pointer active:scale-[0.99]"
+              >
+                ABBANDONA PARTITA (MENU)
+              </button>
+            ) : (
+              <div className="p-3 rounded-xl bg-[#141d2d] border-2 border-[#ff007f] space-y-2">
+                <p className="text-xs text-slate-200">
+                  Terminare la run corrente e tornare alla selezione del nucleo?
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAbandon}
+                    className="min-h-[40px] rounded-lg bg-[#ff007f] text-white font-bold text-xs uppercase cursor-pointer active:scale-95"
+                  >
+                    CONFERMA
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmQuit(false)}
+                    className="min-h-[40px] rounded-lg bg-[#090d16] border border-[#1e2e48] text-slate-300 font-bold text-xs uppercase cursor-pointer active:scale-95"
+                  >
+                    ANNULLA
+                  </button>
+                </div>
               </div>
-              <p className="text-[11px] text-slate-300">
-                I progressi di questa run andranno persi, ma manterrai le Schegge Quantiche accumulate.
-              </p>
-              <div className="flex items-center gap-2 mt-1">
-                <button
-                  onClick={handleAbandon}
-                  className="flex-1 py-2 rounded-lg bg-rose-500 hover:bg-rose-600 text-white font-black text-xs uppercase tracking-wider transition active:scale-95 cursor-pointer"
-                >
-                  Sì, Abbandona
-                </button>
-                <button
-                  onClick={() => setShowConfirmQuit(false)}
-                  className="px-3 py-2 rounded-lg bg-[#141d2d] hover:bg-[#1e2e48] text-slate-300 font-bold text-xs uppercase tracking-wider transition cursor-pointer"
-                >
-                  Annulla
-                </button>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
