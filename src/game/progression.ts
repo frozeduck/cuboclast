@@ -8,10 +8,23 @@ import {
   RELICS_DATA,
   FUSION_COMBOS,
   GameMode,
-  StoryProgressData,
+  CubeType,
+  SectorNodeType,
+  getChapterForSector,
 } from '../types/game';
 
-const STORAGE_KEY = 'cuboclast_meta_progression_v2';
+const STORAGE_KEY = 'cuboclast_meta_progression_v3';
+
+const INITIAL_UNLOCKED_ARCHETYPES: ArchetypeId[] = ['PROTO_CORE'];
+
+const INITIAL_UNLOCKED_RELICS: RelicId[] = [
+  'KINETIC_SURGE',
+  'MAGNETIC_BASKET',
+  'SAFETY_NET',
+  'CHAIN_LIGHTNING',
+  'BOUNCING_BOMB',
+  'MULTIBALL_REACTOR',
+];
 
 const defaultProgression: GameProgressionData = {
   quantumShards: 0,
@@ -24,28 +37,8 @@ const defaultProgression: GameProgressionData = {
   upgradeExtraBalls: 0,
   upgradeBasketWidth: 0,
   upgradeRerolls: 0,
-  unlockedArchetypes: ['VOLT_OVERCHARGE', 'PYRO_DETONATOR', 'SWARM_MATRIX'],
-  unlockedRelics: [
-    'CHAIN_LIGHTNING',
-    'VOLT_DISCHARGE',
-    'TESLA_COIL',
-    'EMP_BURST',
-    'BOUNCING_BOMB',
-    'SHRAPNEL_BURST',
-    'CLUSTER_CHARGE',
-    'SUPERNOVA',
-    'MULTIBALL_REACTOR',
-    'QUANTUM_DUPLICATION',
-    'SPLIT_STORM',
-    'MICRO_SWARM',
-    'KINETIC_SURGE',
-    'CRITICAL_OVERDRIVE',
-    'MAGNETIC_BASKET',
-    'HEAVY_MASS',
-    'SAFETY_NET',
-    'PIERCING_RAIL',
-    'HYPER_VELOCITY',
-  ],
+  unlockedArchetypes: [...INITIAL_UNLOCKED_ARCHETYPES],
+  unlockedRelics: [...INITIAL_UNLOCKED_RELICS],
   unlockedFusionCombos: [],
   bossesDefeated: {
     monolithSector5: false,
@@ -77,6 +70,9 @@ const defaultProgression: GameProgressionData = {
     savedShardsRun: 0,
     savedIsEndless: false,
     gameMode: 'STORY',
+    runBonusDamage: 0,
+    runBonusBasketWidth: 0,
+    currentNodeType: 'NORMAL',
   },
 };
 
@@ -95,44 +91,53 @@ export class ProgressionManager {
 
   private load(): GameProgressionData {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        return {
-          ...defaultProgression,
-          ...parsed,
-          unlockedArchetypes: Array.from(
-            new Set([...defaultProgression.unlockedArchetypes, ...(parsed.unlockedArchetypes || [])])
-          ),
-          unlockedRelics: Array.from(
-            new Set([...defaultProgression.unlockedRelics, ...(parsed.unlockedRelics || [])])
-          ),
-          unlockedFusionCombos: Array.from(
-            new Set([...defaultProgression.unlockedFusionCombos, ...(parsed.unlockedFusionCombos || [])])
-          ),
-          bossesDefeated: {
-            ...defaultProgression.bossesDefeated,
-            ...(parsed.bossesDefeated || {}),
-          },
-          storyProgress: {
-            ...defaultProgression.storyProgress,
-            ...(parsed.storyProgress || {}),
+      if (typeof localStorage !== 'undefined') {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          return {
+            ...defaultProgression,
+            ...parsed,
+            unlockedArchetypes: Array.from(
+              new Set([...INITIAL_UNLOCKED_ARCHETYPES, ...(parsed.unlockedArchetypes || [])])
+            ),
+            unlockedRelics: Array.from(
+              new Set([...INITIAL_UNLOCKED_RELICS, ...(parsed.unlockedRelics || [])])
+            ),
+            unlockedFusionCombos: Array.from(
+              new Set([...(parsed.unlockedFusionCombos || [])])
+            ),
             bossesDefeated: {
-              ...defaultProgression.storyProgress.bossesDefeated,
-              ...((parsed.storyProgress && parsed.storyProgress.bossesDefeated) || {}),
+              ...defaultProgression.bossesDefeated,
+              ...(parsed.bossesDefeated || {}),
             },
-          },
-          savedRun: {
-            ...defaultProgression.savedRun,
-            ...(parsed.savedRun || {}),
-          },
-        };
+            storyProgress: {
+              ...defaultProgression.storyProgress,
+              ...(parsed.storyProgress || {}),
+              bossesDefeated: {
+                ...defaultProgression.storyProgress.bossesDefeated,
+                ...((parsed.storyProgress && parsed.storyProgress.bossesDefeated) || {}),
+              },
+            },
+            savedRun: {
+              ...defaultProgression.savedRun,
+              ...(parsed.savedRun || {}),
+            },
+          };
+        }
       }
     } catch {
       // fallback
     }
+    return this.createFreshProgression();
+  }
+
+  private createFreshProgression(): GameProgressionData {
     return {
       ...defaultProgression,
+      unlockedArchetypes: [...INITIAL_UNLOCKED_ARCHETYPES],
+      unlockedRelics: [...INITIAL_UNLOCKED_RELICS],
+      unlockedFusionCombos: [],
       savedRun: { ...defaultProgression.savedRun },
       bossesDefeated: { ...defaultProgression.bossesDefeated },
       storyProgress: {
@@ -142,17 +147,44 @@ export class ProgressionManager {
     };
   }
 
+  public resetProgression() {
+    this.data = this.createFreshProgression();
+    this.pendingUnlocks = [];
+    this.save();
+  }
+
   public save() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+      }
     } catch {
       // ignore
     }
   }
 
+  /**
+   * Returns the list of allowed special cube types for a given sector,
+   * gradually introducing new cube mechanics across Chapters I-V.
+   */
+  public getAllowedCubeTypesForSector(sector: number): CubeType[] {
+    if (sector <= 2) {
+      return ['NORMAL'];
+    }
+    const chapter = getChapterForSector(sector);
+    return [...chapter.allowedCubeTypes];
+  }
+
   public addQuantumShards(amount: number) {
     this.data.quantumShards += amount;
     this.save();
+  }
+
+  public spendQuantumShards(amount: number): boolean {
+    if (this.data.quantumShards < amount) return false;
+    this.data.quantumShards -= amount;
+    this.save();
+    return true;
   }
 
   public addCubesDestroyed(count: number = 1) {
@@ -167,6 +199,10 @@ export class ProgressionManager {
     if (level > this.data.bestSector) {
       this.data.bestSector = level;
     }
+    if (this.data.storyProgress && level > this.data.storyProgress.highestStorySector) {
+      this.data.storyProgress.highestStorySector = level;
+    }
+    this.checkAndTriggerUnlocks();
     this.save();
   }
 
@@ -208,19 +244,31 @@ export class ProgressionManager {
     if (level === 5) {
       this.data.bossesDefeated.monolithSector5 = true;
       this.data.storyProgress.bossesDefeated.monolithSector5 = true;
-      this.data.storyProgress.highestChapterUnlocked = Math.max(this.data.storyProgress.highestChapterUnlocked, 2);
+      this.data.storyProgress.highestChapterUnlocked = Math.max(
+        this.data.storyProgress.highestChapterUnlocked,
+        2
+      );
     } else if (level === 10) {
       this.data.bossesDefeated.tesseractSector10 = true;
       this.data.storyProgress.bossesDefeated.tesseractSector10 = true;
-      this.data.storyProgress.highestChapterUnlocked = Math.max(this.data.storyProgress.highestChapterUnlocked, 3);
+      this.data.storyProgress.highestChapterUnlocked = Math.max(
+        this.data.storyProgress.highestChapterUnlocked,
+        3
+      );
     } else if (level === 15) {
       this.data.bossesDefeated.leviathanSector15 = true;
       this.data.storyProgress.bossesDefeated.leviathanSector15 = true;
-      this.data.storyProgress.highestChapterUnlocked = Math.max(this.data.storyProgress.highestChapterUnlocked, 4);
+      this.data.storyProgress.highestChapterUnlocked = Math.max(
+        this.data.storyProgress.highestChapterUnlocked,
+        4
+      );
     } else if (level === 20) {
       this.data.bossesDefeated.chronoWeaverSector20 = true;
       this.data.storyProgress.bossesDefeated.chronoWeaverSector20 = true;
-      this.data.storyProgress.highestChapterUnlocked = Math.max(this.data.storyProgress.highestChapterUnlocked, 5);
+      this.data.storyProgress.highestChapterUnlocked = Math.max(
+        this.data.storyProgress.highestChapterUnlocked,
+        5
+      );
     } else if (level >= 25) {
       this.data.bossesDefeated.primordialArchitectSector25 = true;
       this.data.storyProgress.bossesDefeated.primordialArchitectSector25 = true;
@@ -244,133 +292,55 @@ export class ProgressionManager {
         title: 'CAMPAGNA STORIA COMPLETATA!',
         type: 'ARCHETYPE',
         name: 'Vittoria Galattica Cosmica',
-        description: 'Hai sconfitto l Architetto Primordiale! +500 Schegge Quantiche e sbloccato l Abisso Infinito!',
+        description:
+          'Hai sconfitto l Architetto Primordiale! +500 Schegge Quantiche e sbloccato l Abisso Infinito!',
         color: '#e11d48',
       });
       this.save();
     }
   }
 
+  private unlockRelicHelper(id: RelicId, newUnlocks: UnlockEventNotification[], silent = false) {
+    if (!this.data.unlockedRelics.includes(id)) {
+      this.data.unlockedRelics.push(id);
+      if (!silent) {
+        const info = RELICS_DATA[id];
+        newUnlocks.push({
+          title: 'NUOVA RELIQUIA SBLOCCATA!',
+          type: 'RELIC',
+          name: info.title,
+          description: info.description,
+          color: '#00e5ff',
+        });
+      }
+    }
+  }
+
   public checkAndTriggerUnlocks(): UnlockEventNotification[] {
     const newUnlocks: UnlockEventNotification[] = [];
 
-    // 1. Check Archetype unlocks based on runs & bosses
-    if (this.data.runsPlayed >= 1 && !this.data.unlockedArchetypes.includes('KINETIC_TITAN')) {
-      this.data.unlockedArchetypes.push('KINETIC_TITAN');
-      newUnlocks.push({
-        title: 'NUOVO ARCHETIPO SBLOCCATO!',
-        type: 'ARCHETYPE',
-        name: ARCHETYPES_DATA.KINETIC_TITAN.title,
-        description: 'Colosso Cinetico con cestello maggiorato (260px) e +1 danno naturale!',
-        color: ARCHETYPES_DATA.KINETIC_TITAN.color,
-      });
+    // --- MILESTONE 1: Reach Sector 3 ---
+    if (this.data.bestSector >= 3) {
+      if (!this.data.unlockedArchetypes.includes('VOLT_OVERCHARGE')) {
+        this.data.unlockedArchetypes.push('VOLT_OVERCHARGE');
+        newUnlocks.push({
+          title: 'NUOVO NUCLEO SBLOCCATO!',
+          type: 'ARCHETYPE',
+          name: ARCHETYPES_DATA.VOLT_OVERCHARGE.title,
+          description: 'Raggiunto il Settore 3! Sbloccato il Nucleo Elettrico con Fulmine a Catena e 3 nuove reliquie nel Codex.',
+          color: ARCHETYPES_DATA.VOLT_OVERCHARGE.color,
+        });
+      }
+      this.unlockRelicHelper('VOLT_DISCHARGE', newUnlocks, true);
+      this.unlockRelicHelper('HEAVY_MASS', newUnlocks, true);
+      this.unlockRelicHelper('HYPER_VELOCITY', newUnlocks, true);
     }
 
-    if (this.data.bossesDefeated.monolithSector5 && !this.data.unlockedArchetypes.includes('CRYSTAL_SINGULARITY')) {
-      this.data.unlockedArchetypes.push('CRYSTAL_SINGULARITY');
-      newUnlocks.push({
-        title: 'ARCHETIPO BOSS SBLOCCATO!',
-        type: 'ARCHETYPE',
-        name: ARCHETYPES_DATA.CRYSTAL_SINGULARITY.title,
-        description: 'Sconfitto The Monolith! Sbloccata la Criotempesta Quantica con danno congelato 2x.',
-        color: ARCHETYPES_DATA.CRYSTAL_SINGULARITY.color,
-      });
-    }
-
-    if (this.data.bossesDefeated.tesseractSector10 && !this.data.unlockedArchetypes.includes('QUANTUM_SINGULARITY')) {
-      this.data.unlockedArchetypes.push('QUANTUM_SINGULARITY');
-      newUnlocks.push({
-        title: 'ARCHETIPO SUPREMO SBLOCCATO!',
-        type: 'ARCHETYPE',
-        name: ARCHETYPES_DATA.QUANTUM_SINGULARITY.title,
-        description: 'Sconfitto l Omega Tesseract! Sbloccate le sfere buco nero gravitazionali.',
-        color: ARCHETYPES_DATA.QUANTUM_SINGULARITY.color,
-      });
-    }
-
-    if (this.data.runsCompleted >= 3 && !this.data.unlockedArchetypes.includes('CHRONO_PULSE')) {
-      this.data.unlockedArchetypes.push('CHRONO_PULSE');
-      newUnlocks.push({
-        title: 'ARCHETIPO ESPERTO SBLOCCATO!',
-        type: 'ARCHETYPE',
-        name: ARCHETYPES_DATA.CHRONO_PULSE.title,
-        description: '3 Run completate! Sovraccarico temporale con rallentamento e shockwave su combo.',
-        color: ARCHETYPES_DATA.CHRONO_PULSE.color,
-      });
-    }
-
-    // 2. Check Secret Relics
-    if (this.data.bossesDefeated.monolithSector5 && !this.data.unlockedRelics.includes('POLAR_VORTEX')) {
-      this.data.unlockedRelics.push('POLAR_VORTEX');
-      newUnlocks.push({
-        title: 'RELIQUIA SEGRETA SBLOCCATA!',
-        type: 'RELIC',
-        name: RELICS_DATA.POLAR_VORTEX.title,
-        description: RELICS_DATA.POLAR_VORTEX.description,
-        color: '#00e5ff',
-      });
-    }
-
-    if (this.data.bossesDefeated.tesseractSector10 && !this.data.unlockedRelics.includes('CHRONO_WARP')) {
-      this.data.unlockedRelics.push('CHRONO_WARP');
-      newUnlocks.push({
-        title: 'RELIQUIA SUPREMA SBLOCCATA!',
-        type: 'RELIC',
-        name: RELICS_DATA.CHRONO_WARP.title,
-        description: RELICS_DATA.CHRONO_WARP.description,
-        color: '#ffe600',
-      });
-    }
-
-    if (this.data.runsCompleted >= 2 && !this.data.unlockedRelics.includes('GRAVITY_WELL')) {
-      this.data.unlockedRelics.push('GRAVITY_WELL');
-      newUnlocks.push({
-        title: 'RELIQUIA GRAVITAZIONALE SBLOCCATA!',
-        type: 'RELIC',
-        name: RELICS_DATA.GRAVITY_WELL.title,
-        description: RELICS_DATA.GRAVITY_WELL.description,
-        color: '#a855f7',
-      });
-    }
-
-    if (this.data.totalCubesDestroyed >= 150 && !this.data.unlockedRelics.includes('PLASMA_CONDUIT')) {
-      this.data.unlockedRelics.push('PLASMA_CONDUIT');
-      newUnlocks.push({
-        title: 'RELIQUIA CONDOTTO PLASMA SBLOCCATA!',
-        type: 'RELIC',
-        name: RELICS_DATA.PLASMA_CONDUIT.title,
-        description: RELICS_DATA.PLASMA_CONDUIT.description,
-        color: '#00e5ff',
-      });
-    }
-
-    if (this.data.totalCubesDestroyed >= 300 && !this.data.unlockedRelics.includes('SUPERNOVA_CATALYST')) {
-      this.data.unlockedRelics.push('SUPERNOVA_CATALYST');
-      newUnlocks.push({
-        title: 'RELIQUIA CATALIZZATORE SBLOCCATA!',
-        type: 'RELIC',
-        name: RELICS_DATA.SUPERNOVA_CATALYST.title,
-        description: RELICS_DATA.SUPERNOVA_CATALYST.description,
-        color: '#ff6b00',
-      });
-    }
-
-    // 3. Check Dual-Element Fusion Combos
-    if (this.data.bossesDefeated.monolithSector5 && !this.data.unlockedFusionCombos.includes('PLASMA_OVERLOAD')) {
-      this.data.unlockedFusionCombos.push('PLASMA_OVERLOAD');
-      newUnlocks.push({
-        title: 'NUOVA COMBO FUSIONE SBLOCCATA!',
-        type: 'COMBO',
-        name: FUSION_COMBOS.PLASMA_OVERLOAD.title,
-        description: FUSION_COMBOS.PLASMA_OVERLOAD.description,
-        color: FUSION_COMBOS.PLASMA_OVERLOAD.color,
-      });
-    }
-
-    if (this.data.runsPlayed >= 1 && !this.data.unlockedFusionCombos.includes('MAGNETIC_SURGE')) {
+    // --- MILESTONE 1.5: Reach Sector 4 ---
+    if (this.data.bestSector >= 4 && !this.data.unlockedFusionCombos.includes('MAGNETIC_SURGE')) {
       this.data.unlockedFusionCombos.push('MAGNETIC_SURGE');
       newUnlocks.push({
-        title: 'NUOVA COMBO FUSIONE SBLOCCATA!',
+        title: 'PRIMA COMBO FUSIONE SBLOCCATA!',
         type: 'COMBO',
         name: FUSION_COMBOS.MAGNETIC_SURGE.title,
         description: FUSION_COMBOS.MAGNETIC_SURGE.description,
@@ -378,37 +348,104 @@ export class ProgressionManager {
       });
     }
 
-    if (this.data.runsCompleted >= 2 && !this.data.unlockedFusionCombos.includes('SWARM_DETONATOR')) {
-      this.data.unlockedFusionCombos.push('SWARM_DETONATOR');
-      newUnlocks.push({
-        title: 'NUOVA COMBO FUSIONE SBLOCCATA!',
-        type: 'COMBO',
-        name: FUSION_COMBOS.SWARM_DETONATOR.title,
-        description: FUSION_COMBOS.SWARM_DETONATOR.description,
-        color: FUSION_COMBOS.SWARM_DETONATOR.color,
-      });
+    // --- MILESTONE 2: Defeat Boss Sector 5 (Unlock Chapter II) ---
+    if (this.data.bossesDefeated.monolithSector5) {
+      if (!this.data.unlockedArchetypes.includes('PYRO_DETONATOR')) {
+        this.data.unlockedArchetypes.push('PYRO_DETONATOR');
+        newUnlocks.push({
+          title: 'CAPITOLO II & NUCLEO PYRO SBLOCCATI!',
+          type: 'ARCHETYPE',
+          name: ARCHETYPES_DATA.PYRO_DETONATOR.title,
+          description: 'The Monolith sconfitto! Sbloccati Pyro Detonator, Kinetic Titan, i Cubi Esplosivi e 5 Reliquie Tier 2.',
+          color: ARCHETYPES_DATA.PYRO_DETONATOR.color,
+        });
+      }
+      if (!this.data.unlockedArchetypes.includes('KINETIC_TITAN')) {
+        this.data.unlockedArchetypes.push('KINETIC_TITAN');
+      }
+      this.unlockRelicHelper('SHRAPNEL_BURST', newUnlocks, true);
+      this.unlockRelicHelper('TESLA_COIL', newUnlocks, true);
+      this.unlockRelicHelper('CRITICAL_OVERDRIVE', newUnlocks, true);
+      this.unlockRelicHelper('QUANTUM_DUPLICATION', newUnlocks, true);
+      this.unlockRelicHelper('POLAR_VORTEX', newUnlocks, true);
+
+      if (!this.data.unlockedFusionCombos.includes('PLASMA_OVERLOAD')) {
+        this.data.unlockedFusionCombos.push('PLASMA_OVERLOAD');
+      }
     }
 
-    if (this.data.totalCubesDestroyed >= 200 && !this.data.unlockedFusionCombos.includes('HYPER_SWARM')) {
-      this.data.unlockedFusionCombos.push('HYPER_SWARM');
-      newUnlocks.push({
-        title: 'NUOVA COMBO FUSIONE SBLOCCATA!',
-        type: 'COMBO',
-        name: FUSION_COMBOS.HYPER_SWARM.title,
-        description: FUSION_COMBOS.HYPER_SWARM.description,
-        color: FUSION_COMBOS.HYPER_SWARM.color,
-      });
+    // --- MILESTONE 3: Defeat Boss Sector 10 (Unlock Chapter III) ---
+    if (this.data.bossesDefeated.tesseractSector10) {
+      if (!this.data.unlockedArchetypes.includes('SWARM_MATRIX')) {
+        this.data.unlockedArchetypes.push('SWARM_MATRIX');
+        newUnlocks.push({
+          title: 'CAPITOLO III & NUCLEO SWARM SBLOCCATI!',
+          type: 'ARCHETYPE',
+          name: ARCHETYPES_DATA.SWARM_MATRIX.title,
+          description: 'Omega Tesseract sconfitto! Sbloccati Swarm Matrix, Crystal Singularity, Cubi Splitter/Corazzati e Reliquie Tier 3.',
+          color: ARCHETYPES_DATA.SWARM_MATRIX.color,
+        });
+      }
+      if (!this.data.unlockedArchetypes.includes('CRYSTAL_SINGULARITY')) {
+        this.data.unlockedArchetypes.push('CRYSTAL_SINGULARITY');
+      }
+      this.unlockRelicHelper('CLUSTER_CHARGE', newUnlocks, true);
+      this.unlockRelicHelper('SPLIT_STORM', newUnlocks, true);
+      this.unlockRelicHelper('MICRO_SWARM', newUnlocks, true);
+      this.unlockRelicHelper('EMP_BURST', newUnlocks, true);
+      this.unlockRelicHelper('PIERCING_RAIL', newUnlocks, true);
+
+      if (!this.data.unlockedFusionCombos.includes('SWARM_DETONATOR')) {
+        this.data.unlockedFusionCombos.push('SWARM_DETONATOR');
+      }
     }
 
-    if (this.data.bossesDefeated.tesseractSector10 && !this.data.unlockedFusionCombos.includes('CRYO_SHOCK')) {
-      this.data.unlockedFusionCombos.push('CRYO_SHOCK');
-      newUnlocks.push({
-        title: 'COMBO FUSIONE SUPREMA SBLOCCATA!',
-        type: 'COMBO',
-        name: FUSION_COMBOS.CRYO_SHOCK.title,
-        description: FUSION_COMBOS.CRYO_SHOCK.description,
-        color: FUSION_COMBOS.CRYO_SHOCK.color,
-      });
+    // --- MILESTONE 4: Defeat Boss Sector 15 (Unlock Chapter IV) ---
+    if (this.data.bossesDefeated.leviathanSector15) {
+      if (!this.data.unlockedArchetypes.includes('CHRONO_PULSE')) {
+        this.data.unlockedArchetypes.push('CHRONO_PULSE');
+        newUnlocks.push({
+          title: 'CAPITOLO IV & CHRONO PULSE SBLOCCATI!',
+          type: 'ARCHETYPE',
+          name: ARCHETYPES_DATA.CHRONO_PULSE.title,
+          description: 'Void Leviathan sconfitto! Sbloccati Chrono Pulse, i Cubi Scudo e le Reliquie Tier 4.',
+          color: ARCHETYPES_DATA.CHRONO_PULSE.color,
+        });
+      }
+      this.unlockRelicHelper('SUPERNOVA', newUnlocks, true);
+      this.unlockRelicHelper('GRAVITY_WELL', newUnlocks, true);
+      this.unlockRelicHelper('CHRONO_WARP', newUnlocks, true);
+
+      if (!this.data.unlockedFusionCombos.includes('HYPER_SWARM')) {
+        this.data.unlockedFusionCombos.push('HYPER_SWARM');
+      }
+    }
+
+    // --- MILESTONE 5: Defeat Boss Sector 20 (Unlock Chapter V) ---
+    if (this.data.bossesDefeated.chronoWeaverSector20) {
+      if (!this.data.unlockedArchetypes.includes('QUANTUM_SINGULARITY')) {
+        this.data.unlockedArchetypes.push('QUANTUM_SINGULARITY');
+        newUnlocks.push({
+          title: 'CAPITOLO V & QUANTUM SINGULARITY SBLOCCATI!',
+          type: 'ARCHETYPE',
+          name: ARCHETYPES_DATA.QUANTUM_SINGULARITY.title,
+          description: 'Chrono Weaver sconfitto! Sbloccato il Nucleo Gravitazionale Supremo e le Reliquie Tier 5.',
+          color: ARCHETYPES_DATA.QUANTUM_SINGULARITY.color,
+        });
+      }
+      this.unlockRelicHelper('SUPERNOVA_CATALYST', newUnlocks, true);
+
+      if (!this.data.unlockedFusionCombos.includes('CRYO_SHOCK')) {
+        this.data.unlockedFusionCombos.push('CRYO_SHOCK');
+      }
+    }
+
+    // Cube destruction milestones
+    if (this.data.totalCubesDestroyed >= 150) {
+      this.unlockRelicHelper('PLASMA_CONDUIT', newUnlocks, false);
+    }
+    if (this.data.totalCubesDestroyed >= 300) {
+      this.unlockRelicHelper('SUPERNOVA_CATALYST', newUnlocks, false);
     }
 
     if (newUnlocks.length > 0) {
@@ -433,6 +470,9 @@ export class ProgressionManager {
     if (this.data.quantumShards >= arch.unlockCost) {
       this.data.quantumShards -= arch.unlockCost;
       this.data.unlockedArchetypes.push(id);
+      if (arch.initialRelic && !this.data.unlockedRelics.includes(arch.initialRelic)) {
+        this.data.unlockedRelics.push(arch.initialRelic);
+      }
       this.save();
       return true;
     }
@@ -451,7 +491,10 @@ export class ProgressionManager {
     relics: RelicId[],
     shardsRun: number,
     isEndless: boolean,
-    gameMode: GameMode = 'STORY'
+    gameMode: GameMode = 'STORY',
+    runBonusDamage: number = 0,
+    runBonusBasketWidth: number = 0,
+    currentNodeType: SectorNodeType = 'NORMAL'
   ) {
     this.data.savedRun = {
       hasActiveRun: true,
@@ -463,6 +506,9 @@ export class ProgressionManager {
       savedShardsRun: shardsRun,
       savedIsEndless: isEndless,
       gameMode,
+      runBonusDamage,
+      runBonusBasketWidth,
+      currentNodeType,
     };
     this.recordScoreAndLevel(score, level);
     this.save();
@@ -479,6 +525,9 @@ export class ProgressionManager {
       savedShardsRun: 0,
       savedIsEndless: false,
       gameMode: 'STORY',
+      runBonusDamage: 0,
+      runBonusBasketWidth: 0,
+      currentNodeType: 'NORMAL',
     };
     this.save();
   }

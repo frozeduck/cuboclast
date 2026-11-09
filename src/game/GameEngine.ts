@@ -21,10 +21,100 @@ import {
   Shard,
   FloatingText,
   GameMode,
+  SectorNodeType,
+  SectorMapNode,
+  SectorAnomalyEvent,
   getChapterForSector,
 } from '../types/game';
 import { ProgressionManager, progressionManager } from './progression';
 import { soundEngine } from '../audio/soundEngine';
+
+const ANOMALY_EVENTS_POOL: SectorAnomalyEvent[] = [
+  {
+    id: 'QUANTUM_FORGE',
+    title: 'Fucina Quantica Abbandonata',
+    subtitle: 'Anomalia Settoriale · Relitto Orbitale',
+    description:
+      'Un antico reattore fluttua nel vuoto. Puoi sovraccaricare il cannone sacrificando una sfera, estrarre schegge pure o ricaricare il serbatoio.',
+    color: '#a855f7',
+    choices: [
+      {
+        id: 'FORGE_OVERCLOCK',
+        label: 'Sovraccarica Cannone (-1 Sfera)',
+        effectText: '+1 Danno Base permanente per tutta la Run',
+        color: '#ff6b00',
+      },
+      {
+        id: 'FORGE_EXTRACT',
+        label: 'Estrai Cristalli Quantici',
+        effectText: 'Ottieni immediatamente +40 ◆ Schegge Quantiche',
+        color: '#38bdf8',
+      },
+      {
+        id: 'FORGE_REPAIR',
+        label: 'Sintetizza Munizioni',
+        effectText: 'Recupera +2 Sfere per i prossimi settori',
+        color: '#00ff88',
+      },
+    ],
+  },
+  {
+    id: 'MAGNETIC_NEBULA',
+    title: 'Nebulosa Magnetica Instabile',
+    subtitle: 'Anomalia Settoriale · Campo Polare',
+    description:
+      'Una tempesta magnetica avvolge la nave. Puoi canalizzare il flusso per espandere il cestello magnetico o condensare una reliquia.',
+    color: '#00e5ff',
+    choices: [
+      {
+        id: 'NEBULA_BASKET',
+        label: 'Espandi Bobine del Cestello',
+        effectText: '+45px Larghezza Cestello per tutta la Run',
+        color: '#00e5ff',
+      },
+      {
+        id: 'NEBULA_RELIC',
+        label: 'Condensa Reliquia (-2 Sfere)',
+        effectText: 'Sacrifica 2 Sfere per ottenere 1 Reliquia casuale sbloccata',
+        color: '#a855f7',
+      },
+      {
+        id: 'NEBULA_ELECTRIFY',
+        label: 'Carica Condensatori',
+        effectText: '+1 Sfera e il prossimo tiro parte Elettrificato (+2 Danno)',
+        color: '#ffe600',
+      },
+    ],
+  },
+  {
+    id: 'VOID_SHRINE',
+    title: 'Altare del Tesseract',
+    subtitle: 'Anomalia Settoriale · Monolite Antico',
+    description:
+      'Un frammento geometrico emette impulsi regolari. Offrire Schegge Quantiche o energia balistica attiva antichi protocolli.',
+    color: '#ffe600',
+    choices: [
+      {
+        id: 'SHRINE_BLESSING',
+        label: 'Assorbi Energia Pura',
+        effectText: '+3 Sfere immediate e +5.000 Punti',
+        color: '#00ff88',
+      },
+      {
+        id: 'SHRINE_GAMBLE',
+        label: 'Patto Ad Alto Rischio',
+        effectText: '+1 Danno Base Run e +30 ◆ Schegge Quantiche',
+        color: '#ff007f',
+      },
+      {
+        id: 'SHRINE_REROLL',
+        label: 'Calibra Sensori del Codex',
+        effectText: '+2 Dadi Reroll per le prossime scelte Reliquia e +1 Sfera',
+        color: '#00e5ff',
+      },
+    ],
+  },
+];
 
 export interface GameEngineListener {
   onBounceHit?: (combo: number) => void;
@@ -69,6 +159,18 @@ export class GameEngine {
   public rerollsAvailable: number = 1;
 
   public isNextBallElectrified: boolean = false;
+
+  // In-Run Roguelike Progression Modifiers & Branching Nodes
+  public runBonusDamage: number = 0;
+  public runBonusBasketWidth: number = 0;
+  public currentNodeType: SectorNodeType = 'NORMAL';
+  public currentPatternName: string = 'Cittadella Simmetrica';
+  public nextMapNodes: SectorMapNode[] = [];
+  public pendingNextSector: number = 2;
+  public currentAnomalyEvent: SectorAnomalyEvent | null = null;
+  public lastAnomalyOutcomeText: string | null = null;
+  public merchantRelicOffer: RelicId | null = null;
+  public merchantBoughtIds: string[] = [];
 
   public activeBoss: Cube | null = null;
   public bossPhase: number = 1;
@@ -117,6 +219,12 @@ export class GameEngine {
     this.activeRelics = [];
     this.totalCubesDestroyed = 0;
     this.isNextBallElectrified = false;
+    this.runBonusDamage = 0;
+    this.runBonusBasketWidth = 0;
+    this.currentNodeType = 'NORMAL';
+    this.nextMapNodes = [];
+    this.currentAnomalyEvent = null;
+    this.lastAnomalyOutcomeText = null;
     this.rerollsAvailable = 1 + this.progression.getData().upgradeRerolls;
     this.setState('ARCHETYPE_SELECT');
   }
@@ -128,9 +236,13 @@ export class GameEngine {
     }
   }
 
-  public selectArchetype(archetype: ArchetypeId, mode?: GameMode) {
+  public selectArchetype(
+    archetype: ArchetypeId,
+    mode?: GameMode,
+    startChapter: number = 1,
+    skipChapterIntro: boolean = false
+  ) {
     if (!this.progression.isArchetypeUnlocked(archetype)) {
-      // If locked, cannot select unless unlocked
       return;
     }
 
@@ -140,16 +252,35 @@ export class GameEngine {
     this.quantumShardsRun = 0;
     this.activeRelics = [];
     this.isEndless = false;
+    this.runBonusDamage = 0;
+    this.runBonusBasketWidth = 0;
+    this.currentNodeType = 'NORMAL';
+    this.ballsRemaining = 8 + this.progression.getData().upgradeExtraBalls;
+    this.rerollsAvailable = 1 + this.progression.getData().upgradeRerolls;
     this.progression.recordRunStart();
 
     const archInfo = ARCHETYPES_DATA[archetype];
-    if (archInfo) {
+    if (archInfo && archInfo.initialRelic) {
       this.activeRelics.push(archInfo.initialRelic);
     }
 
+    const clampedChapter = Math.max(
+      1,
+      Math.min(startChapter, this.progression.getData().storyProgress?.highestChapterUnlocked || 1)
+    );
+    const startSector = this.gameMode === 'STORY' ? (clampedChapter - 1) * 5 + 1 : 1;
+
     soundEngine.playRelicSelect();
     soundEngine.triggerHaptic(30);
-    this.initLevel(1);
+    this.initLevel(startSector, 'NORMAL', !skipChapterIntro && this.gameMode === 'STORY');
+  }
+
+  public confirmChapterIntro() {
+    if (this.state === 'CHAPTER_INTRO') {
+      soundEngine.playLaunch();
+      soundEngine.triggerHaptic(25);
+      this.setState('AIMING');
+    }
   }
 
   public abandonRun() {
@@ -168,17 +299,20 @@ export class GameEngine {
       const restoredShards = data.savedRun.savedShardsRun;
       const restoredEndless = data.savedRun.savedIsEndless;
       this.gameMode = data.savedRun.gameMode || 'STORY';
+      this.runBonusDamage = data.savedRun.runBonusDamage || 0;
+      this.runBonusBasketWidth = data.savedRun.runBonusBasketWidth || 0;
+      this.currentNodeType = data.savedRun.currentNodeType || 'NORMAL';
 
       if (data.savedRun.savedArchetype) {
         this.currentArchetype = data.savedRun.savedArchetype;
       } else {
-        this.currentArchetype = 'VOLT_OVERCHARGE';
+        this.currentArchetype = 'PROTO_CORE';
       }
 
       this.activeRelics = [...data.savedRun.savedRelics];
       this.isEndless = restoredEndless;
 
-      this.initLevel(this.currentLevel);
+      this.initLevel(this.currentLevel, this.currentNodeType, false);
 
       this.score = restoredScore;
       this.ballsRemaining = restoredBalls;
@@ -192,7 +326,10 @@ export class GameEngine {
         this.activeRelics,
         this.quantumShardsRun,
         this.isEndless,
-        this.gameMode
+        this.gameMode,
+        this.runBonusDamage,
+        this.runBonusBasketWidth,
+        this.currentNodeType
       );
 
       this.setState('AIMING');
@@ -205,9 +342,19 @@ export class GameEngine {
     }
   }
 
-  public initLevel(level: number) {
+  public initLevel(
+    level: number,
+    nodeType: SectorNodeType = 'NORMAL',
+    showChapterIntro: boolean = false
+  ) {
     this.currentLevel = level;
+    this.currentNodeType = level % 5 === 0 ? 'BOSS' : nodeType;
     this.progression.recordScoreAndLevel(this.score, this.currentLevel);
+
+    const newUnlocks = this.progression.checkAndTriggerUnlocks();
+    if (newUnlocks.length > 0 && this.listener.onNewUnlock) {
+      this.listener.onNewUnlock(newUnlocks[0]);
+    }
 
     if (this.currentArchetype) {
       this.progression.saveActiveRun(
@@ -218,7 +365,10 @@ export class GameEngine {
         this.activeRelics,
         this.quantumShardsRun,
         this.isEndless,
-        this.gameMode
+        this.gameMode,
+        this.runBonusDamage,
+        this.runBonusBasketWidth,
+        this.currentNodeType
       );
     }
 
@@ -240,14 +390,21 @@ export class GameEngine {
       this.ballsRemaining = baseBalls;
     }
 
-    let basketWidth = 220 + this.progression.getData().upgradeBasketWidth * 15;
+    let basketWidth =
+      220 + this.progression.getData().upgradeBasketWidth * 15 + this.runBonusBasketWidth;
     if (this.currentArchetype === 'KINETIC_TITAN') basketWidth += 40;
     if (this.activeRelics.includes('MAGNETIC_BASKET')) basketWidth += 50;
     this.basket.width = basketWidth;
     this.basket.x = (VIRTUAL_WIDTH - basketWidth) / 2;
 
     this.generateLevelGrid(level);
-    this.setState('AIMING');
+
+    const isChapterStart = (level - 1) % 5 === 0 && level <= 25;
+    if (showChapterIntro && isChapterStart && this.gameMode === 'STORY') {
+      this.setState('CHAPTER_INTRO');
+    } else {
+      this.setState('AIMING');
+    }
   }
 
   public getActiveResonances(): Record<RelicFamilyId, number> {
@@ -321,33 +478,74 @@ export class GameEngine {
     const totalGridW = cols * cubeWidth + (cols - 1) * paddingX;
     const startX = (VIRTUAL_WIDTH - totalGridW) / 2;
 
-    let baseHp = Math.max(1, level <= 1 ? 1 : 1 + (level - 2));
-    if (level > 10) {
-      baseHp += (level - 10) * 2;
-    }
-
-    // Boss fight on sectors 5, 10, 15...
+    // Boss fight on sectors 5, 10, 15, 20, 25...
     if (level % 5 === 0) {
+      this.currentPatternName = `Guardiano Settore ${level}`;
       this.generateBossLevel(level, startX, startY, cols, cubeWidth, cubeHeight, paddingX);
       return;
     }
 
-    const coreBudget = Math.min(6 + level * 2, 14);
+    const isElite = this.currentNodeType === 'ELITE';
+    const hpMultiplier = isElite ? 1.5 : 1.0;
+
+    let baseHp = Math.max(1, level <= 2 ? 1 : 1 + Math.floor((level - 1) * 0.75));
+    if (level > 10) {
+      baseHp += Math.floor((level - 10) * 1.3);
+    }
+    baseHp = Math.max(1, Math.round(baseHp * hpMultiplier));
+
+    // Procedural Geometric Patterns
+    const patternNames = [
+      'Cittadella Simmetrica',
+      'Vortice a Diamante',
+      'Bastione Spezzato',
+      'Esagono Orbitale',
+      'Corridoio Quantico',
+      'Bunker Piramidale',
+    ];
+    const patternIndex = level === 1 ? 0 : (level + (isElite ? 2 : 0)) % patternNames.length;
+    this.currentPatternName = patternNames[patternIndex];
+
+    const allowedSpecialTypes = this.progression
+      .getAllowedCubeTypesForSector(level)
+      .filter((t) => t !== 'NORMAL' && t !== 'BOSS');
+
+    const coreBudget = Math.min(5 + level + (isElite ? 2 : 0), 14);
     let coresAssigned = 0;
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         let placeCube = false;
-        if (level === 1) {
-          placeCube =
-            (r === 0 && c >= 2 && c <= 6) ||
-            (r === 1 && (c === 1 || c === 3 || c === 5 || c === 7)) ||
-            (r === 2 && c >= 2 && c <= 6) ||
-            (r === 3 && (c === 3 || c === 4 || c === 5));
-        } else if (level % 2 === 0) {
-          placeCube = (r + c) % 2 === 0;
-        } else {
-          placeCube = c >= 1 && c <= 7 && !(r === 1 && c === 4);
+        const distFromCenterCol = Math.abs(c - 4);
+
+        switch (patternIndex) {
+          case 0: // Cittadella Simmetrica
+            placeCube =
+              (r === 0 && c >= 2 && c <= 6) ||
+              (r === 1 && (c === 1 || c === 3 || c === 5 || c === 7)) ||
+              (r === 2 && c >= 2 && c <= 6) ||
+              (r >= 3 && distFromCenterCol <= 2);
+            break;
+          case 1: // Vortice a Diamante
+            placeCube = distFromCenterCol + Math.abs(r - Math.floor(rows / 2)) <= 4;
+            break;
+          case 2: // Bastione Spezzato
+            placeCube = (r + c) % 2 === 0 && c >= 1 && c <= 7;
+            break;
+          case 3: // Esagono Orbitale
+            placeCube =
+              c >= 1 &&
+              c <= 7 &&
+              !(r === Math.floor(rows / 2) && (c === 3 || c === 5)) &&
+              !(r === 0 && (c === 1 || c === 7));
+            break;
+          case 4: // Corridoio Quantico
+            placeCube = c !== 4 && c >= 1 && c <= 7;
+            break;
+          case 5: // Bunker Piramidale
+          default:
+            placeCube = distFromCenterCol <= r + 1 && c >= 1 && c <= 7;
+            break;
         }
 
         if (!placeCube) continue;
@@ -356,28 +554,32 @@ export class GameEngine {
         const cy = startY + r * (cubeHeight + paddingY);
 
         let type: CubeType = 'NORMAL';
-        const roll = Math.random();
-        let cubeHp = level === 1 ? 1 : Math.max(1, baseHp + Math.floor(Math.random() * 2));
+        let cubeHp =
+          level === 1
+            ? 1
+            : Math.max(1, Math.round((baseHp + (r === 0 ? 1 : 0)) * (isElite ? 1.2 : 1.0)));
 
-        if (roll < 0.15) {
-          type = 'EXPLOSIVE';
-          cubeHp = Math.max(1, cubeHp - 1);
-        } else if (roll < 0.28) {
-          type = 'SPLITTER';
-          cubeHp = 1;
-        } else if (roll < 0.4) {
-          type = 'KINETIC';
-          cubeHp = 1;
-        } else if (roll < 0.5 && level >= 3) {
-          type = 'ARMOR';
-          cubeHp = baseHp + 2;
-        } else if (roll < 0.58 && level >= 4) {
-          type = 'SHIELD';
-          cubeHp = baseHp + 1;
+        // Strictly respect chapter-unlocked cube types
+        if (allowedSpecialTypes.length > 0) {
+          const specialChance = isElite ? 0.42 : 0.28;
+          if (Math.random() < specialChance) {
+            const picked =
+              allowedSpecialTypes[Math.floor(Math.random() * allowedSpecialTypes.length)];
+            type = picked;
+            if (picked === 'KINETIC' || picked === 'SPLITTER') {
+              cubeHp = Math.max(1, Math.floor(baseHp * 0.6));
+            } else if (picked === 'ARMOR') {
+              cubeHp = baseHp + 3;
+            } else if (picked === 'SHIELD') {
+              cubeHp = baseHp + 1;
+            } else if (picked === 'EXPLOSIVE') {
+              cubeHp = Math.max(1, baseHp - 1);
+            }
+          }
         }
 
         let isCore = false;
-        if (coresAssigned < coreBudget && (type === 'NORMAL' || Math.random() < 0.5)) {
+        if (coresAssigned < coreBudget && (type === 'NORMAL' || Math.random() < 0.45)) {
           isCore = true;
           coresAssigned++;
         }
@@ -401,12 +603,13 @@ export class GameEngine {
       }
     }
 
-    if (coresAssigned < 6) {
+    const minCores = Math.min(5, this.cubes.length);
+    if (coresAssigned < minCores) {
       for (const c of this.cubes) {
         if (!c.isCore) {
           c.isCore = true;
           coresAssigned++;
-          if (coresAssigned >= 6) break;
+          if (coresAssigned >= minCores) break;
         }
       }
     }
@@ -556,7 +759,7 @@ export class GameEngine {
     const vx = Math.cos(this.aimAngle) * speed;
     const vy = Math.sin(this.aimAngle) * speed;
 
-    let baseDamage = 1;
+    let baseDamage = 1 + this.runBonusDamage;
     if (this.activeRelics.includes('HYPER_VELOCITY')) baseDamage += 1;
     if (this.currentArchetype === 'KINETIC_TITAN') baseDamage += 1;
 
@@ -745,7 +948,12 @@ export class GameEngine {
     if (this.feverTimer <= 0) {
       const ballBonus = this.ballsRemaining * 2000;
       this.score += ballBonus;
-      this.addQuantumShards(25);
+      const shardReward = this.currentNodeType === 'ELITE' ? 50 : 25;
+      this.addQuantumShards(shardReward);
+
+      if (this.currentNodeType === 'ELITE') {
+        this.ballsRemaining += 1;
+      }
 
       if (this.score > this.highScore) {
         this.highScore = this.score;
@@ -765,6 +973,10 @@ export class GameEngine {
         this.progression.clearActiveRun();
         this.setState('VICTORY');
       } else {
+        const unlocks = this.progression.checkAndTriggerUnlocks();
+        if (unlocks.length > 0 && this.listener.onNewUnlock) {
+          this.listener.onNewUnlock(unlocks[0]);
+        }
         this.prepareRelicDraft();
       }
     }
@@ -1071,7 +1283,10 @@ export class GameEngine {
           this.progression.addCubesDestroyed(1);
           this.addQuantumShards(c.isCore ? 5 : 1);
 
-          const killPoints = (c.isCore ? 500 : 250) * Math.min(this.currentCombo, 10);
+          let killPoints = (c.isCore ? 500 : 250) * Math.min(this.currentCombo, 10);
+          if (c.isCore && this.currentArchetype === 'PROTO_CORE') {
+            killPoints = Math.round(killPoints * 1.2);
+          }
           this.addScore(killPoints);
           this.spawnCubeShards(c);
 
@@ -1455,6 +1670,10 @@ export class GameEngine {
     this.draftChoices = [];
     const unlockedPool = this.progression.getData().unlockedRelics;
     const available = unlockedPool.filter((r) => !this.activeRelics.includes(r));
+    if (available.length === 0) {
+      this.prepareSectorMap(this.currentLevel + 1);
+      return;
+    }
     const shuffled = [...available].sort(() => Math.random() - 0.5);
     this.draftChoices = shuffled.slice(0, Math.min(3, shuffled.length));
     this.setState('RELIC_DRAFT');
@@ -1489,7 +1708,281 @@ export class GameEngine {
       }
     }
 
-    this.initLevel(this.currentLevel + 1);
+    this.prepareSectorMap(this.currentLevel + 1);
+  }
+
+  public skipRelicDraft() {
+    if (this.state !== 'RELIC_DRAFT') return;
+    this.addQuantumShards(15);
+    soundEngine.playShardCollect();
+    this.prepareSectorMap(this.currentLevel + 1);
+  }
+
+  /**
+   * Generates the branching Sector Map choices for the upcoming sector.
+   */
+  public prepareSectorMap(targetSector: number) {
+    this.pendingNextSector = targetSector;
+    const chapter = getChapterForSector(targetSector);
+    const nodes: SectorMapNode[] = [];
+
+    // Boss Sector is mandatory at multiples of 5
+    if (targetSector % 5 === 0) {
+      nodes.push({
+        id: `node_boss_${targetSector}`,
+        type: 'BOSS',
+        targetSector,
+        title: `GUARDIANO: ${chapter.bossName.toUpperCase()}`,
+        subtitle: `Settore ${targetSector} · Boss di Fine Capitolo ${chapter.id}`,
+        description: `${chapter.bossTitle}. ${chapter.hazardNote}`,
+        rewardText: 'Sblocca Nuovo Capitolo + Reliquie & Cubi + 50-150 ◆',
+        riskText: `Corazza Boss ${chapter.bossHp} HP · ${chapter.satelliteCount} Satelliti Orbitali`,
+        color: '#ff007f',
+        patternName: chapter.bossName,
+      });
+
+      // Also offer a pre-boss Orbital Merchant stop if the player wants supplies first
+      nodes.push({
+        id: `node_merchant_preboss_${targetSector}`,
+        type: 'MERCHANT',
+        targetSector,
+        title: 'OFFICINA ORBITALE PRE-BOSS',
+        subtitle: `Sosta Tattica prima del Settore ${targetSector}`,
+        description:
+          'Visita il Mercante Orbitale per acquistare Sfere extra, potenziare il cannone o comprare una Reliquia prima di affrontare il Guardiano.',
+        rewardText: 'Acquista +2 Sfere, +1 Danno o Reliquia prima del Boss',
+        riskText: 'Richiede Schegge Quantiche ◆',
+        color: '#ffe600',
+      });
+    } else {
+      const patternNames = [
+        'Cittadella Simmetrica',
+        'Vortice a Diamante',
+        'Bastione Spezzato',
+        'Esagono Orbitale',
+        'Corridoio Quantico',
+        'Bunker Piramidale',
+      ];
+      const normalPattern = patternNames[targetSector % patternNames.length];
+      const elitePattern = patternNames[(targetSector + 2) % patternNames.length];
+
+      // Route 1: Standard Sector
+      nodes.push({
+        id: `node_normal_${targetSector}`,
+        type: 'NORMAL',
+        targetSector,
+        title: `SETTORE STANDARD ${targetSector}`,
+        subtitle: `Formazione: ${normalPattern}`,
+        description: `Rotta bilanciata attraverso ${chapter.title}. Cubi: ${chapter.unlockedCubesLabel}.`,
+        rewardText: 'Scelta 1 Reliquia + 25 ◆ Schegge Quantiche',
+        riskText: 'Difficoltà Standard · Presidio Regolare',
+        color: '#00e5ff',
+        patternName: normalPattern,
+      });
+
+      // Route 2: Elite Sector
+      nodes.push({
+        id: `node_elite_${targetSector}`,
+        type: 'ELITE',
+        targetSector,
+        title: `ROTTA ELITE · SETTORE ${targetSector}`,
+        subtitle: `Formazione Fortificata: ${elitePattern}`,
+        description:
+          'Presidio ad alta densità con cubi potenziati (+50% HP) e più nuclei Core da distruggere.',
+        rewardText: 'DOPPIO PREMIO: +50 ◆ Schegge + +1 Sfera Bonus + 1 Reliquia',
+        riskText: 'Rischio Alto · Cubi +50% HP e +2 Core',
+        color: '#ff6b00',
+        patternName: elitePattern,
+      });
+
+      // Route 3: Event or Merchant before entering Sector
+      if (targetSector % 2 === 0) {
+        nodes.push({
+          id: `node_event_${targetSector}`,
+          type: 'EVENT',
+          targetSector,
+          title: `ANOMALIA QUANTICA · SETT. ${targetSector}`,
+          subtitle: 'Incontro Narrativo & Scelta Tattica',
+          description:
+            'Esplora un segnale anomalo prima di entrare nel settore: scegli tra potenziamenti rischiosi, estrazione di schegge o riparazione sfere.',
+          rewardText: 'Bonus Evento Immediato + Accesso al Settore',
+          riskText: 'Scelta a Rischio / Ricompensa',
+          color: '#a855f7',
+        });
+      } else {
+        nodes.push({
+          id: `node_merchant_${targetSector}`,
+          type: 'MERCHANT',
+          targetSector,
+          title: `MERCANTE ORBITALE · SETT. ${targetSector}`,
+          subtitle: 'Stazione di Rifornimento In-Run',
+          description:
+            'Fermati alla stazione commerciale per convertire le tue Schegge Quantiche in Sfere extra, Danno base o Reliquie prima del combattimento.',
+          rewardText: 'Mercato Tattico + Accesso al Settore',
+          riskText: 'Nessun rischio aggiuntivo',
+          color: '#ffe600',
+        });
+      }
+    }
+
+    this.nextMapNodes = nodes;
+    this.setState('SECTOR_MAP');
+  }
+
+  public selectSectorMapNode(nodeId: string) {
+    if (this.state !== 'SECTOR_MAP') return;
+    const node = this.nextMapNodes.find((n) => n.id === nodeId) || this.nextMapNodes[0];
+    if (!node) return;
+
+    soundEngine.playRelicSelect();
+    soundEngine.triggerHaptic(25);
+
+    if (node.type === 'EVENT') {
+      this.prepareSectorEvent(node.targetSector);
+    } else if (node.type === 'MERCHANT') {
+      this.prepareRunMerchant(node.targetSector);
+    } else {
+      const showIntro = (node.targetSector - 1) % 5 === 0 && node.targetSector <= 25;
+      this.initLevel(node.targetSector, node.type, showIntro);
+    }
+  }
+
+  public prepareSectorEvent(targetSector: number) {
+    this.pendingNextSector = targetSector;
+    this.lastAnomalyOutcomeText = null;
+    const idx = (targetSector + this.score) % ANOMALY_EVENTS_POOL.length;
+    this.currentAnomalyEvent = ANOMALY_EVENTS_POOL[idx];
+    this.setState('SECTOR_EVENT');
+  }
+
+  public resolveAnomalyChoice(choiceId: string): string {
+    if (this.state !== 'SECTOR_EVENT' || !this.currentAnomalyEvent) return '';
+
+    let outcome = '';
+    switch (choiceId) {
+      case 'FORGE_OVERCLOCK':
+        if (this.ballsRemaining > 1) {
+          this.ballsRemaining -= 1;
+          this.runBonusDamage += 1;
+          outcome = 'Cannone Sovraccaricato: -1 Sfera, +1 Danno Base per tutta la Run!';
+        } else {
+          this.runBonusDamage += 1;
+          outcome = 'Protocollo Emergenza: +1 Danno Base per tutta la Run!';
+        }
+        break;
+      case 'FORGE_EXTRACT':
+        this.addQuantumShards(40);
+        outcome = 'Cristalli Estratti: +40 ◆ Schegge Quantiche aggiunte!';
+        break;
+      case 'FORGE_REPAIR':
+        this.ballsRemaining += 2;
+        outcome = 'Munizioni Sintetizzate: +2 Sfere aggiunte al caricatore!';
+        break;
+      case 'NEBULA_BASKET':
+        this.runBonusBasketWidth += 45;
+        outcome = 'Bobine Espanse: +45px Larghezza Cestello per tutta la Run!';
+        break;
+      case 'NEBULA_RELIC': {
+        if (this.ballsRemaining > 2) {
+          this.ballsRemaining -= 2;
+        }
+        const unlocked = this.progression
+          .getData()
+          .unlockedRelics.filter((r) => !this.activeRelics.includes(r));
+        if (unlocked.length > 0) {
+          const picked = unlocked[Math.floor(Math.random() * unlocked.length)];
+          this.activeRelics.push(picked);
+          outcome = `Reliquia Condensata: ottenuta [${RELICS_DATA[picked].title}]!`;
+        } else {
+          this.addQuantumShards(35);
+          outcome = 'Tutte le reliquie attive: ottenute +35 ◆ Schegge Quantiche!';
+        }
+        break;
+      }
+      case 'NEBULA_ELECTRIFY':
+        this.ballsRemaining += 1;
+        this.isNextBallElectrified = true;
+        outcome = 'Condensatori Carichi: +1 Sfera e prossimo tiro Elettrificato!';
+        break;
+      case 'SHRINE_BLESSING':
+        this.ballsRemaining += 3;
+        this.score += 5000;
+        outcome = 'Energia Assorbita: +3 Sfere e +5.000 Punti!';
+        break;
+      case 'SHRINE_GAMBLE':
+        this.runBonusDamage += 1;
+        this.addQuantumShards(30);
+        outcome = 'Patto Stipulato: +1 Danno Base Run e +30 ◆ Schegge Quantiche!';
+        break;
+      case 'SHRINE_REROLL':
+      default:
+        this.rerollsAvailable += 2;
+        this.ballsRemaining += 1;
+        outcome = 'Sensori Calibrati: +2 Dadi Reroll e +1 Sfera!';
+        break;
+    }
+
+    this.lastAnomalyOutcomeText = outcome;
+    soundEngine.playFreeBall();
+    soundEngine.triggerHaptic(35);
+    return outcome;
+  }
+
+  public continueFromSectorEvent() {
+    if (this.state !== 'SECTOR_EVENT') return;
+    const showIntro = (this.pendingNextSector - 1) % 5 === 0 && this.pendingNextSector <= 25;
+    this.initLevel(this.pendingNextSector, 'NORMAL', showIntro);
+  }
+
+  public prepareRunMerchant(targetSector: number) {
+    this.pendingNextSector = targetSector;
+    this.merchantBoughtIds = [];
+    const availableRelics = this.progression
+      .getData()
+      .unlockedRelics.filter((r) => !this.activeRelics.includes(r));
+    this.merchantRelicOffer =
+      availableRelics.length > 0
+        ? availableRelics[Math.floor(Math.random() * availableRelics.length)]
+        : null;
+    this.setState('RUN_MERCHANT');
+  }
+
+  public buyRunMerchantItem(itemType: 'BALLS' | 'DAMAGE' | 'BASKET' | 'RELIC'): boolean {
+    if (this.state !== 'RUN_MERCHANT') return false;
+    if (this.merchantBoughtIds.includes(itemType)) return false;
+
+    const costs: Record<string, number> = {
+      BALLS: 20,
+      DAMAGE: 35,
+      BASKET: 25,
+      RELIC: 45,
+    };
+    const cost = costs[itemType];
+    if (!this.progression.spendQuantumShards(cost)) {
+      return false;
+    }
+
+    this.merchantBoughtIds.push(itemType);
+    if (itemType === 'BALLS') {
+      this.ballsRemaining += 2;
+    } else if (itemType === 'DAMAGE') {
+      this.runBonusDamage += 1;
+    } else if (itemType === 'BASKET') {
+      this.runBonusBasketWidth += 40;
+    } else if (itemType === 'RELIC' && this.merchantRelicOffer) {
+      this.activeRelics.push(this.merchantRelicOffer);
+    }
+
+    soundEngine.playRelicSelect();
+    soundEngine.triggerHaptic(30);
+    return true;
+  }
+
+  public leaveRunMerchant() {
+    if (this.state !== 'RUN_MERCHANT') return;
+    const isBoss = this.pendingNextSector % 5 === 0;
+    const showIntro = (this.pendingNextSector - 1) % 5 === 0 && this.pendingNextSector <= 25;
+    this.initLevel(this.pendingNextSector, isBoss ? 'BOSS' : 'NORMAL', showIntro);
   }
 
   public startEndlessLoop() {
@@ -1500,7 +1993,7 @@ export class GameEngine {
       this.listener.onNewUnlock(newUnlocks[0]);
     }
     const nextLevel = this.gameMode === 'STORY' ? 26 : 11;
-    this.initLevel(nextLevel);
+    this.initLevel(nextLevel, 'NORMAL', false);
   }
 
   public openShop() {

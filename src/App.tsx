@@ -4,7 +4,11 @@ import { GameState, UnlockEventNotification } from './types/game';
 import { GameCanvas } from './components/GameCanvas';
 import { HUD } from './components/HUD';
 import { ArchetypeSelectModal } from './components/ArchetypeSelectModal';
+import { ChapterIntroModal } from './components/ChapterIntroModal';
 import { RelicDraftModal } from './components/RelicDraftModal';
+import { SectorMapModal } from './components/SectorMapModal';
+import { SectorEventModal } from './components/SectorEventModal';
+import { RunMerchantModal } from './components/RunMerchantModal';
 import { ShopModal } from './components/ShopModal';
 import { GameOverModal } from './components/GameOverModal';
 import { VictoryModal } from './components/VictoryModal';
@@ -37,14 +41,18 @@ export const App: React.FC = () => {
 
     const params = new URLSearchParams(window.location.search);
     if (params.get('autostart') === '1' && engine.state === 'ARCHETYPE_SELECT') {
-      engine.selectArchetype('VOLT_OVERCHARGE', 'STORY');
+      engine.selectArchetype('PROTO_CORE', 'STORY', 1, true);
     }
   }, [engine]);
 
   // Keep document.body.dataset.state synced with game state and modal state
   const isAnyModalOpen =
     gameState === 'ARCHETYPE_SELECT' ||
+    gameState === 'CHAPTER_INTRO' ||
     gameState === 'RELIC_DRAFT' ||
+    gameState === 'SECTOR_MAP' ||
+    gameState === 'SECTOR_EVENT' ||
+    gameState === 'RUN_MERCHANT' ||
     gameState === 'GAME_OVER' ||
     gameState === 'VICTORY' ||
     gameState === 'CODEX' ||
@@ -124,8 +132,20 @@ export const App: React.FC = () => {
         />
       )}
 
+      {/* Chapter Intro Transmission Modal */}
+      {gameState === 'CHAPTER_INTRO' && <ChapterIntroModal engine={engine} />}
+
       {/* Relic Draft Modal */}
       {gameState === 'RELIC_DRAFT' && <RelicDraftModal engine={engine} />}
+
+      {/* Branching Sector Map Modal */}
+      {gameState === 'SECTOR_MAP' && <SectorMapModal engine={engine} />}
+
+      {/* Sector Anomaly Event Modal */}
+      {gameState === 'SECTOR_EVENT' && <SectorEventModal engine={engine} />}
+
+      {/* In-Run Orbital Merchant Modal */}
+      {gameState === 'RUN_MERCHANT' && <RunMerchantModal engine={engine} />}
 
       {/* Active Relics Modal */}
       {showRelicList && (

@@ -151,7 +151,7 @@ export const CodexModal: React.FC<CodexModalProps> = ({ engine, onClose }) => {
             archetypes.map((arch) => {
               const unlocked = progData.unlockedArchetypes.includes(arch.id);
               const fam = RELIC_FAMILIES[arch.family];
-              const rel = RELICS_DATA[arch.initialRelic];
+              const rel = arch.initialRelic ? RELICS_DATA[arch.initialRelic] : null;
 
               return (
                 <div
@@ -168,12 +168,12 @@ export const CodexModal: React.FC<CodexModalProps> = ({ engine, onClose }) => {
                       <span className="text-sm font-bold text-white">{arch.title}</span>
                     </div>
                     <span className="text-xs font-mono font-bold" style={{ color: fam.color }}>
-                      [{fam.label.toUpperCase()}]
+                      {arch.id === 'PROTO_CORE' ? '[NEUTRO · BASE]' : `[${fam.label.toUpperCase()}]`}
                     </span>
                   </div>
                   <p className="text-xs text-slate-200 leading-relaxed">{arch.description}</p>
                   <div className="pt-1 border-t border-[#1e2e48] flex items-center justify-between text-[11px] font-mono text-slate-400">
-                    <span>Reliquia: {rel?.title}</span>
+                    <span>{rel ? `Reliquia: ${rel.title}` : '0 Reliquie Iniziali'}</span>
                     <span className={unlocked ? 'text-[#00ff88] font-bold' : 'text-[#ffe600]'}>
                       {unlocked ? 'SBLOCCATO' : arch.unlockCondition}
                     </span>
@@ -196,18 +196,18 @@ export const CodexModal: React.FC<CodexModalProps> = ({ engine, onClose }) => {
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-bold text-white">{relic.title}</span>
                     <span className="text-xs font-mono font-bold" style={{ color: fam.color }}>
-                      [{fam.label.toUpperCase()}]
+                      [{fam.label.toUpperCase()} · T{relic.tier}]
                     </span>
                   </div>
                   <p className="text-xs text-slate-200 leading-relaxed">{relic.description}</p>
-                  {relic.unlockCondition && (
-                    <div className="pt-1 border-t border-[#1e2e48] flex items-center justify-between text-[11px] font-mono">
-                      <span className="text-slate-400">{relic.unlockCondition}</span>
-                      <span className={unlocked ? 'text-[#00ff88] font-bold' : 'text-[#ffe600]'}>
-                        {unlocked ? 'NEL POOL' : 'SEGRETA'}
-                      </span>
-                    </div>
-                  )}
+                  <div className="pt-1 border-t border-[#1e2e48] flex items-center justify-between text-[11px] font-mono">
+                    <span className="text-slate-400">
+                      {relic.unlockCondition || 'Sbloccata al Capitolo I (Base)'}
+                    </span>
+                    <span className={unlocked ? 'text-[#00ff88] font-bold' : 'text-[#ffe600]'}>
+                      {unlocked ? 'NEL POOL' : 'BLOCCATA'}
+                    </span>
+                  </div>
                 </div>
               );
             })}

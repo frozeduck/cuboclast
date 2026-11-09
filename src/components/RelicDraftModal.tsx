@@ -26,7 +26,7 @@ export const RelicDraftModal: React.FC<RelicDraftModalProps> = ({ engine }) => {
             SCEGLI UNA RELIQUIA ROGUELIKE
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Combina poteri della stessa famiglia per attivare Risonanze di Set
+            Dopo la scelta si aprirà il Bivio Tattico per il prossimo settore
           </p>
         </div>
 
@@ -63,7 +63,7 @@ export const RelicDraftModal: React.FC<RelicDraftModalProps> = ({ engine }) => {
                     className="text-xs font-mono font-bold shrink-0"
                     style={{ color: fam.color }}
                   >
-                    [{fam.label.toUpperCase()}]
+                    [{fam.label.toUpperCase()} · T{relic.tier}]
                   </span>
                 </div>
 
@@ -87,19 +87,27 @@ export const RelicDraftModal: React.FC<RelicDraftModalProps> = ({ engine }) => {
           })}
         </div>
 
-        {/* Fixed Footer: Reroll Button */}
-        <div className="shrink-0 bg-[#090d16] border-t border-[#1e2e48] p-3">
+        {/* Fixed Footer: Reroll + Skip for Shards */}
+        <div className="shrink-0 bg-[#090d16] border-t border-[#1e2e48] p-3 grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => engine.rerollDraft()}
             disabled={engine.rerollsAvailable <= 0}
-            className={`w-full min-h-[46px] rounded-xl font-bold text-xs sm:text-sm uppercase tracking-wider transition ${
+            className={`min-h-[46px] rounded-xl font-bold text-xs uppercase tracking-wider transition ${
               engine.rerollsAvailable > 0
                 ? 'bg-[#141d2d] border-2 border-[#ffe600] text-[#ffe600] cursor-pointer active:scale-[0.99]'
                 : 'bg-[#0e1524] border border-[#1e2e48] text-slate-600 cursor-not-allowed'
             }`}
           >
-            REROLL RELIQUIE ({engine.rerollsAvailable} DISPONIBILI)
+            REROLL ({engine.rerollsAvailable})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => engine.skipRelicDraft()}
+            className="min-h-[46px] rounded-xl bg-[#141d2d] border-2 border-[#38bdf8] text-[#38bdf8] font-bold text-xs uppercase tracking-wider transition cursor-pointer active:scale-[0.99]"
+          >
+            SALTA (+15 ◆)
           </button>
         </div>
       </div>

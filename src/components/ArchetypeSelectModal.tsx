@@ -6,6 +6,7 @@ import {
   RELIC_FAMILIES,
   RELICS_DATA,
   GameMode,
+  STORY_CHAPTERS,
 } from '../types/game';
 
 interface ArchetypeSelectModalProps {
@@ -23,12 +24,13 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
 }) => {
   const progData = engine.progression.getData();
   const archetypes = Object.values(ARCHETYPES_DATA);
-  const [selectedId, setSelectedId] = useState<ArchetypeId>('VOLT_OVERCHARGE');
+  const [selectedId, setSelectedId] = useState<ArchetypeId>('PROTO_CORE');
   const [selectedMode, setSelectedMode] = useState<GameMode>(engine.gameMode || 'STORY');
+  const [selectedChapter, setSelectedChapter] = useState<number>(1);
   const [, setTick] = useState(0);
 
-  const selectedArch = ARCHETYPES_DATA[selectedId];
-  const isSelectedUnlocked = engine.progression.isArchetypeUnlocked(selectedId);
+  const selectedArch = ARCHETYPES_DATA[selectedId] || ARCHETYPES_DATA.PROTO_CORE;
+  const isSelectedUnlocked = engine.progression.isArchetypeUnlocked(selectedArch.id);
 
   const storyProgress = progData.storyProgress || {
     highestChapterUnlocked: 1,
@@ -42,7 +44,7 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
       document.activeElement.blur();
     }
     engine.initGame(selectedMode);
-    engine.selectArchetype(id, selectedMode);
+    engine.selectArchetype(id, selectedMode, selectedChapter);
   };
 
   const handleUnlockWithShards = (id: ArchetypeId, e: React.MouseEvent) => {
@@ -64,8 +66,8 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
         const tag = (e.target as HTMLElement)?.tagName;
         if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'A') return;
         e.preventDefault();
-        if (engine.progression.isArchetypeUnlocked(selectedId)) {
-          handleStartWithArchetype(selectedId);
+        if (engine.progression.isArchetypeUnlocked(selectedArch.id)) {
+          handleStartWithArchetype(selectedArch.id);
         }
       }
     };
@@ -105,7 +107,7 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
                 CUBOCLAST
               </h1>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Scegli il tuo nucleo di potere
+                Progressione Roguelike · Scegli il tuo Nucleo
               </p>
             </div>
           </div>
@@ -195,7 +197,7 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
               <div className="text-[11px] text-slate-400 truncate mt-0.5">
                 {storyProgress.storyCompleted
                   ? 'Completata · 5 Boss'
-                  : `Cap. ${storyProgress.highestChapterUnlocked}/5 · 5 Boss`}
+                  : `Cap. ${storyProgress.highestChapterUnlocked}/5 · Bivi & Boss`}
               </div>
             </button>
 
@@ -222,13 +224,48 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
             </button>
           </div>
 
+          {/* Chapter Selector for Story Mode */}
+          {selectedMode === 'STORY' && (
+            <div className="rounded-xl bg-[#0c121e] border border-[#1e2e48] p-2.5 space-y-2">
+              <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 px-1">
+                <span>CAPITOLO DI PARTENZA:</span>
+                <span className="text-[#00e5ff]">
+                  {STORY_CHAPTERS[selectedChapter].title}
+                </span>
+              </div>
+              <div className="grid grid-cols-5 gap-1.5">
+                {[1, 2, 3, 4, 5].map((chapId) => {
+                  const chapUnlocked = chapId <= storyProgress.highestChapterUnlocked;
+                  const active = selectedChapter === chapId;
+                  return (
+                    <button
+                      key={chapId}
+                      type="button"
+                      disabled={!chapUnlocked}
+                      onClick={() => setSelectedChapter(chapId)}
+                      className={`min-h-[34px] rounded-lg text-xs font-mono font-bold transition ${
+                        active
+                          ? 'bg-[#00e5ff] text-[#080b12] cursor-pointer'
+                          : chapUnlocked
+                          ? 'bg-[#141d2d] text-white border border-[#1e2e48] cursor-pointer'
+                          : 'bg-[#090d16] text-slate-600 border border-[#1e2e48]/50 cursor-not-allowed'
+                      }`}
+                    >
+                      {chapUnlocked ? `CAP.${chapId}` : `🔒${chapId}`}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Vertical List of Archetype Cards (v0.4.0 Minimalist Style — Scrollable & Selectable) */}
           <div className="space-y-2.5 pt-1">
             {archetypes.map((arch) => {
               const unlocked = engine.progression.isArchetypeUnlocked(arch.id);
-              const isSelected = arch.id === selectedId;
+              const isSelected = arch.id === selectedArch.id;
               const fam = RELIC_FAMILIES[arch.family];
-              const initialRelic = RELICS_DATA[arch.initialRelic];
+              const initialRelic = arch.initialRelic ? RELICS_DATA[arch.initialRelic] : null;
               const canAfford =
                 !unlocked &&
                 arch.unlockCost !== undefined &&
@@ -268,7 +305,7 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
                     <div className="flex items-center gap-2.5 min-w-0">
                       <span
                         className="w-4 h-4 rounded-full shrink-0"
-                        style={{ backgroundColor: arch.color }}
+                        style={{ backgroundColor: unlocked ? arch.color : '#475569' }}
                       />
                       <span className="text-sm sm:text-base font-bold text-white truncate">
                         {arch.title}
@@ -277,9 +314,11 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
 
                     <span
                       className="text-xs font-bold font-mono tracking-wide shrink-0"
-                      style={{ color: unlocked ? arch.color : '#94a3b8' }}
+                      style={{ color: unlocked ? arch.color : '#64748b' }}
                     >
-                      [{fam.label.toUpperCase()}]
+                      {arch.id === 'PROTO_CORE'
+                        ? '[NEUTRO · BASE]'
+                        : `[${fam.label.toUpperCase()}]`}
                     </span>
                   </div>
 
@@ -288,12 +327,14 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
                     {arch.description}
                   </p>
 
-                  {/* Bottom Row: Initial Relic + Direct Action Button */}
+                  {/* Bottom Row: Initial Relic / Unlock Condition + Direct Action Button */}
                   <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-[#1e2e48]">
                     <span className="text-[11px] font-mono text-slate-400 truncate">
                       {unlocked
-                        ? `Reliquia: ${initialRelic?.title}`
-                        : `Sblocco: ${arch.unlockCondition}`}
+                        ? initialRelic
+                          ? `Reliquia: ${initialRelic.title}`
+                          : '0 Reliquie Iniziali · Fisica Pura'
+                        : `🔒 ${arch.unlockCondition}`}
                     </span>
 
                     {unlocked ? (
@@ -349,11 +390,12 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
             <button
               type="button"
               data-start="true"
-              onClick={() => handleStartWithArchetype(selectedId)}
+              onClick={() => handleStartWithArchetype(selectedArch.id)}
               className="w-full min-h-[48px] rounded-xl bg-[#00e5ff] hover:bg-[#38bdf8] text-[#080b12] font-bold text-sm sm:text-base uppercase tracking-wider transition cursor-pointer active:scale-[0.99] flex items-center justify-center gap-2"
             >
               <span>
-                AVVIA {selectedMode === 'STORY' ? 'STORIA' : 'ARCADE'} · {selectedArch.title.toUpperCase()}
+                AVVIA {selectedMode === 'STORY' ? `CAP.${selectedChapter}` : 'ARCADE'} ·{' '}
+                {selectedArch.title.toUpperCase()}
               </span>
             </button>
           ) : (
@@ -362,7 +404,7 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
               disabled={
                 !selectedArch.unlockCost || progData.quantumShards < selectedArch.unlockCost
               }
-              onClick={(e) => handleUnlockWithShards(selectedId, e)}
+              onClick={(e) => handleUnlockWithShards(selectedArch.id, e)}
               className={`w-full min-h-[48px] rounded-xl font-bold text-sm uppercase tracking-wider transition flex items-center justify-center ${
                 selectedArch.unlockCost && progData.quantumShards >= selectedArch.unlockCost
                   ? 'bg-[#ffe600] text-[#080b12] cursor-pointer active:scale-[0.99]'
