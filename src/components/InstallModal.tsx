@@ -45,26 +45,36 @@ export const InstallModal: React.FC<InstallModalProps> = ({ onClose }) => {
 
         {/* Single Scrollable Body */}
         <div className="flex-1 min-h-0 modal-scroll p-4 space-y-3 text-xs text-slate-200">
-          {/* Direct GitHub Release APK */}
+          {/* Direct GitHub Release APK v0.7.0 */}
           <div className="p-4 rounded-xl bg-[#141d2d] border-2 border-[#00ff88] space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-sm font-bold text-white uppercase">
                 1. SCARICA FILE APK NATIVO
               </span>
-              <span className="font-mono text-[#00ff88] font-bold">[GITHUB RELEASE]</span>
+              <span className="font-mono text-[#00ff88] font-bold">[RELEASE v0.7.0]</span>
             </div>
             <p className="leading-relaxed text-slate-300">
-              Scarica direttamente il file APK firmato per Android dalla pagina ufficiale GitHub
-              Releases:
+              Scarica direttamente il file <strong>cuboclast-0.7.0-debug.apk</strong> firmato per
+              Android (con la nuova progressione roguelike ibrida, Proto-Core e bivi tattici):
             </p>
-            <a
-              href="https://github.com/frozeduck/cuboclast/releases/latest"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full min-h-[46px] rounded-xl bg-[#00ff88] text-[#080b12] font-bold text-xs uppercase tracking-wider flex items-center justify-center cursor-pointer active:scale-[0.99]"
-            >
-              APRI GITHUB RELEASES (ULTIMO APK) →
-            </a>
+            <div className="space-y-2">
+              <a
+                href="https://github.com/frozeduck/cuboclast/releases/download/v0.7.0/cuboclast-0.7.0-debug.apk"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full min-h-[46px] rounded-xl bg-[#00ff88] text-[#080b12] font-bold text-xs uppercase tracking-wider flex items-center justify-center cursor-pointer active:scale-[0.99]"
+              >
+                SCARICA APK v0.7.0 DIRETTO (GITHUB) →
+              </a>
+              <a
+                href="https://github.com/frozeduck/cuboclast/releases/tag/v0.7.0"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full min-h-[40px] rounded-xl bg-[#090d16] border border-[#00ff88] text-[#00ff88] font-bold text-xs uppercase tracking-wider flex items-center justify-center cursor-pointer active:scale-[0.99]"
+              >
+                PAGINA RELEASE v0.7.0 SU GITHUB →
+              </a>
+            </div>
           </div>
 
           {/* Direct WebAPK / PWA Install */}
