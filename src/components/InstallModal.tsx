@@ -45,35 +45,35 @@ export const InstallModal: React.FC<InstallModalProps> = ({ onClose }) => {
 
         {/* Single Scrollable Body */}
         <div className="flex-1 min-h-0 modal-scroll p-4 space-y-3 text-xs text-zinc-300">
-          {/* Direct GitHub Release APK v0.14.0 */}
+          {/* Direct GitHub Release APK v0.15.0 */}
           <div className="p-4 rounded-xl bg-[#13161e] border border-[#2d323e] space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-sm font-bold text-zinc-100 uppercase">
                 1. SCARICA FILE APK NATIVO
               </span>
-              <span className="font-mono text-[#7fa68e] font-bold">[RELEASE v0.14.0]</span>
+              <span className="font-mono text-[#7fa68e] font-bold">[RELEASE v0.15.0]</span>
             </div>
             <p className="leading-relaxed text-zinc-400">
-              Scarica direttamente il file <strong>cuboclast-0.14.0-debug.apk</strong> con bundle{' '}
+              Scarica direttamente il file <strong>cuboclast-0.15.0-debug.apk</strong> con bundle{' '}
               <code>assets/www/</code> aggiornato, firma <strong>APK Signature Scheme v2/v3</strong>{' '}
               e supporto per l&apos;aggiornamento diretto sopra la versione precedente:
             </p>
             <div className="space-y-2">
               <a
-                href="https://github.com/frozeduck/cuboclast/releases/download/v0.14.0/cuboclast-0.14.0-debug.apk"
+                href="https://github.com/frozeduck/cuboclast/releases/download/v0.15.0/cuboclast-0.15.0-debug.apk"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full min-h-[46px] rounded-xl bg-zinc-200 text-zinc-950 font-bold text-xs uppercase tracking-wider flex items-center justify-center cursor-pointer active:scale-[0.99]"
               >
-                SCARICA APK v0.14.0 DIRETTO (GITHUB) →
+                SCARICA APK v0.15.0 DIRETTO (GITHUB) →
               </a>
               <a
-                href="https://github.com/frozeduck/cuboclast/releases/tag/v0.14.0"
+                href="https://github.com/frozeduck/cuboclast/releases/tag/v0.15.0"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full min-h-[40px] rounded-xl bg-[#0c0e13] border border-[#2d323e] text-zinc-300 font-bold text-xs uppercase tracking-wider flex items-center justify-center cursor-pointer active:scale-[0.99]"
               >
-                PAGINA RELEASE v0.14.0 SU GITHUB →
+                PAGINA RELEASE v0.15.0 SU GITHUB →
               </a>
             </div>
           </div>

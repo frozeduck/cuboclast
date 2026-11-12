@@ -23,14 +23,24 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
   onOpenInstall,
 }) => {
   const progData = engine.progression.getData();
-  const archetypes = Object.values(ARCHETYPES_DATA);
-  const [selectedId, setSelectedId] = useState<ArchetypeId>('PROTO_CORE');
+  const preferredOrder: ArchetypeId[] = [
+    'PYRO_DETONATOR',
+    'VOLT_OVERCHARGE',
+    'SWARM_MATRIX',
+    'KINETIC_TITAN',
+    'PROTO_CORE',
+    'CRYSTAL_SINGULARITY',
+    'CHRONO_PULSE',
+    'QUANTUM_SINGULARITY',
+  ];
+  const archetypes = preferredOrder.map((id) => ARCHETYPES_DATA[id]).filter(Boolean);
+  const [selectedId, setSelectedId] = useState<ArchetypeId>('PYRO_DETONATOR');
   const [selectedMode, setSelectedMode] = useState<GameMode>(engine.gameMode || 'STORY');
   const [selectedChapter, setSelectedChapter] = useState<number>(1);
   const [, setTick] = useState(0);
 
   const selectedArch = ARCHETYPES_DATA[selectedId] || ARCHETYPES_DATA.PROTO_CORE;
-  const isSelectedUnlocked = engine.progression.isArchetypeUnlocked(selectedArch.id);
+  const isSelectedUnlocked = engine.isArchetypeAvailable(selectedArch.id);
 
   const storyProgress = progData.storyProgress || {
     highestChapterUnlocked: 1,
@@ -38,13 +48,18 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
     highestStorySector: 1,
   };
 
-  const handleStartWithArchetype = (id: ArchetypeId) => {
-    if (!engine.progression.isArchetypeUnlocked(id)) return;
+  const handleStartWithArchetype = (id: ArchetypeId, instantArena: boolean = false) => {
+    if (!engine.isArchetypeAvailable(id)) return;
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
-    engine.initGame(selectedMode);
-    engine.selectArchetype(id, selectedMode, selectedChapter);
+    engine.initGame(instantArena ? 'STORY' : selectedMode);
+    engine.selectArchetype(
+      id,
+      instantArena ? 'STORY' : selectedMode,
+      instantArena ? 1 : selectedChapter,
+      instantArena
+    );
   };
 
   const handleUnlockWithShards = (id: ArchetypeId, e: React.MouseEvent) => {
@@ -66,7 +81,7 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
         const tag = (e.target as HTMLElement)?.tagName;
         if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'A') return;
         e.preventDefault();
-        if (engine.progression.isArchetypeUnlocked(selectedArch.id)) {
+        if (engine.isArchetypeAvailable(selectedArch.id)) {
           handleStartWithArchetype(selectedArch.id);
         }
       }
@@ -108,11 +123,11 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
                   CUBOCLAST
                 </h1>
                 <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#161922] border border-[#2d323e] text-zinc-300 leading-none">
-                  v0.14.0
+                  v0.15.0
                 </span>
               </div>
               <p className="text-[10px] text-zinc-400 mt-0.5 truncate">
-                Nuclei &amp; Blocchetti di Classe ◇
+                Reazioni a Catena &amp; Blocchi di Classe ◇
               </p>
             </div>
           </div>
@@ -147,6 +162,61 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
           data-testid="archetype-scroll-body"
           className="flex-1 min-h-0 modal-scroll px-4 py-3 space-y-3"
         >
+          {/* 1-Tap Experimental Hand-Crafted Arenas Bar (Pyro, Volt, Swarm) */}
+          <div className="rounded-xl bg-[#11141c] border border-[#2d3342] p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#d4b483]">
+                ◇ PROVA SUBITO I 3 CAMPI SU MISURA (1-TAP)
+              </span>
+              <span className="text-[10px] font-mono text-zinc-400">
+                CAP. 1 · ZERO POPUP
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                data-testid="quick-arena-pyro"
+                onClick={() => handleStartWithArchetype('PYRO_DETONATOR', true)}
+                className="min-h-[54px] px-2 py-2 rounded-lg bg-[#1c1412] border border-[#c87d65] text-left cursor-pointer active:scale-95 transition"
+              >
+                <div className="text-xs font-bold text-[#c87d65] uppercase tracking-wide">
+                  ◇ PYRO
+                </div>
+                <div className="text-[10px] text-zinc-300 leading-tight mt-0.5">
+                  Innesco a Grappolo
+                </div>
+              </button>
+
+              <button
+                type="button"
+                data-testid="quick-arena-volt"
+                onClick={() => handleStartWithArchetype('VOLT_OVERCHARGE', true)}
+                className="min-h-[54px] px-2 py-2 rounded-lg bg-[#141922] border border-[#7c9cb4] text-left cursor-pointer active:scale-95 transition"
+              >
+                <div className="text-xs font-bold text-[#7c9cb4] uppercase tracking-wide">
+                  ◇ VOLT
+                </div>
+                <div className="text-[10px] text-zinc-300 leading-tight mt-0.5">
+                  Ponte Fulmini
+                </div>
+              </button>
+
+              <button
+                type="button"
+                data-testid="quick-arena-swarm"
+                onClick={() => handleStartWithArchetype('SWARM_MATRIX', true)}
+                className="min-h-[54px] px-2 py-2 rounded-lg bg-[#171521] border border-[#9b95b8] text-left cursor-pointer active:scale-95 transition"
+              >
+                <div className="text-xs font-bold text-[#9b95b8] uppercase tracking-wide">
+                  ◇ SWARM
+                </div>
+                <div className="text-[10px] text-zinc-300 leading-tight mt-0.5">
+                  Camera Scissione
+                </div>
+              </button>
+            </div>
+          </div>
+
           {/* Resume Active Run Card */}
           {progData.savedRun.hasActiveRun && (
             <div className="rounded-xl bg-[#14181b] border border-[#7fa68e]/60 p-3.5 flex items-center justify-between gap-3">
@@ -267,7 +337,7 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
           {/* Vertical List of Archetype Cards */}
           <div className="space-y-2.5 pt-1">
             {archetypes.map((arch) => {
-              const unlocked = engine.progression.isArchetypeUnlocked(arch.id);
+              const unlocked = engine.isArchetypeAvailable(arch.id);
               const isSelected = arch.id === selectedArch.id;
               const fam = RELIC_FAMILIES[arch.family];
               const initialRelic = arch.initialRelic ? RELICS_DATA[arch.initialRelic] : null;

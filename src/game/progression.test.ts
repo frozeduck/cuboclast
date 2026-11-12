@@ -310,3 +310,119 @@ test('Option B + C (v0.13.0): Fever drops playable Supply Capsules, triggers Rel
   assert.equal(companionMinis.length, 2);
 });
 
+test('v0.15.0 Chapter 1 Redesign: Pyro, Volt, Swarm handcrafted arenas, chain VisualEffects, and Monolith Frontal Shield + ◇ Relay Nodes', () => {
+  const pm = new ProgressionManager();
+  pm.resetProgression();
+  const engine = new GameEngine(pm);
+
+  // 1. Pyro, Volt, Swarm, and Kinetic are immediately available via engine.isArchetypeAvailable without grinding
+  assert.equal(engine.isArchetypeAvailable('PYRO_DETONATOR'), true);
+  assert.equal(engine.isArchetypeAvailable('VOLT_OVERCHARGE'), true);
+  assert.equal(engine.isArchetypeAvailable('SWARM_MATRIX'), true);
+  assert.equal(engine.isArchetypeAvailable('KINETIC_TITAN'), true);
+
+  // 2. Pyro Handcrafted Arena ("Campo Pyro · Innesco a Grappolo") triggers chained explosions and RING visual effects
+  engine.selectArchetype('PYRO_DETONATOR', 'STORY', 1, true);
+  assert.equal(engine.currentPatternName, 'Campo Pyro · Innesco a Grappolo');
+  const upperPyroFuse = engine.cubes.find((c) => c.type === 'CLASS_ABILITY');
+  assert.ok(upperPyroFuse);
+  engine.balls = [
+    {
+      x: upperPyroFuse.x + upperPyroFuse.width / 2,
+      y: upperPyroFuse.y + upperPyroFuse.height / 2,
+      vx: 0,
+      vy: 400,
+      radius: 18,
+      isMini: false,
+      isAlive: true,
+      bounces: 0,
+      baseDamage: 5,
+      trail: [],
+      hasSavedOnce: false,
+    },
+  ];
+  engine.setState('BALL_IN_PLAY');
+  engine.update(0.016);
+  assert.equal(
+    engine.visualEffects.some((fx) => fx.type === 'RING'),
+    true
+  );
+
+  // 3. Volt Handcrafted Arena ("Campo Volt · Ponte Elettrostatico") arcs LIGHTNING across the gap into armored Cores
+  engine.selectArchetype('VOLT_OVERCHARGE', 'STORY', 1, true);
+  assert.equal(engine.currentPatternName, 'Campo Volt · Ponte Elettrostatico');
+  const voltRelay = engine.cubes.find((c) => c.type === 'CLASS_ABILITY');
+  assert.ok(voltRelay);
+  engine.balls = [
+    {
+      x: voltRelay.x + voltRelay.width / 2,
+      y: voltRelay.y + voltRelay.height / 2,
+      vx: 0,
+      vy: 400,
+      radius: 18,
+      isMini: false,
+      isAlive: true,
+      bounces: 0,
+      baseDamage: 5,
+      trail: [],
+      hasSavedOnce: false,
+    },
+  ];
+  engine.setState('BALL_IN_PLAY');
+  engine.update(0.016);
+  assert.equal(
+    engine.visualEffects.some((fx) => fx.type === 'LIGHTNING'),
+    true
+  );
+
+  // 4. Sector 5 Boss (The Monolith): Frontal Shield blocks direct bottom hits until a ◇ Relay Node is hit
+  engine.initLevel(5, 'BOSS', false);
+  const boss = engine.activeBoss;
+  assert.ok(boss);
+  const initialBossHp = boss.hp;
+  assert.equal(engine.bossFrontShieldBrokenThisShot, false);
+
+  // Direct bottom hit on The Monolith deals 0 damage while frontal shield is active
+  engine.balls = [
+    {
+      x: boss.x + boss.width / 2,
+      y: boss.y + boss.height + 10,
+      vx: 0,
+      vy: -600,
+      radius: 18,
+      isMini: false,
+      isAlive: true,
+      bounces: 0,
+      baseDamage: 10,
+      trail: [],
+      hasSavedOnce: false,
+    },
+  ];
+  engine.setState('BALL_IN_PLAY');
+  engine.update(0.016);
+  assert.equal(boss.hp, initialBossHp);
+
+  // Hitting a flanking ◇ Class Relay Node damages the Boss and disables the frontal shield for the shot
+  const relayNode = engine.cubes.find((c) => c.type === 'CLASS_ABILITY' && c.isAlive);
+  assert.ok(relayNode);
+  engine.balls = [
+    {
+      x: relayNode.x + relayNode.width / 2,
+      y: relayNode.y + relayNode.height / 2,
+      vx: 0,
+      vy: -400,
+      radius: 18,
+      isMini: false,
+      isAlive: true,
+      bounces: 0,
+      baseDamage: 5,
+      trail: [],
+      hasSavedOnce: false,
+    },
+  ];
+  engine.update(0.016);
+  assert.equal(engine.bossFrontShieldBrokenThisShot, true);
+  assert.equal(boss.hp < initialBossHp, true);
+});
+
+

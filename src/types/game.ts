@@ -736,6 +736,29 @@ export interface FloatingText {
   vy: number;
 }
 
+export type VisualEffectType = 'LIGHTNING' | 'RING' | 'BEAM';
+
+export interface VisualEffect {
+  id: number;
+  type: VisualEffectType;
+  x1: number;
+  y1: number;
+  x2?: number;
+  y2?: number;
+  radius?: number;
+  color: string;
+  life: number;
+  maxLife: number;
+}
+
+export const PLAYTEST_ARCHETYPES: ArchetypeId[] = [
+  'PROTO_CORE',
+  'PYRO_DETONATOR',
+  'VOLT_OVERCHARGE',
+  'SWARM_MATRIX',
+  'KINETIC_TITAN',
+];
+
 export type FeverCapsuleType = 'BALL' | 'OVERCHARGE' | 'SHARDS';
 
 export interface FeverCapsule {
