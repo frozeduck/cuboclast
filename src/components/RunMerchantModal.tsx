@@ -11,29 +11,31 @@ export const RunMerchantModal: React.FC<RunMerchantModalProps> = ({ engine }) =>
   const refresh = () => setTick((t) => t + 1);
 
   const shards = engine.progression.getData().quantumShards;
+  const discountLvl = engine.progression.getData().upgradeMerchantDiscount || 0;
   const relicOffer = engine.merchantRelicOffer ? RELICS_DATA[engine.merchantRelicOffer] : null;
+  const relicCost = engine.getMerchantItemCost('RELIC');
 
   const items = [
     {
       id: 'BALLS' as const,
       title: 'Ricarica Munizioni (+2 Sfere)',
       description: 'Aggiunge immediatamente +2 Sfere alla riserva della Run corrente.',
-      cost: 20,
-      color: '#00e5ff',
+      cost: engine.getMerchantItemCost('BALLS'),
+      color: '#e4e4e7',
     },
     {
       id: 'DAMAGE' as const,
       title: 'Calibrazione Cannone (+1 Danno)',
       description: 'Aumenta di +1 il danno base di tutte le sfere per il resto della Run.',
-      cost: 35,
-      color: '#ff6b00',
+      cost: engine.getMerchantItemCost('DAMAGE'),
+      color: '#c87d65',
     },
     {
       id: 'BASKET' as const,
       title: 'Estensione Bobine (+40px Cestello)',
       description: 'Allarga il cestello magnetico di +40px per tutta la Run corrente.',
-      cost: 25,
-      color: '#00ff88',
+      cost: engine.getMerchantItemCost('BASKET'),
+      color: '#7fa68e',
     },
   ];
 
@@ -47,37 +49,38 @@ export const RunMerchantModal: React.FC<RunMerchantModalProps> = ({ engine }) =>
     <div
       role="dialog"
       aria-label="Mercante Orbitale In-Run"
-      className="fixed inset-0 z-50 bg-[#080b12]/96 flex items-center justify-center sm:p-4"
+      className="fixed inset-0 z-50 bg-[#07080b]/96 flex items-center justify-center sm:p-4"
     >
-      <div className="w-full h-full sm:h-auto sm:max-h-[92dvh] max-w-md bg-[#090d16] sm:border-2 border-[#ffe600] sm:rounded-2xl flex flex-col overflow-hidden">
+      <div className="w-full h-full sm:h-auto sm:max-h-[92dvh] max-w-md bg-[#0c0e13] sm:border border-[#262a34] sm:rounded-2xl flex flex-col overflow-hidden">
         {/* Fixed Header */}
-        <div className="shrink-0 bg-[#090d16] border-b border-[#1e2e48] px-4 py-3.5 flex items-center justify-between gap-2">
+        <div className="shrink-0 bg-[#0c0e13] border-b border-[#222630] px-4 py-3.5 flex items-center justify-between gap-2">
           <div>
-            <div className="text-xs font-mono font-bold text-[#ffe600] uppercase tracking-wider">
+            <div className="text-[11px] font-mono font-bold text-[#d4b483] uppercase tracking-wider">
               STAZIONE DI RIFORNIMENTO · SETTORE {engine.pendingNextSector}
+              {discountLvl > 0 ? ` · SCONTO -${discountLvl * 12}%` : ''}
             </div>
-            <h2 className="text-lg sm:text-xl font-bold text-white uppercase tracking-wider mt-0.5">
+            <h2 className="text-lg sm:text-xl font-bold text-zinc-100 uppercase tracking-wider mt-0.5">
               MERCANTE ORBITALE
             </h2>
           </div>
 
-          <div className="h-9 px-3 rounded-lg bg-[#141d2d] border-2 border-[#38bdf8] flex items-center">
-            <span className="text-xs font-bold text-[#38bdf8] tabular-nums">
+          <div className="h-9 px-3 rounded-lg bg-[#14171f] border border-[#2d323e] flex items-center">
+            <span className="text-xs font-bold text-[#7c9cb4] tabular-nums">
               ◆ {shards}
             </span>
           </div>
         </div>
 
         {/* Current Run Status */}
-        <div className="shrink-0 bg-[#0c121e] border-b border-[#1e2e48] px-4 py-2 flex items-center justify-between text-xs font-mono text-slate-300">
+        <div className="shrink-0 bg-[#10131a] border-b border-[#222630] px-4 py-2 flex items-center justify-between text-xs font-mono text-zinc-400">
           <span>
-            Sfere: <strong className="text-[#00e5ff]">{engine.ballsRemaining}</strong>
+            Sfere: <strong className="text-zinc-200">{engine.ballsRemaining}</strong>
           </span>
           <span>
-            Danno: <strong className="text-[#ffe600]">{1 + engine.runBonusDamage}</strong>
+            Danno: <strong className="text-[#d4b483]">{engine.getEffectiveBaseDamage().toFixed(1)}</strong>
           </span>
           <span>
-            Reliquie: <strong className="text-[#a855f7]">{engine.activeRelics.length}</strong>
+            Reliquie: <strong className="text-[#9b95b8]">{engine.activeRelics.length}</strong>
           </span>
         </div>
 
@@ -93,11 +96,11 @@ export const RunMerchantModal: React.FC<RunMerchantModalProps> = ({ engine }) =>
             return (
               <div
                 key={item.id}
-                className="rounded-xl bg-[#141d2d] border-2 p-3.5 space-y-2"
-                style={{ borderColor: bought ? '#1e2e48' : item.color }}
+                className="rounded-xl bg-[#13161e] border p-3.5 space-y-2"
+                style={{ borderColor: bought ? '#222630' : `${item.color}55` }}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-bold text-white">{item.title}</span>
+                  <span className="text-sm font-bold text-zinc-100">{item.title}</span>
                   <span
                     className="text-xs font-mono font-bold"
                     style={{ color: item.color }}
@@ -105,17 +108,17 @@ export const RunMerchantModal: React.FC<RunMerchantModalProps> = ({ engine }) =>
                     ◆ {item.cost}
                   </span>
                 </div>
-                <p className="text-xs text-slate-300 leading-relaxed">{item.description}</p>
+                <p className="text-xs text-zinc-400 leading-relaxed">{item.description}</p>
                 <button
                   type="button"
                   disabled={!canAfford}
                   onClick={() => handleBuy(item.id)}
                   className={`w-full min-h-[40px] rounded-lg font-bold text-xs uppercase tracking-wider transition ${
                     bought
-                      ? 'bg-[#090d16] text-[#00ff88] border border-[#00ff88]/40 cursor-default'
+                      ? 'bg-[#0c0e13] text-[#7fa68e] border border-[#7fa68e]/40 cursor-default'
                       : canAfford
-                      ? 'bg-[#ffe600] text-[#080b12] cursor-pointer active:scale-95'
-                      : 'bg-[#090d16] text-slate-500 border border-[#1e2e48] cursor-not-allowed'
+                      ? 'bg-zinc-200 text-zinc-950 cursor-pointer active:scale-95'
+                      : 'bg-[#0c0e13] text-zinc-600 border border-[#222630] cursor-not-allowed'
                   }`}
                 >
                   {bought ? '✓ ACQUISTATO' : `ACQUISTA · ◆ ${item.cost}`}
@@ -126,49 +129,49 @@ export const RunMerchantModal: React.FC<RunMerchantModalProps> = ({ engine }) =>
 
           {relicOffer && (
             <div
-              className="rounded-xl bg-[#141d2d] border-2 p-3.5 space-y-2"
+              className="rounded-xl bg-[#13161e] border p-3.5 space-y-2"
               style={{
                 borderColor: engine.merchantBoughtIds.includes('RELIC')
-                  ? '#1e2e48'
-                  : '#a855f7',
+                  ? '#222630'
+                  : '#9b95b866',
               }}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-bold text-white">
+                <span className="text-sm font-bold text-zinc-100">
                   Reliquia: {relicOffer.title}
                 </span>
-                <span className="text-xs font-mono font-bold text-[#a855f7]">◆ 45</span>
+                <span className="text-xs font-mono font-bold text-[#9b95b8]">◆ {relicCost}</span>
               </div>
-              <p className="text-xs text-slate-300 leading-relaxed">
+              <p className="text-xs text-zinc-400 leading-relaxed">
                 {relicOffer.description}
               </p>
               <button
                 type="button"
-                disabled={shards < 45 || engine.merchantBoughtIds.includes('RELIC')}
+                disabled={shards < relicCost || engine.merchantBoughtIds.includes('RELIC')}
                 onClick={() => handleBuy('RELIC')}
                 className={`w-full min-h-[40px] rounded-lg font-bold text-xs uppercase tracking-wider transition ${
                   engine.merchantBoughtIds.includes('RELIC')
-                    ? 'bg-[#090d16] text-[#00ff88] border border-[#00ff88]/40 cursor-default'
-                    : shards >= 45
-                    ? 'bg-[#a855f7] text-white cursor-pointer active:scale-95'
-                    : 'bg-[#090d16] text-slate-500 border border-[#1e2e48] cursor-not-allowed'
+                    ? 'bg-[#0c0e13] text-[#7fa68e] border border-[#7fa68e]/40 cursor-default'
+                    : shards >= relicCost
+                    ? 'bg-zinc-200 text-zinc-950 cursor-pointer active:scale-95'
+                    : 'bg-[#0c0e13] text-zinc-600 border border-[#222630] cursor-not-allowed'
                 }`}
               >
                 {engine.merchantBoughtIds.includes('RELIC')
                   ? '✓ RELIQUIA EQUIPAGGIATA'
-                  : 'COMPRA RELIQUIA · ◆ 45'}
+                  : `COMPRA RELIQUIA · ◆ ${relicCost}`}
               </button>
             </div>
           )}
         </div>
 
         {/* Fixed Footer */}
-        <div className="shrink-0 bg-[#090d16] border-t border-[#1e2e48] p-3.5">
+        <div className="shrink-0 bg-[#0c0e13] border-t border-[#222630] p-3.5">
           <button
             type="button"
             data-testid="leave-merchant-btn"
             onClick={() => engine.leaveRunMerchant()}
-            className="w-full min-h-[48px] rounded-xl bg-[#00e5ff] text-[#080b12] font-bold text-sm uppercase tracking-wider active:scale-[0.99] cursor-pointer"
+            className="w-full min-h-[48px] rounded-xl bg-zinc-200 text-zinc-950 font-bold text-sm uppercase tracking-wider active:scale-[0.99] cursor-pointer"
           >
             ENTRA NEL SETTORE {engine.pendingNextSector} →
           </button>

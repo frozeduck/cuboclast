@@ -10,20 +10,23 @@ import {
   GameMode,
   CubeType,
   SectorNodeType,
+  MetaUpgradeId,
+  META_UPGRADES_DATA,
+  META_UPGRADE_ORDER,
   getChapterForSector,
 } from '../types/game';
 
-const STORAGE_KEY = 'cuboclast_meta_progression_v3';
+const STORAGE_KEY = 'cuboclast_meta_progression_v4';
 
 const INITIAL_UNLOCKED_ARCHETYPES: ArchetypeId[] = ['PROTO_CORE'];
 
 const INITIAL_UNLOCKED_RELICS: RelicId[] = [
+  'MICRO_CAPACITOR',
+  'BLAST_CAP',
+  'ECHO_PEBBLE',
   'KINETIC_SURGE',
   'MAGNETIC_BASKET',
   'SAFETY_NET',
-  'CHAIN_LIGHTNING',
-  'BOUNCING_BOMB',
-  'MULTIBALL_REACTOR',
 ];
 
 const defaultProgression: GameProgressionData = {
@@ -35,8 +38,15 @@ const defaultProgression: GameProgressionData = {
   highestScore: 0,
   totalCubesDestroyed: 0,
   upgradeExtraBalls: 0,
+  upgradeBaseDamage: 0,
+  upgradeCritChance: 0,
+  upgradeArmorPierce: 0,
   upgradeBasketWidth: 0,
+  upgradeBasketMagnet: 0,
+  upgradeEmergencyShield: 0,
   upgradeRerolls: 0,
+  upgradeShardMultiplier: 0,
+  upgradeMerchantDiscount: 0,
   unlockedArchetypes: [...INITIAL_UNLOCKED_ARCHETYPES],
   unlockedRelics: [...INITIAL_UNLOCKED_RELICS],
   unlockedFusionCombos: [],
@@ -64,7 +74,7 @@ const defaultProgression: GameProgressionData = {
     hasActiveRun: false,
     savedLevel: 1,
     savedScore: 0,
-    savedBalls: 8,
+    savedBalls: 6,
     savedArchetype: '',
     savedRelics: [],
     savedShardsRun: 0,
@@ -164,15 +174,29 @@ export class ProgressionManager {
   }
 
   /**
-   * Returns the list of allowed special cube types for a given sector,
-   * gradually introducing new cube mechanics across Chapters I-V.
+   * Returns the list of allowed structural/world cube types for a given sector.
+   * Evolves both by Chapter (I-V) and permanently as Bosses are defeated!
+   * Note: CLASS_ABILITY cubes matching the active Archetype are always spawned by GameEngine.
    */
   public getAllowedCubeTypesForSector(sector: number): CubeType[] {
     if (sector <= 2) {
       return ['NORMAL'];
     }
     const chapter = getChapterForSector(sector);
-    return [...chapter.allowedCubeTypes];
+    const allowed = new Set<CubeType>(chapter.allowedCubeTypes);
+
+    if (this.data.bossesDefeated?.monolithSector5) {
+      allowed.add('EXPLOSIVE');
+    }
+    if (this.data.bossesDefeated?.tesseractSector10) {
+      allowed.add('SPLITTER');
+      allowed.add('ARMOR');
+    }
+    if (this.data.bossesDefeated?.leviathanSector15) {
+      allowed.add('SHIELD');
+    }
+
+    return Array.from(allowed);
   }
 
   public addQuantumShards(amount: number) {
@@ -294,7 +318,7 @@ export class ProgressionManager {
         name: 'Vittoria Galattica Cosmica',
         description:
           'Hai sconfitto l Architetto Primordiale! +500 Schegge Quantiche e sbloccato l Abisso Infinito!',
-        color: '#e11d48',
+        color: '#c46d75',
       });
       this.save();
     }
@@ -310,7 +334,7 @@ export class ProgressionManager {
           type: 'RELIC',
           name: info.title,
           description: info.description,
-          color: '#00e5ff',
+          color: '#7c9cb4',
         });
       }
     }
@@ -319,49 +343,52 @@ export class ProgressionManager {
   public checkAndTriggerUnlocks(): UnlockEventNotification[] {
     const newUnlocks: UnlockEventNotification[] = [];
 
-    // --- MILESTONE 1: Reach Sector 3 ---
-    if (this.data.bestSector >= 3) {
+    // --- BOSS 1 DEFEATED: The Monolith (Sector 5) -> Unlocks UNCOMMON Relics & Chapter II ---
+    if (this.data.bossesDefeated.monolithSector5) {
       if (!this.data.unlockedArchetypes.includes('VOLT_OVERCHARGE')) {
         this.data.unlockedArchetypes.push('VOLT_OVERCHARGE');
-        newUnlocks.push({
-          title: 'NUOVO NUCLEO SBLOCCATO!',
-          type: 'ARCHETYPE',
-          name: ARCHETYPES_DATA.VOLT_OVERCHARGE.title,
-          description: 'Raggiunto il Settore 3! Sbloccato il Nucleo Elettrico con Fulmine a Catena e 3 nuove reliquie nel Codex.',
-          color: ARCHETYPES_DATA.VOLT_OVERCHARGE.color,
-        });
       }
-      this.unlockRelicHelper('VOLT_DISCHARGE', newUnlocks, true);
-      this.unlockRelicHelper('HEAVY_MASS', newUnlocks, true);
-      this.unlockRelicHelper('HYPER_VELOCITY', newUnlocks, true);
-    }
-
-    // --- MILESTONE 1.5: Reach Sector 4 ---
-    if (this.data.bestSector >= 4 && !this.data.unlockedFusionCombos.includes('MAGNETIC_SURGE')) {
-      this.data.unlockedFusionCombos.push('MAGNETIC_SURGE');
-      newUnlocks.push({
-        title: 'PRIMA COMBO FUSIONE SBLOCCATA!',
-        type: 'COMBO',
-        name: FUSION_COMBOS.MAGNETIC_SURGE.title,
-        description: FUSION_COMBOS.MAGNETIC_SURGE.description,
-        color: FUSION_COMBOS.MAGNETIC_SURGE.color,
-      });
-    }
-
-    // --- MILESTONE 2: Defeat Boss Sector 5 (Unlock Chapter II) ---
-    if (this.data.bossesDefeated.monolithSector5) {
       if (!this.data.unlockedArchetypes.includes('PYRO_DETONATOR')) {
         this.data.unlockedArchetypes.push('PYRO_DETONATOR');
         newUnlocks.push({
-          title: 'CAPITOLO II & NUCLEO PYRO SBLOCCATI!',
-          type: 'ARCHETYPE',
-          name: ARCHETYPES_DATA.PYRO_DETONATOR.title,
-          description: 'The Monolith sconfitto! Sbloccati Pyro Detonator, Kinetic Titan, i Cubi Esplosivi e 5 Reliquie Tier 2.',
-          color: ARCHETYPES_DATA.PYRO_DETONATOR.color,
+          title: 'BOSS 1 SCONFITTO · RARITÀ NON COMUNE!',
+          type: 'RELIC',
+          name: 'Reliquie Non Comuni + Capitolo II',
+          description:
+            'The Monolith sconfitto! Sbloccate 6 Reliquie NON COMUNI, i Nuclei Volt & Pyro e i Cubi Esplosivi.',
+          color: '#7fa68e',
         });
       }
+      this.unlockRelicHelper('CHAIN_LIGHTNING', newUnlocks, true);
+      this.unlockRelicHelper('BOUNCING_BOMB', newUnlocks, true);
+      this.unlockRelicHelper('MULTIBALL_REACTOR', newUnlocks, true);
+      this.unlockRelicHelper('VOLT_DISCHARGE', newUnlocks, true);
+      this.unlockRelicHelper('HEAVY_MASS', newUnlocks, true);
+      this.unlockRelicHelper('HYPER_VELOCITY', newUnlocks, true);
+
+      if (!this.data.unlockedFusionCombos.includes('MAGNETIC_SURGE')) {
+        this.data.unlockedFusionCombos.push('MAGNETIC_SURGE');
+      }
+      if (!this.data.unlockedFusionCombos.includes('PLASMA_OVERLOAD')) {
+        this.data.unlockedFusionCombos.push('PLASMA_OVERLOAD');
+      }
+    }
+
+    // --- BOSS 2 DEFEATED: Omega Tesseract (Sector 10) -> Unlocks RARE Relics & Chapter III ---
+    if (this.data.bossesDefeated.tesseractSector10) {
       if (!this.data.unlockedArchetypes.includes('KINETIC_TITAN')) {
         this.data.unlockedArchetypes.push('KINETIC_TITAN');
+      }
+      if (!this.data.unlockedArchetypes.includes('SWARM_MATRIX')) {
+        this.data.unlockedArchetypes.push('SWARM_MATRIX');
+        newUnlocks.push({
+          title: 'BOSS 2 SCONFITTO · RARITÀ RARA!',
+          type: 'RELIC',
+          name: 'Reliquie Rare + Capitolo III',
+          description:
+            'Omega Tesseract sconfitto! Sbloccate 5 Reliquie RARE, i Nuclei Kinetic & Swarm e i Cubi Splitter/Corazzati.',
+          color: '#7c9cb4',
+        });
       }
       this.unlockRelicHelper('SHRAPNEL_BURST', newUnlocks, true);
       this.unlockRelicHelper('TESLA_COIL', newUnlocks, true);
@@ -369,25 +396,26 @@ export class ProgressionManager {
       this.unlockRelicHelper('QUANTUM_DUPLICATION', newUnlocks, true);
       this.unlockRelicHelper('POLAR_VORTEX', newUnlocks, true);
 
-      if (!this.data.unlockedFusionCombos.includes('PLASMA_OVERLOAD')) {
-        this.data.unlockedFusionCombos.push('PLASMA_OVERLOAD');
+      if (!this.data.unlockedFusionCombos.includes('SWARM_DETONATOR')) {
+        this.data.unlockedFusionCombos.push('SWARM_DETONATOR');
       }
     }
 
-    // --- MILESTONE 3: Defeat Boss Sector 10 (Unlock Chapter III) ---
-    if (this.data.bossesDefeated.tesseractSector10) {
-      if (!this.data.unlockedArchetypes.includes('SWARM_MATRIX')) {
-        this.data.unlockedArchetypes.push('SWARM_MATRIX');
-        newUnlocks.push({
-          title: 'CAPITOLO III & NUCLEO SWARM SBLOCCATI!',
-          type: 'ARCHETYPE',
-          name: ARCHETYPES_DATA.SWARM_MATRIX.title,
-          description: 'Omega Tesseract sconfitto! Sbloccati Swarm Matrix, Crystal Singularity, Cubi Splitter/Corazzati e Reliquie Tier 3.',
-          color: ARCHETYPES_DATA.SWARM_MATRIX.color,
-        });
-      }
+    // --- BOSS 3 DEFEATED: Void Leviathan (Sector 15) -> Unlocks EPIC Relics & Chapter IV ---
+    if (this.data.bossesDefeated.leviathanSector15) {
       if (!this.data.unlockedArchetypes.includes('CRYSTAL_SINGULARITY')) {
         this.data.unlockedArchetypes.push('CRYSTAL_SINGULARITY');
+      }
+      if (!this.data.unlockedArchetypes.includes('CHRONO_PULSE')) {
+        this.data.unlockedArchetypes.push('CHRONO_PULSE');
+        newUnlocks.push({
+          title: 'BOSS 3 SCONFITTO · RARITÀ EPICA!',
+          type: 'RELIC',
+          name: 'Reliquie Epiche + Capitolo IV',
+          description:
+            'Void Leviathan sconfitto! Sbloccate 5 Reliquie EPICHE, i Nuclei Crystal & Chrono e i Cubi Scudo.',
+          color: '#9b95b8',
+        });
       }
       this.unlockRelicHelper('CLUSTER_CHARGE', newUnlocks, true);
       this.unlockRelicHelper('SPLIT_STORM', newUnlocks, true);
@@ -395,57 +423,33 @@ export class ProgressionManager {
       this.unlockRelicHelper('EMP_BURST', newUnlocks, true);
       this.unlockRelicHelper('PIERCING_RAIL', newUnlocks, true);
 
-      if (!this.data.unlockedFusionCombos.includes('SWARM_DETONATOR')) {
-        this.data.unlockedFusionCombos.push('SWARM_DETONATOR');
-      }
-    }
-
-    // --- MILESTONE 4: Defeat Boss Sector 15 (Unlock Chapter IV) ---
-    if (this.data.bossesDefeated.leviathanSector15) {
-      if (!this.data.unlockedArchetypes.includes('CHRONO_PULSE')) {
-        this.data.unlockedArchetypes.push('CHRONO_PULSE');
-        newUnlocks.push({
-          title: 'CAPITOLO IV & CHRONO PULSE SBLOCCATI!',
-          type: 'ARCHETYPE',
-          name: ARCHETYPES_DATA.CHRONO_PULSE.title,
-          description: 'Void Leviathan sconfitto! Sbloccati Chrono Pulse, i Cubi Scudo e le Reliquie Tier 4.',
-          color: ARCHETYPES_DATA.CHRONO_PULSE.color,
-        });
-      }
-      this.unlockRelicHelper('SUPERNOVA', newUnlocks, true);
-      this.unlockRelicHelper('GRAVITY_WELL', newUnlocks, true);
-      this.unlockRelicHelper('CHRONO_WARP', newUnlocks, true);
-
       if (!this.data.unlockedFusionCombos.includes('HYPER_SWARM')) {
         this.data.unlockedFusionCombos.push('HYPER_SWARM');
       }
     }
 
-    // --- MILESTONE 5: Defeat Boss Sector 20 (Unlock Chapter V) ---
+    // --- BOSS 4 DEFEATED: Chrono Weaver (Sector 20) -> Unlocks LEGENDARY Relics & Chapter V ---
     if (this.data.bossesDefeated.chronoWeaverSector20) {
       if (!this.data.unlockedArchetypes.includes('QUANTUM_SINGULARITY')) {
         this.data.unlockedArchetypes.push('QUANTUM_SINGULARITY');
         newUnlocks.push({
-          title: 'CAPITOLO V & QUANTUM SINGULARITY SBLOCCATI!',
-          type: 'ARCHETYPE',
-          name: ARCHETYPES_DATA.QUANTUM_SINGULARITY.title,
-          description: 'Chrono Weaver sconfitto! Sbloccato il Nucleo Gravitazionale Supremo e le Reliquie Tier 5.',
-          color: ARCHETYPES_DATA.QUANTUM_SINGULARITY.color,
+          title: 'BOSS 4 SCONFITTO · RARITÀ LEGGENDARIA!',
+          type: 'RELIC',
+          name: 'Reliquie Leggendarie + Capitolo V',
+          description:
+            'Chrono Weaver sconfitto! Sbloccate le 5 Reliquie LEGGENDARIE e il Nucleo Quantum Singularity.',
+          color: '#d4b483',
         });
       }
+      this.unlockRelicHelper('SUPERNOVA', newUnlocks, true);
+      this.unlockRelicHelper('GRAVITY_WELL', newUnlocks, true);
+      this.unlockRelicHelper('PLASMA_CONDUIT', newUnlocks, true);
+      this.unlockRelicHelper('CHRONO_WARP', newUnlocks, true);
       this.unlockRelicHelper('SUPERNOVA_CATALYST', newUnlocks, true);
 
       if (!this.data.unlockedFusionCombos.includes('CRYO_SHOCK')) {
         this.data.unlockedFusionCombos.push('CRYO_SHOCK');
       }
-    }
-
-    // Cube destruction milestones
-    if (this.data.totalCubesDestroyed >= 150) {
-      this.unlockRelicHelper('PLASMA_CONDUIT', newUnlocks, false);
-    }
-    if (this.data.totalCubesDestroyed >= 300) {
-      this.unlockRelicHelper('SUPERNOVA_CATALYST', newUnlocks, false);
     }
 
     if (newUnlocks.length > 0) {
@@ -532,49 +536,135 @@ export class ProgressionManager {
     this.save();
   }
 
+  public getUpgradeLevel(id: MetaUpgradeId): number {
+    switch (id) {
+      case 'EXTRA_BALLS':
+        return this.data.upgradeExtraBalls || 0;
+      case 'BASE_DAMAGE':
+        return this.data.upgradeBaseDamage || 0;
+      case 'CRIT_CHANCE':
+        return this.data.upgradeCritChance || 0;
+      case 'ARMOR_PIERCE':
+        return this.data.upgradeArmorPierce || 0;
+      case 'BASKET_WIDTH':
+        return this.data.upgradeBasketWidth || 0;
+      case 'BASKET_MAGNET':
+        return this.data.upgradeBasketMagnet || 0;
+      case 'EMERGENCY_SHIELD':
+        return this.data.upgradeEmergencyShield || 0;
+      case 'REROLLS':
+        return this.data.upgradeRerolls || 0;
+      case 'SHARD_MULTIPLIER':
+        return this.data.upgradeShardMultiplier || 0;
+      case 'MERCHANT_DISCOUNT':
+        return this.data.upgradeMerchantDiscount || 0;
+    }
+  }
+
+  private setUpgradeLevel(id: MetaUpgradeId, level: number) {
+    switch (id) {
+      case 'EXTRA_BALLS':
+        this.data.upgradeExtraBalls = level;
+        break;
+      case 'BASE_DAMAGE':
+        this.data.upgradeBaseDamage = level;
+        break;
+      case 'CRIT_CHANCE':
+        this.data.upgradeCritChance = level;
+        break;
+      case 'ARMOR_PIERCE':
+        this.data.upgradeArmorPierce = level;
+        break;
+      case 'BASKET_WIDTH':
+        this.data.upgradeBasketWidth = level;
+        break;
+      case 'BASKET_MAGNET':
+        this.data.upgradeBasketMagnet = level;
+        break;
+      case 'EMERGENCY_SHIELD':
+        this.data.upgradeEmergencyShield = level;
+        break;
+      case 'REROLLS':
+        this.data.upgradeRerolls = level;
+        break;
+      case 'SHARD_MULTIPLIER':
+        this.data.upgradeShardMultiplier = level;
+        break;
+      case 'MERCHANT_DISCOUNT':
+        this.data.upgradeMerchantDiscount = level;
+        break;
+    }
+  }
+
+  public getUpgradeMaxLevel(id: MetaUpgradeId): number {
+    return META_UPGRADES_DATA[id].maxLevel;
+  }
+
+  public getUpgradeCost(id: MetaUpgradeId): number {
+    const info = META_UPGRADES_DATA[id];
+    const lvl = this.getUpgradeLevel(id);
+    if (lvl >= info.maxLevel) return info.costs[info.costs.length - 1];
+    return info.costs[lvl];
+  }
+
+  public buyUpgrade(id: MetaUpgradeId): boolean {
+    const info = META_UPGRADES_DATA[id];
+    const lvl = this.getUpgradeLevel(id);
+    if (lvl >= info.maxLevel) return false;
+    const cost = info.costs[lvl];
+    if (this.data.quantumShards < cost) return false;
+
+    this.data.quantumShards -= cost;
+    this.setUpgradeLevel(id, lvl + 1);
+    this.save();
+    return true;
+  }
+
+  public getTotalShardsInvestedInUpgrades(): number {
+    let total = 0;
+    for (const id of META_UPGRADE_ORDER) {
+      const info = META_UPGRADES_DATA[id];
+      const lvl = this.getUpgradeLevel(id);
+      for (let i = 0; i < lvl && i < info.costs.length; i++) {
+        total += info.costs[i];
+      }
+    }
+    return total;
+  }
+
+  public refundAllUpgrades(): number {
+    const refund = this.getTotalShardsInvestedInUpgrades();
+    if (refund <= 0) return 0;
+    for (const id of META_UPGRADE_ORDER) {
+      this.setUpgradeLevel(id, 0);
+    }
+    this.data.quantumShards += refund;
+    this.save();
+    return refund;
+  }
+
   public getCostExtraBalls(): number {
-    return (this.data.upgradeExtraBalls + 1) * 75;
+    return this.getUpgradeCost('EXTRA_BALLS');
   }
 
   public getCostBasketWidth(): number {
-    return (this.data.upgradeBasketWidth + 1) * 50;
+    return this.getUpgradeCost('BASKET_WIDTH');
   }
 
   public getCostRerolls(): number {
-    return (this.data.upgradeRerolls + 1) * 100;
+    return this.getUpgradeCost('REROLLS');
   }
 
   public buyExtraBalls(): boolean {
-    const cost = this.getCostExtraBalls();
-    if (this.data.upgradeExtraBalls < 3 && this.data.quantumShards >= cost) {
-      this.data.quantumShards -= cost;
-      this.data.upgradeExtraBalls++;
-      this.save();
-      return true;
-    }
-    return false;
+    return this.buyUpgrade('EXTRA_BALLS');
   }
 
   public buyBasketWidth(): boolean {
-    const cost = this.getCostBasketWidth();
-    if (this.data.upgradeBasketWidth < 3 && this.data.quantumShards >= cost) {
-      this.data.quantumShards -= cost;
-      this.data.upgradeBasketWidth++;
-      this.save();
-      return true;
-    }
-    return false;
+    return this.buyUpgrade('BASKET_WIDTH');
   }
 
   public buyReroll(): boolean {
-    const cost = this.getCostRerolls();
-    if (this.data.upgradeRerolls < 2 && this.data.quantumShards >= cost) {
-      this.data.quantumShards -= cost;
-      this.data.upgradeRerolls++;
-      this.save();
-      return true;
-    }
-    return false;
+    return this.buyUpgrade('REROLLS');
   }
 }
 

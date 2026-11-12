@@ -94,7 +94,7 @@ export const App: React.FC = () => {
   }, [gameState]);
 
   return (
-    <div className="relative w-full h-[100dvh] overflow-hidden bg-[#080b12] flex items-center justify-center font-sans select-none">
+    <div className="relative w-full h-[100dvh] overflow-hidden bg-[#0a0b0e] flex items-center justify-center font-sans select-none">
       {/* Game Playfield Container */}
       <div className="relative w-full h-full max-w-[520px] max-h-[100dvh] flex items-center justify-center overflow-hidden">
         <GameCanvas engine={engine} disabled={isAnyModalOpen} />
@@ -108,14 +108,14 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* Minimalist FEVER Banner (v0.4.0 Style) */}
+        {/* Minimalist FEVER Banner */}
         {gameState === 'FEVER' && (
-          <div className="pointer-events-none absolute inset-x-0 top-1/3 bg-[#080b12]/90 border-y-4 border-[#ffe600] py-4 flex flex-col items-center justify-center z-30">
-            <div className="text-[#ffe600] font-bold text-xl sm:text-2xl tracking-widest uppercase">
-              ★ CUBOCLAST FEVER! ★
+          <div className="pointer-events-none absolute inset-x-3 top-14 rounded-xl bg-[#0c0e13]/92 border border-[#d4b483]/60 py-2.5 px-3 flex flex-col items-center justify-center z-30">
+            <div className="text-[#d4b483] font-bold text-base sm:text-lg tracking-widest uppercase">
+              ★ PIOGGIA DI CAPSULE FEVER ★
             </div>
-            <span className="text-xs font-mono text-white mt-1">
-              TUTTI I CORE DISTRUTTI · POLVERIZZAZIONE IN CORSO
+            <span className="text-[11px] font-mono text-zinc-200 mt-0.5 text-center">
+              TRASCINA IL CESTELLO PER CATTURARE SFERE (+1), CARICHE (◇) E SCHEGGE (◆)
             </span>
           </div>
         )}
@@ -126,6 +126,7 @@ export const App: React.FC = () => {
         <PauseMenuModal
           engine={engine}
           onClose={() => setShowPause(false)}
+          onOpenRelicList={() => setShowRelicList(true)}
           onOpenCodex={() => setShowCodex(true)}
           onOpenInfo={() => setShowInfo(true)}
           onOpenInstall={() => setShowInstall(true)}

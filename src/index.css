@@ -15,8 +15,8 @@
     margin: 0;
     padding: 0;
     overflow: hidden;
-    background-color: #080b12;
-    color: #f8fafc;
+    background-color: #0a0b0e;
+    color: #f4f4f5;
     font-family: 'Chakra Petch', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     user-select: none;
     -webkit-user-select: none;
@@ -41,14 +41,14 @@
 }
 
 .modal-scroll::-webkit-scrollbar-track {
-  background: #090d16;
+  background: #0c0e13;
 }
 
 .modal-scroll::-webkit-scrollbar-thumb {
-  background: #1e2e48;
+  background: #222630;
   border-radius: 4px;
 }
 
 .modal-scroll::-webkit-scrollbar-thumb:hover {
-  background: #00e5ff;
+  background: #525866;
 }

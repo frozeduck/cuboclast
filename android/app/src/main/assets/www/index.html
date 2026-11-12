@@ -8,7 +8,7 @@
     <meta name="description" content="Minimalist cyberpunk Roguelike Peggle & Cube Breaker with element synergies, boss fights, and continuous run progression." />
     <meta property="og:title" content="CuboClast" />
     <meta property="og:description" content="Minimalist cyberpunk Roguelike Peggle & Cube Breaker with element synergies, boss fights, and continuous run progression." />
-    <meta name="theme-color" content="#00e5ff" />
+    <meta name="theme-color" content="#0a0b0e" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -17,8 +17,34 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/assets/index-CYkz6iMJ.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-wgCnni_y.css">
+    <script>
+      (function () {
+        try {
+          var CURRENT_VER = '0.14.0';
+          var prevVer = localStorage.getItem('cuboclast_sw_ver');
+          var isAndroidWebView = location.hostname === 'appassets.androidplatform.net';
+          if (isAndroidWebView || prevVer !== CURRENT_VER) {
+            localStorage.setItem('cuboclast_sw_ver', CURRENT_VER);
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                for (var i = 0; i < regs.length; i++) {
+                  regs[i].unregister();
+                }
+              });
+            }
+            if ('caches' in window) {
+              caches.keys().then(function (keys) {
+                for (var j = 0; j < keys.length; j++) {
+                  caches.delete(keys[j]);
+                }
+              });
+            }
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-D5LlgXa0.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BDdZEL6B.css">
   <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
   <body class="bg-[#04060a] text-slate-100 select-none overflow-hidden m-0 p-0 font-sans antialiased">
     <div id="root"></div>

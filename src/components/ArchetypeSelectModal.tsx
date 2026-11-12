@@ -79,15 +79,15 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
     <div
       role="dialog"
       aria-label="Selezione Nucleo CuboClast"
-      className="fixed inset-0 z-50 bg-[#080b12]/96 flex items-center justify-center sm:p-4"
+      className="fixed inset-0 z-50 bg-[#08090c]/96 flex items-center justify-center sm:p-4"
     >
-      <div className="w-full h-full sm:h-auto sm:max-h-[92dvh] max-w-lg bg-[#090d16] sm:border-2 border-[#00e5ff] sm:rounded-2xl flex flex-col overflow-hidden">
+      <div className="w-full h-full sm:h-auto sm:max-h-[92dvh] max-w-lg bg-[#0c0e13] sm:border border-[#272b36] sm:rounded-2xl flex flex-col overflow-hidden">
         {/* Top Minimalist Header (shrink-0) */}
-        <div className="shrink-0 bg-[#090d16] border-b border-[#1e2e48] px-4 py-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5">
+        <div className="shrink-0 bg-[#0c0e13] border-b border-[#222630] px-3.5 py-2.5 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <svg
               viewBox="0 0 32 32"
-              className="w-7 h-7 shrink-0"
+              className="w-6 h-6 shrink-0"
               aria-hidden="true"
             >
               <rect
@@ -96,41 +96,46 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
                 width="26"
                 height="26"
                 rx="5"
-                fill="#082635"
-                stroke="#00e5ff"
-                strokeWidth="2.5"
+                fill="#14171f"
+                stroke="#a1a1aa"
+                strokeWidth="2"
               />
-              <circle cx="16" cy="16" r="5" fill="#ffe600" />
+              <circle cx="16" cy="16" r="5" fill="#d4b483" />
             </svg>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold tracking-wider text-[#00e5ff] uppercase leading-none">
-                CUBOCLAST
-              </h1>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Progressione Roguelike · Scegli il tuo Nucleo
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <h1 className="text-lg sm:text-xl font-bold tracking-wider text-zinc-100 uppercase leading-none">
+                  CUBOCLAST
+                </h1>
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#161922] border border-[#2d323e] text-zinc-300 leading-none">
+                  v0.14.0
+                </span>
+              </div>
+              <p className="text-[10px] text-zinc-400 mt-0.5 truncate">
+                Nuclei &amp; Blocchetti di Classe ◇
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 shrink-0">
             <button
               type="button"
               onClick={onOpenInstall}
-              className="min-h-[38px] px-2.5 rounded-lg bg-[#141d2d] border border-[#00ff88] text-[#00ff88] font-bold text-xs uppercase tracking-wide cursor-pointer active:scale-95"
+              className="min-h-[36px] px-2 rounded-lg bg-[#14171f] border border-[#2d323e] text-zinc-300 font-bold text-[11px] uppercase tracking-wide cursor-pointer active:scale-95"
             >
               APK
             </button>
             <button
               type="button"
               onClick={onOpenCodex}
-              className="min-h-[38px] px-2.5 rounded-lg bg-[#141d2d] border border-[#a855f7] text-[#a855f7] font-bold text-xs uppercase tracking-wide cursor-pointer active:scale-95"
+              className="min-h-[36px] px-2 rounded-lg bg-[#14171f] border border-[#2d323e] text-zinc-300 font-bold text-[11px] uppercase tracking-wide cursor-pointer active:scale-95"
             >
               CODEX
             </button>
             <button
               type="button"
               onClick={onOpenShop}
-              className="min-h-[38px] px-2.5 rounded-lg bg-[#141d2d] border border-[#38bdf8] text-[#38bdf8] font-bold text-xs uppercase tracking-wide cursor-pointer active:scale-95 tabular-nums"
+              className="min-h-[36px] px-2 rounded-lg bg-[#14171f] border border-[#2d323e] text-[#d4b483] font-bold text-[11px] uppercase tracking-wide cursor-pointer active:scale-95 tabular-nums whitespace-nowrap"
             >
               ◆ {progData.quantumShards}
             </button>
@@ -142,14 +147,14 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
           data-testid="archetype-scroll-body"
           className="flex-1 min-h-0 modal-scroll px-4 py-3 space-y-3"
         >
-          {/* Resume Active Run Card (v0.4.0 Minimalist Style) */}
+          {/* Resume Active Run Card */}
           {progData.savedRun.hasActiveRun && (
-            <div className="rounded-xl bg-[#063528] border-2 border-[#00ff88] p-3.5 flex items-center justify-between gap-3">
+            <div className="rounded-xl bg-[#14181b] border border-[#7fa68e]/60 p-3.5 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-xs font-bold text-[#00ff88] uppercase tracking-wider">
+                <div className="text-xs font-bold text-[#7fa68e] uppercase tracking-wider">
                   RIPRENDI PARTITA ATTIVA
                 </div>
-                <div className="text-xs text-white font-mono mt-0.5 tabular-nums truncate">
+                <div className="text-xs text-zinc-200 font-mono mt-0.5 tabular-nums truncate">
                   Settore {progData.savedRun.savedLevel} ·{' '}
                   {progData.savedRun.savedScore.toLocaleString()} Punti ·{' '}
                   {progData.savedRun.savedBalls} Sfere
@@ -159,7 +164,7 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
                 <button
                   type="button"
                   onClick={() => engine.resumeSavedRun()}
-                  className="min-h-[42px] px-4 rounded-lg bg-[#00ff88] text-[#080b12] font-bold text-xs uppercase tracking-wider cursor-pointer active:scale-95"
+                  className="min-h-[42px] px-4 rounded-lg bg-zinc-200 text-zinc-950 font-bold text-xs uppercase tracking-wider cursor-pointer active:scale-95"
                 >
                   RIPRENDI
                 </button>
@@ -167,7 +172,7 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
                   type="button"
                   onClick={handleAbandonSavedRun}
                   title="Abbandona partita salvata"
-                  className="min-h-[42px] px-2.5 rounded-lg bg-[#141d2d] border border-rose-500/60 text-rose-400 font-bold text-xs uppercase cursor-pointer active:scale-95"
+                  className="min-h-[42px] px-2.5 rounded-lg bg-[#14171f] border border-[#2d323e] text-zinc-400 font-bold text-xs uppercase cursor-pointer active:scale-95"
                 >
                   ✕
                 </button>
@@ -180,21 +185,21 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
             <button
               type="button"
               onClick={() => setSelectedMode('STORY')}
-              className={`min-h-[48px] px-3 py-2 rounded-xl border-2 text-left transition cursor-pointer ${
+              className={`min-h-[48px] px-3 py-2 rounded-xl border text-left transition cursor-pointer ${
                 selectedMode === 'STORY'
-                  ? 'bg-[#141d2d] border-[#00e5ff] text-white'
-                  : 'bg-[#0c121e] border-[#1e2e48] text-slate-400'
+                  ? 'bg-[#161922] border-zinc-400 text-zinc-100'
+                  : 'bg-[#101218] border-[#222630] text-zinc-500'
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-[#00e5ff]">
+                <span className="text-xs font-bold uppercase tracking-wider text-zinc-200">
                   CAMPAGNA STORIA
                 </span>
-                <span className="text-[11px] font-mono text-slate-300 tabular-nums">
+                <span className="text-[11px] font-mono text-zinc-400 tabular-nums">
                   25 SETT.
                 </span>
               </div>
-              <div className="text-[11px] text-slate-400 truncate mt-0.5">
+              <div className="text-[11px] text-zinc-400 truncate mt-0.5">
                 {storyProgress.storyCompleted
                   ? 'Completata · 5 Boss'
                   : `Cap. ${storyProgress.highestChapterUnlocked}/5 · Bivi & Boss`}
@@ -204,21 +209,21 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
             <button
               type="button"
               onClick={() => setSelectedMode('ARCADE')}
-              className={`min-h-[48px] px-3 py-2 rounded-xl border-2 text-left transition cursor-pointer ${
+              className={`min-h-[48px] px-3 py-2 rounded-xl border text-left transition cursor-pointer ${
                 selectedMode === 'ARCADE'
-                  ? 'bg-[#141d2d] border-[#ff007f] text-white'
-                  : 'bg-[#0c121e] border-[#1e2e48] text-slate-400'
+                  ? 'bg-[#161922] border-zinc-400 text-zinc-100'
+                  : 'bg-[#101218] border-[#222630] text-zinc-500'
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-[#ff007f]">
+                <span className="text-xs font-bold uppercase tracking-wider text-zinc-200">
                   ARCADE CLASSICA
                 </span>
-                <span className="text-[11px] font-mono text-slate-300 tabular-nums">
+                <span className="text-[11px] font-mono text-zinc-400 tabular-nums">
                   10 SETT.
                 </span>
               </div>
-              <div className="text-[11px] text-slate-400 truncate mt-0.5">
+              <div className="text-[11px] text-zinc-400 truncate mt-0.5">
                 Run rapida · Boss Sett. 5 e 10
               </div>
             </button>
@@ -226,10 +231,10 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
 
           {/* Chapter Selector for Story Mode */}
           {selectedMode === 'STORY' && (
-            <div className="rounded-xl bg-[#0c121e] border border-[#1e2e48] p-2.5 space-y-2">
-              <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 px-1">
+            <div className="rounded-xl bg-[#101218] border border-[#222630] p-2.5 space-y-2">
+              <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400 px-1">
                 <span>CAPITOLO DI PARTENZA:</span>
-                <span className="text-[#00e5ff]">
+                <span className="text-zinc-200">
                   {STORY_CHAPTERS[selectedChapter].title}
                 </span>
               </div>
@@ -245,10 +250,10 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
                       onClick={() => setSelectedChapter(chapId)}
                       className={`min-h-[34px] rounded-lg text-xs font-mono font-bold transition ${
                         active
-                          ? 'bg-[#00e5ff] text-[#080b12] cursor-pointer'
+                          ? 'bg-zinc-200 text-zinc-950 cursor-pointer'
                           : chapUnlocked
-                          ? 'bg-[#141d2d] text-white border border-[#1e2e48] cursor-pointer'
-                          : 'bg-[#090d16] text-slate-600 border border-[#1e2e48]/50 cursor-not-allowed'
+                          ? 'bg-[#161922] text-zinc-300 border border-[#2d323e] cursor-pointer'
+                          : 'bg-[#0c0e13] text-zinc-600 border border-[#1c1f28] cursor-not-allowed'
                       }`}
                     >
                       {chapUnlocked ? `CAP.${chapId}` : `🔒${chapId}`}
@@ -259,7 +264,7 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
             </div>
           )}
 
-          {/* Vertical List of Archetype Cards (v0.4.0 Minimalist Style — Scrollable & Selectable) */}
+          {/* Vertical List of Archetype Cards */}
           <div className="space-y-2.5 pt-1">
             {archetypes.map((arch) => {
               const unlocked = engine.progression.isArchetypeUnlocked(arch.id);
@@ -289,32 +294,32 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
                       if (unlocked) handleStartWithArchetype(arch.id);
                     }
                   }}
-                  className={`w-full rounded-xl p-3.5 text-left transition cursor-pointer border-2 ${
-                    isSelected ? 'bg-[#141d2d]' : 'bg-[#0e1524] hover:bg-[#141d2d]'
+                  className={`w-full rounded-xl p-3.5 text-left transition cursor-pointer border ${
+                    isSelected ? 'bg-[#161922]' : 'bg-[#11131a] hover:bg-[#161922]'
                   }`}
                   style={{
                     borderColor: isSelected
                       ? arch.color
                       : unlocked
-                      ? `${arch.color}66`
-                      : '#1e2e48',
+                      ? '#2d323e'
+                      : '#1c1f28',
                   }}
                 >
                   {/* Top Row: Circle Dot + Title + [FAMIGLIA] Tag */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <span
-                        className="w-4 h-4 rounded-full shrink-0"
-                        style={{ backgroundColor: unlocked ? arch.color : '#475569' }}
+                        className="w-3.5 h-3.5 rounded-full shrink-0"
+                        style={{ backgroundColor: unlocked ? arch.color : '#3f3f46' }}
                       />
-                      <span className="text-sm sm:text-base font-bold text-white truncate">
+                      <span className="text-sm sm:text-base font-bold text-zinc-100 truncate">
                         {arch.title}
                       </span>
                     </div>
 
                     <span
                       className="text-xs font-bold font-mono tracking-wide shrink-0"
-                      style={{ color: unlocked ? arch.color : '#64748b' }}
+                      style={{ color: unlocked ? arch.color : '#52525b' }}
                     >
                       {arch.id === 'PROTO_CORE'
                         ? '[NEUTRO · BASE]'
@@ -323,13 +328,26 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
                   </div>
 
                   {/* Description */}
-                  <p className="text-xs text-slate-200 leading-relaxed mt-1.5">
+                  <p className="text-xs text-zinc-300 leading-relaxed mt-1.5">
                     {arch.description}
                   </p>
 
+                  {/* Signature Class Block (Hybrid B v0.11.0) */}
+                  <div className="mt-2 px-2.5 py-1.5 rounded-lg bg-[#0c0e13] border border-[#222630] flex items-start gap-2">
+                    <span
+                      className="text-xs font-mono font-bold shrink-0 mt-0.5"
+                      style={{ color: unlocked ? arch.color : '#71717a' }}
+                    >
+                      ◇ {arch.classBlockName}:
+                    </span>
+                    <span className="text-[11px] text-zinc-300 leading-snug">
+                      {arch.classBlockEffect}
+                    </span>
+                  </div>
+
                   {/* Bottom Row: Initial Relic / Unlock Condition + Direct Action Button */}
-                  <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-[#1e2e48]">
-                    <span className="text-[11px] font-mono text-slate-400 truncate">
+                  <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-[#222630]">
+                    <span className="text-[11px] font-mono text-zinc-400 truncate">
                       {unlocked
                         ? initialRelic
                           ? `Reliquia: ${initialRelic.title}`
@@ -345,8 +363,7 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
                           setSelectedId(arch.id);
                           handleStartWithArchetype(arch.id);
                         }}
-                        className="min-h-[36px] px-3.5 rounded-lg font-bold text-xs uppercase tracking-wider text-[#080b12] shrink-0 cursor-pointer active:scale-95"
-                        style={{ backgroundColor: arch.color }}
+                        className="min-h-[36px] px-3.5 rounded-lg font-bold text-xs uppercase tracking-wider bg-zinc-200 text-zinc-950 shrink-0 cursor-pointer active:scale-95"
                       >
                         GIOCA →
                       </button>
@@ -358,8 +375,8 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
                           onClick={(e) => handleUnlockWithShards(arch.id, e)}
                           className={`min-h-[36px] px-3 rounded-lg font-bold text-xs uppercase tracking-wider shrink-0 ${
                             canAfford
-                              ? 'bg-[#ffe600] text-[#080b12] cursor-pointer active:scale-95'
-                              : 'bg-[#1e2e48] text-slate-400 cursor-not-allowed'
+                              ? 'bg-[#d4b483] text-zinc-950 cursor-pointer active:scale-95'
+                              : 'bg-[#1c1f28] text-zinc-500 cursor-not-allowed'
                           }`}
                         >
                           SBLOCCA ◆ {arch.unlockCost}
@@ -373,25 +390,25 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
           </div>
 
           {/* Stats Summary Line */}
-          <div className="pt-2 pb-1 flex items-center justify-between text-xs font-mono text-slate-400 border-t border-[#1e2e48] tabular-nums">
+          <div className="pt-2 pb-1 flex items-center justify-between text-xs font-mono text-zinc-400 border-t border-[#222630] tabular-nums">
             <span>
-              Run: <strong className="text-white">{progData.runsPlayed}</strong> · Record:{' '}
-              <strong className="text-[#00e5ff]">{progData.highestScore.toLocaleString()}</strong>
+              Run: <strong className="text-zinc-200">{progData.runsPlayed}</strong> · Record:{' '}
+              <strong className="text-zinc-200">{progData.highestScore.toLocaleString()}</strong>
             </span>
             <span>
-              Settore Max: <strong className="text-[#00ff88]">{progData.bestSector}</strong>
+              Settore Max: <strong className="text-[#d4b483]">{progData.bestSector}</strong>
             </span>
           </div>
         </div>
 
         {/* Sticky Bottom Primary Action Bar (shrink-0) */}
-        <div className="shrink-0 bg-[#090d16] border-t border-[#1e2e48] p-3">
+        <div className="shrink-0 bg-[#0c0e13] border-t border-[#222630] p-3">
           {isSelectedUnlocked ? (
             <button
               type="button"
               data-start="true"
               onClick={() => handleStartWithArchetype(selectedArch.id)}
-              className="w-full min-h-[48px] rounded-xl bg-[#00e5ff] hover:bg-[#38bdf8] text-[#080b12] font-bold text-sm sm:text-base uppercase tracking-wider transition cursor-pointer active:scale-[0.99] flex items-center justify-center gap-2"
+              className="w-full min-h-[48px] rounded-xl bg-zinc-200 hover:bg-white text-zinc-950 font-bold text-sm sm:text-base uppercase tracking-wider transition cursor-pointer active:scale-[0.99] flex items-center justify-center gap-2"
             >
               <span>
                 AVVIA {selectedMode === 'STORY' ? `CAP.${selectedChapter}` : 'ARCADE'} ·{' '}
@@ -407,8 +424,8 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
               onClick={(e) => handleUnlockWithShards(selectedArch.id, e)}
               className={`w-full min-h-[48px] rounded-xl font-bold text-sm uppercase tracking-wider transition flex items-center justify-center ${
                 selectedArch.unlockCost && progData.quantumShards >= selectedArch.unlockCost
-                  ? 'bg-[#ffe600] text-[#080b12] cursor-pointer active:scale-[0.99]'
-                  : 'bg-[#141d2d] border border-[#1e2e48] text-slate-400 cursor-not-allowed'
+                  ? 'bg-[#d4b483] text-zinc-950 cursor-pointer active:scale-[0.99]'
+                  : 'bg-[#14171f] border border-[#222630] text-zinc-500 cursor-not-allowed'
               }`}
             >
               SBLOCCA {selectedArch.title.toUpperCase()} (◆ {selectedArch.unlockCost || 0})
