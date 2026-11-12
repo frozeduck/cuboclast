@@ -87,7 +87,7 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "revision": "0afc3400d724a134a2b20c8771cd92d9"
   }, {
     "url": "index.html",
-    "revision": "cf80f60ce2f2dd00508cc1b5f5bbdfd1"
+    "revision": "e2b8507c9ca7453b39652117063e9362"
   }, {
     "url": "cuboclast-icon.png",
     "revision": "0afc3400d724a134a2b20c8771cd92d9"
@@ -95,10 +95,10 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "url": "apple-touch-icon.png",
     "revision": "0afc3400d724a134a2b20c8771cd92d9"
   }, {
-    "url": "assets/index-CdgeltRi.css",
+    "url": "assets/index-v1ZaMSKD.css",
     "revision": null
   }, {
-    "url": "assets/index-Bu6dlFGM.js",
+    "url": "assets/index-BRNvxeYI.js",
     "revision": null
   }, {
     "url": "assets/aistudio/image_1490e7db.png",

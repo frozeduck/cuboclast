@@ -187,6 +187,7 @@ export class GameEngine {
   public bossSatellites: BossSatellite[] = [];
 
   public feverTimer: number = 0;
+  public feverElapsed: number = 0;
   public feverExplosionTimer: number = 0;
   public feverCapsules: FeverCapsule[] = [];
   public nextSectorOverchargeStacks: number = 0;
@@ -218,9 +219,9 @@ export class GameEngine {
     this.progression = progression;
     this.basket = {
       x: VIRTUAL_WIDTH / 2 - 82,
-      y: 1710,
+      y: 1580,
       width: 165,
-      height: 34,
+      height: 38,
       vx: 270,
     };
     this.highScore = progression.getData().highestScore;
@@ -236,12 +237,12 @@ export class GameEngine {
     x1: number,
     y1: number,
     color: string,
-    opts?: { x2?: number; y2?: number; radius?: number; duration?: number }
+    opts?: { x2?: number; y2?: number; w?: number; h?: number; radius?: number; duration?: number }
   ) {
-    if (this.visualEffects.length >= 40) {
+    if (this.visualEffects.length >= 60) {
       this.visualEffects.shift();
     }
-    const maxLife = opts?.duration ?? 0.38;
+    const maxLife = opts?.duration ?? 0.45;
     this.visualEffects.push({
       id: this.nextEffectId++,
       type,
@@ -249,6 +250,8 @@ export class GameEngine {
       y1,
       x2: opts?.x2,
       y2: opts?.y2,
+      w: opts?.w,
+      h: opts?.h,
       radius: opts?.radius,
       color,
       life: maxLife,
@@ -549,13 +552,13 @@ export class GameEngine {
   }
 
   private generateLevelGrid(level: number) {
-    const startY = 320;
-    const rows = Math.min(4 + Math.floor(level / 2), 7);
-    const cols = 9;
-    const cubeWidth = 84;
-    const cubeHeight = 56;
-    const paddingX = 26;
-    const paddingY = 24;
+    const startY = 340;
+    const rows = Math.min(4 + Math.floor(level / 2), 6);
+    const cols = 8;
+    const cubeWidth = 112;
+    const cubeHeight = 76;
+    const paddingX = 16;
+    const paddingY = 32;
     const totalGridW = cols * cubeWidth + (cols - 1) * paddingX;
     const startX = (VIRTUAL_WIDTH - totalGridW) / 2;
 
@@ -585,11 +588,11 @@ export class GameEngine {
     }
     const hpMultiplier = isElite ? 1.45 : 1.0;
 
-    let baseHp = level <= 4 ? 1 + level : 2 + Math.floor(level * 1.1);
+    let baseHp = level <= 4 ? 2 + level : 3 + Math.floor(level * 1.15);
     if (level > 10) {
       baseHp += Math.floor((level - 10) * 1.25);
     }
-    baseHp = Math.max(2, Math.round(baseHp * hpMultiplier));
+    baseHp = Math.max(3, Math.round(baseHp * hpMultiplier));
 
     const patternNames = [
       'Cittadella Simmetrica',
@@ -612,35 +615,35 @@ export class GameEngine {
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         let placeCube = false;
-        const distFromCenterCol = Math.abs(c - 4);
+        const distFromCenterCol = Math.abs(c - 3.5);
 
         switch (patternIndex) {
           case 0:
             placeCube =
-              (r === 0 && c >= 2 && c <= 6) ||
-              (r === 1 && (c === 1 || c === 3 || c === 5 || c === 7)) ||
-              (r === 2 && c >= 2 && c <= 6) ||
-              (r >= 3 && distFromCenterCol <= 2);
+              (r === 0 && c >= 1 && c <= 6) ||
+              (r === 1 && (c === 1 || c === 2 || c === 5 || c === 6)) ||
+              (r === 2 && c >= 1 && c <= 6) ||
+              (r >= 3 && distFromCenterCol <= 2.5);
             break;
           case 1:
-            placeCube = distFromCenterCol + Math.abs(r - Math.floor(rows / 2)) <= 4;
+            placeCube = distFromCenterCol + Math.abs(r - Math.floor(rows / 2)) <= 3.6;
             break;
           case 2:
-            placeCube = (r + c) % 2 === 0 && c >= 1 && c <= 7;
+            placeCube = (r + c) % 2 === 0 && c >= 1 && c <= 6;
             break;
           case 3:
             placeCube =
               c >= 1 &&
-              c <= 7 &&
-              !(r === Math.floor(rows / 2) && (c === 3 || c === 5)) &&
-              !(r === 0 && (c === 1 || c === 7));
+              c <= 6 &&
+              !(r === Math.floor(rows / 2) && (c === 3 || c === 4)) &&
+              !(r === 0 && (c === 1 || c === 6));
             break;
           case 4:
-            placeCube = c !== 4 && c >= 1 && c <= 7;
+            placeCube = c !== 3 && c !== 4 && c >= 1 && c <= 6;
             break;
           case 5:
           default:
-            placeCube = distFromCenterCol <= r + 1 && c >= 1 && c <= 7;
+            placeCube = distFromCenterCol <= r + 1.5 && c >= 1 && c <= 6;
             break;
         }
 
@@ -651,7 +654,7 @@ export class GameEngine {
 
         let type: CubeType = 'NORMAL';
         let cubeHp = Math.max(
-          2,
+          3,
           Math.round((baseHp + (r === 0 ? 1 : 0)) * (isElite ? 1.2 : 1.0))
         );
 
@@ -676,7 +679,7 @@ export class GameEngine {
         let isCore = false;
         if (coresAssigned < coreBudget && (type === 'NORMAL' || Math.random() < 0.5)) {
           isCore = true;
-          cubeHp += 1;
+          cubeHp += 2;
           coresAssigned++;
         }
 
@@ -704,8 +707,8 @@ export class GameEngine {
       for (const c of this.cubes) {
         if (!c.isCore) {
           c.isCore = true;
-          c.hp += 1;
-          c.maxHp += 1;
+          c.hp += 2;
+          c.maxHp += 2;
           coresAssigned++;
           if (coresAssigned >= minCores) break;
         }
@@ -726,7 +729,7 @@ export class GameEngine {
         );
         const chosen = nonCoreCandidates[idx];
         chosen.type = 'CLASS_ABILITY';
-        chosen.hp = Math.max(2, baseHp);
+        chosen.hp = Math.max(3, baseHp);
         chosen.maxHp = chosen.hp;
       }
     }
@@ -741,10 +744,10 @@ export class GameEngine {
     cubeHeight: number,
     paddingX: number
   ) {
-    const bossW = 260;
-    const bossH = 180;
+    const bossW = 300;
+    const bossH = 195;
     const bossX = (VIRTUAL_WIDTH - bossW) / 2;
-    const bossY = startY + 130;
+    const bossY = startY + 135;
 
     const chapter = getChapterForSector(level);
     let bossHp = chapter ? chapter.bossHp : 120;
@@ -780,12 +783,12 @@ export class GameEngine {
         this.bossSatellites.push({
           id: this.nextSatId++,
           angle: ang,
-          distance: 210,
+          distance: 225,
           isAlive: true,
           hp: satHp,
           maxHp: satHp,
-          width: 46,
-          height: 46,
+          width: 48,
+          height: 48,
         });
       }
       for (let i = 0; i < 6; i++) {
@@ -793,12 +796,12 @@ export class GameEngine {
         this.bossSatellites.push({
           id: this.nextSatId++,
           angle: ang,
-          distance: 300,
+          distance: 315,
           isAlive: true,
           hp: satHp,
           maxHp: satHp,
-          width: 50,
-          height: 50,
+          width: 52,
+          height: 52,
         });
       }
     } else {
@@ -807,18 +810,18 @@ export class GameEngine {
         this.bossSatellites.push({
           id: this.nextSatId++,
           angle: ang,
-          distance: 250,
+          distance: 265,
           isAlive: true,
           hp: satHp,
           maxHp: satHp,
-          width: 50,
-          height: 50,
+          width: 52,
+          height: 52,
         });
       }
     }
 
     const guardHp = Math.max(4, Math.floor(level * 1.4));
-    for (let c = 1; c < cols - 1; c += 2) {
+    for (const c of [1, 3, 4, 6]) {
       const cx = startX + c * (cubeWidth + paddingX);
       const cy = startY;
       this.cubes.push({
@@ -839,10 +842,10 @@ export class GameEngine {
       });
     }
 
-    for (let c = 2; c <= 6; c += 2) {
+    for (const c of [1, 3, 4, 6]) {
       const cx = startX + c * (cubeWidth + paddingX);
-      const cy = bossY + bossH + 170;
-      const isOuterClassBlock = c === 2 || c === 6;
+      const cy = bossY + bossH + 175;
+      const isOuterClassBlock = c === 1 || c === 6;
       this.cubes.push({
         id: this.nextCubeId++,
         x: cx,
@@ -861,14 +864,14 @@ export class GameEngine {
       });
     }
 
-    // Chapter 1 Boss (The Monolith): 2 additional flanking CLASS_ABILITY Relay Nodes (◇)
+    // Chapter 1 Boss (The Monolith): 2 additional flanking CLASS_ABILITY Relay Nodes (◇) on outer columns 0 & 7
     if (level === 5) {
-      const flankCols = [1, 7];
+      const flankCols = [0, 7];
       for (const fc of flankCols) {
         this.cubes.push({
           id: this.nextCubeId++,
           x: startX + fc * (cubeWidth + paddingX),
-          y: bossY + 55,
+          y: bossY + 60,
           width: cubeWidth,
           height: cubeHeight,
           hp: 3,
@@ -928,92 +931,107 @@ export class GameEngine {
     if (level === 1) {
       if (arch === 'PYRO_DETONATOR') {
         this.currentPatternName = 'Campo Pyro · Innesco a Grappolo';
-        // Central cluster of 6 Cores around an Explosive bridge & two Pyro ◇ triggers
-        place(4, 0, 'CLASS_ABILITY', 2, false); // Upper Pyro Fuse ◇
-        place(3, 1, 'NORMAL', 3, true);
-        place(4, 1, 'EXPLOSIVE', 2, false); // Explosive Bridge
-        place(5, 1, 'NORMAL', 3, true);
-        place(3, 2, 'NORMAL', 3, true);
-        place(4, 2, 'CLASS_ABILITY', 2, false); // Heart Pyro Detonator ◇
-        place(5, 2, 'NORMAL', 3, true);
-        place(3, 3, 'NORMAL', 3, true);
-        place(5, 3, 'NORMAL', 3, true);
-        // Side Pyro satellite clusters
-        place(1, 2, 'CLASS_ABILITY', 2, false);
-        place(1, 1, 'NORMAL', 2, false);
-        place(7, 2, 'CLASS_ABILITY', 2, false);
-        place(7, 1, 'NORMAL', 2, false);
-        // Lower Kinetic bounce pads to keep ball in play
-        place(2, 4, 'KINETIC', 3, false);
-        place(6, 4, 'KINETIC', 3, false);
+        // Left & Right Core pockets separated by a central Kinetic baffle (requires 2-3 deliberate shots, never 1 blind center shot!)
+        // Left Pocket (Cols 0..2): 3 Cores (5 HP) + Explosive Barrel + Left Pyro ◇ Fuse
+        place(1, 0, 'EXPLOSIVE', 2, false);
+        place(0, 1, 'NORMAL', 5, true);
+        place(1, 1, 'NORMAL', 5, true);
+        place(1, 2, 'NORMAL', 5, true);
+        place(1, 3, 'CLASS_ABILITY', 2, false);
+
+        // Right Pocket (Cols 5..7): 3 Cores (5 HP) + Explosive Barrel + Right Pyro ◇ Fuse
+        place(6, 0, 'EXPLOSIVE', 2, false);
+        place(6, 1, 'NORMAL', 5, true);
+        place(7, 1, 'NORMAL', 5, true);
+        place(6, 2, 'NORMAL', 5, true);
+        place(6, 3, 'CLASS_ABILITY', 2, false);
+
+        // Center Divider & Lower Kinetic Bounce Shelves
+        place(3, 1, 'CLASS_ABILITY', 3, false);
+        place(3, 2, 'KINETIC', 4, false);
+        place(4, 2, 'KINETIC', 4, false);
+        place(2, 4, 'KINETIC', 4, false);
+        place(5, 4, 'KINETIC', 4, false);
         return true;
       }
 
       if (arch === 'VOLT_OVERCHARGE') {
         this.currentPatternName = 'Campo Volt · Ponte Elettrostatico';
-        // Left & right Cores shielded behind heavy Armor walls
-        place(1, 1, 'NORMAL', 3, true);
-        place(2, 1, 'NORMAL', 3, true);
-        place(1, 2, 'NORMAL', 3, true);
-        place(1, 3, 'ARMOR', 7, false);
-        place(2, 3, 'ARMOR', 7, false);
+        // Left Armored Vault (Cols 0..1): 3 Cores (5 HP) behind heavy Armor (9 HP)
+        place(0, 1, 'NORMAL', 5, true);
+        place(1, 1, 'NORMAL', 5, true);
+        place(0, 2, 'NORMAL', 5, true);
+        place(0, 3, 'ARMOR', 9, false);
+        place(1, 3, 'ARMOR', 9, false);
 
-        place(6, 1, 'NORMAL', 3, true);
-        place(7, 1, 'NORMAL', 3, true);
-        place(7, 2, 'NORMAL', 3, true);
-        place(6, 3, 'ARMOR', 7, false);
-        place(7, 3, 'ARMOR', 7, false);
+        // Right Armored Vault (Cols 6..7): 3 Cores (5 HP) behind heavy Armor (9 HP)
+        place(6, 1, 'NORMAL', 5, true);
+        place(7, 1, 'NORMAL', 5, true);
+        place(7, 2, 'NORMAL', 5, true);
+        place(6, 3, 'ARMOR', 9, false);
+        place(7, 3, 'ARMOR', 9, false);
 
-        // Exposed central ◇ Volt Relay nodes that arc lightning across the gap into the Cores
-        place(4, 0, 'CLASS_ABILITY', 2, false);
-        place(3, 1, 'CLASS_ABILITY', 2, false);
-        place(5, 1, 'CLASS_ABILITY', 2, false);
-        place(4, 2, 'CLASS_ABILITY', 2, false);
-        place(3, 4, 'KINETIC', 3, false);
-        place(5, 4, 'KINETIC', 3, false);
+        // Left & Right ◇ Volt Relay Antennas (each side only reaches its own vault!)
+        place(2, 2, 'CLASS_ABILITY', 3, false);
+        place(2, 4, 'CLASS_ABILITY', 2, false);
+        place(5, 2, 'CLASS_ABILITY', 3, false);
+        place(5, 4, 'CLASS_ABILITY', 2, false);
+
+        // Center Guard Baffle
+        place(3, 2, 'KINETIC', 4, false);
+        place(4, 2, 'KINETIC', 4, false);
         return true;
       }
 
       if (arch === 'SWARM_MATRIX') {
         this.currentPatternName = 'Campo Swarm · Camera di Scissione';
-        // Enclosed Kinetic Pinball Chamber at the top
-        for (let c = 2; c <= 6; c++) {
-          place(c, 0, 'KINETIC', 5, false);
-        }
-        place(2, 1, 'KINETIC', 5, false);
-        place(6, 1, 'KINETIC', 5, false);
-        place(2, 2, 'KINETIC', 5, false);
-        place(6, 2, 'KINETIC', 5, false);
+        // Two Separate Pinball Chambers (Left Chamber & Right Chamber) divided by an Armor Spine
+        // Left Chamber (Cols 0..2)
+        place(0, 0, 'KINETIC', 6, false);
+        place(1, 0, 'KINETIC', 6, false);
+        place(2, 0, 'KINETIC', 6, false);
+        place(0, 1, 'KINETIC', 6, false);
+        place(0, 2, 'KINETIC', 6, false);
+        place(1, 1, 'NORMAL', 5, true);
+        place(2, 1, 'NORMAL', 5, true);
+        place(1, 2, 'NORMAL', 5, true);
+        place(1, 3, 'CLASS_ABILITY', 3, false);
+        place(2, 3, 'CLASS_ABILITY', 3, false);
 
-        // 6 Cores trapped inside the chamber
-        place(3, 1, 'NORMAL', 3, true);
-        place(4, 1, 'NORMAL', 3, true);
-        place(5, 1, 'NORMAL', 3, true);
-        place(3, 2, 'NORMAL', 3, true);
-        place(4, 2, 'NORMAL', 3, true);
-        place(5, 2, 'NORMAL', 3, true);
+        // Center Armor Spine (Cols 3..4)
+        place(3, 1, 'ARMOR', 8, false);
+        place(4, 1, 'ARMOR', 8, false);
+        place(3, 2, 'ARMOR', 8, false);
+        place(4, 2, 'ARMOR', 8, false);
 
-        // Gate of ◇ Swarm blocks sealing the chamber entry
-        place(3, 3, 'CLASS_ABILITY', 2, false);
-        place(4, 3, 'CLASS_ABILITY', 2, false);
-        place(5, 3, 'CLASS_ABILITY', 2, false);
-        place(4, 4, 'SPLITTER', 2, false);
+        // Right Chamber (Cols 5..7)
+        place(5, 0, 'KINETIC', 6, false);
+        place(6, 0, 'KINETIC', 6, false);
+        place(7, 0, 'KINETIC', 6, false);
+        place(7, 1, 'KINETIC', 6, false);
+        place(7, 2, 'KINETIC', 6, false);
+        place(5, 1, 'NORMAL', 5, true);
+        place(6, 1, 'NORMAL', 5, true);
+        place(6, 2, 'NORMAL', 5, true);
+        place(5, 3, 'CLASS_ABILITY', 3, false);
+        place(6, 3, 'CLASS_ABILITY', 3, false);
         return true;
       }
 
       if (arch === 'KINETIC_TITAN') {
         this.currentPatternName = 'Campo Kinetic · Slalom Acceleratore';
-        for (let c = 2; c <= 6; c++) {
-          place(c, 0, 'NORMAL', 3, true);
-        }
-        place(4, 1, 'NORMAL', 3, true);
-        place(2, 1, 'CLASS_ABILITY', 2, false);
-        place(6, 1, 'CLASS_ABILITY', 2, false);
-        place(3, 2, 'KINETIC', 3, false);
-        place(5, 2, 'KINETIC', 3, false);
-        place(4, 3, 'CLASS_ABILITY', 2, false);
-        place(2, 4, 'KINETIC', 3, false);
-        place(6, 4, 'KINETIC', 3, false);
+        place(1, 0, 'NORMAL', 5, true);
+        place(2, 0, 'NORMAL', 5, true);
+        place(5, 0, 'NORMAL', 5, true);
+        place(6, 0, 'NORMAL', 5, true);
+        place(2, 1, 'NORMAL', 5, true);
+        place(5, 1, 'NORMAL', 5, true);
+        place(1, 2, 'CLASS_ABILITY', 3, false);
+        place(6, 2, 'CLASS_ABILITY', 3, false);
+        place(3, 2, 'KINETIC', 4, false);
+        place(4, 2, 'KINETIC', 4, false);
+        place(2, 4, 'CLASS_ABILITY', 3, false);
+        place(5, 4, 'CLASS_ABILITY', 3, false);
         return true;
       }
 
@@ -1023,75 +1041,83 @@ export class GameEngine {
 
     if (level === 2) {
       this.currentPatternName = 'Settore 2 · Il Bivio Balistico';
-      // 6 Cores across the upper rows
-      place(2, 0, 'NORMAL', 3, true);
-      place(3, 0, 'NORMAL', 3, true);
-      place(5, 0, 'NORMAL', 3, true);
-      place(6, 0, 'NORMAL', 3, true);
-      place(3, 1, 'NORMAL', 3, true);
-      place(5, 1, 'NORMAL', 3, true);
+      // 6 Cores (6 HP) split between Left & Right upper wings
+      place(1, 0, 'NORMAL', 6, true);
+      place(2, 0, 'NORMAL', 6, true);
+      place(1, 1, 'NORMAL', 6, true);
 
-      // Left side: Explosive cube sits right above a helpful Kinetic bounce shelf (risk vs reward!)
-      place(2, 2, 'EXPLOSIVE', 2, false);
-      place(1, 3, 'KINETIC', 3, false);
-      place(2, 3, 'KINETIC', 3, false);
+      place(5, 0, 'NORMAL', 6, true);
+      place(6, 0, 'NORMAL', 6, true);
+      place(6, 1, 'NORMAL', 6, true);
 
-      // Center & Right side: Class Ability ◇ blocks above a right-side Kinetic bounce shelf
-      place(4, 1, 'CLASS_ABILITY', 2, false);
-      place(6, 2, 'CLASS_ABILITY', 2, false);
-      place(4, 3, 'CLASS_ABILITY', 2, false);
-      place(6, 3, 'KINETIC', 3, false);
-      place(7, 3, 'KINETIC', 3, false);
+      // Left Wing: Explosive cube sits above a helpful Kinetic bounce shelf (detonating it damages Left Cores but destroys the shelf!)
+      place(1, 2, 'EXPLOSIVE', 3, false);
+      place(0, 3, 'KINETIC', 4, false);
+      place(1, 3, 'KINETIC', 4, false);
+
+      // Center & Right Wing: Class Ability ◇ blocks above a right-side Kinetic bounce shelf
+      place(3, 2, 'ARMOR', 8, false);
+      place(4, 2, 'ARMOR', 8, false);
+      place(2, 2, 'CLASS_ABILITY', 3, false);
+      place(5, 2, 'CLASS_ABILITY', 3, false);
+      place(6, 2, 'CLASS_ABILITY', 3, false);
+      place(6, 3, 'KINETIC', 4, false);
+      place(7, 3, 'KINETIC', 4, false);
       return true;
     }
 
     if (level === 3) {
       this.currentPatternName = 'Settore 3 · La Barriera e il Passaggio';
-      // 6 Cores protected behind a front Armor wall
-      for (let c = 2; c <= 6; c++) {
-        place(c, 0, 'NORMAL', 4, true);
-      }
-      place(4, 1, 'NORMAL', 4, true);
+      // 6 Cores (6 HP) protected behind a front Armor wall
+      place(1, 0, 'NORMAL', 6, true);
+      place(2, 0, 'NORMAL', 6, true);
+      place(3, 0, 'NORMAL', 6, true);
+      place(4, 0, 'NORMAL', 6, true);
+      place(5, 0, 'NORMAL', 6, true);
+      place(6, 0, 'NORMAL', 6, true);
 
-      // 3 Class Ability ◇ blocks tucked right behind the barrier
-      place(3, 1, 'CLASS_ABILITY', 2, false);
-      place(5, 1, 'CLASS_ABILITY', 2, false);
-      place(4, 2, 'CLASS_ABILITY', 2, false);
+      // 3 Class Ability ◇ blocks tucked behind the barrier
+      place(2, 1, 'CLASS_ABILITY', 3, false);
+      place(5, 1, 'CLASS_ABILITY', 3, false);
+      place(3, 2, 'CLASS_ABILITY', 3, false);
 
-      // Front Armor Barrier (with a narrow center seam or side bank option)
-      place(2, 3, 'ARMOR', 7, false);
-      place(3, 3, 'ARMOR', 7, false);
-      place(5, 3, 'ARMOR', 7, false);
-      place(6, 3, 'ARMOR', 7, false);
+      // Front Armor Barrier (Cols 1..6 at Row 3, with bank corridors on Cols 0 & 7)
+      place(1, 3, 'ARMOR', 9, false);
+      place(2, 3, 'ARMOR', 9, false);
+      place(3, 3, 'ARMOR', 9, false);
+      place(4, 3, 'ARMOR', 9, false);
+      place(5, 3, 'ARMOR', 9, false);
+      place(6, 3, 'ARMOR', 9, false);
 
-      // Outer Kinetic Bank Reflectors to angle shots behind the wall
-      place(0, 1, 'KINETIC', 4, false);
-      place(0, 2, 'KINETIC', 4, false);
-      place(8, 1, 'KINETIC', 4, false);
-      place(8, 2, 'KINETIC', 4, false);
+      // Outer Kinetic Bank Reflectors on Cols 0 & 7 to angle shots behind the wall
+      place(0, 1, 'KINETIC', 5, false);
+      place(0, 2, 'KINETIC', 5, false);
+      place(7, 1, 'KINETIC', 5, false);
+      place(7, 2, 'KINETIC', 5, false);
       return true;
     }
 
     if (level === 4) {
       this.currentPatternName = 'Settore 4 · Domino a Cascata';
-      // 6 Cores clustered on the upper right & center
-      place(3, 0, 'NORMAL', 4, true);
-      place(4, 0, 'NORMAL', 4, true);
-      place(5, 0, 'NORMAL', 4, true);
-      place(6, 0, 'NORMAL', 4, true);
-      place(4, 1, 'NORMAL', 4, true);
-      place(6, 1, 'NORMAL', 4, true);
+      // 6 Cores (7 HP) split between Upper Left & Upper Right bastions
+      place(1, 0, 'NORMAL', 7, true);
+      place(2, 0, 'NORMAL', 7, true);
+      place(1, 1, 'NORMAL', 7, true);
+      place(5, 0, 'NORMAL', 7, true);
+      place(6, 0, 'NORMAL', 7, true);
+      place(6, 1, 'NORMAL', 7, true);
 
-      // Diagonal Domino Chain of ◇ Class blocks and Explosive/Splitter triggers
-      place(1, 3, 'CLASS_ABILITY', 2, false);
-      place(2, 2, 'EXPLOSIVE', 2, false);
-      place(3, 2, 'CLASS_ABILITY', 2, false);
-      place(4, 2, 'EXPLOSIVE', 2, false);
-      place(5, 1, 'CLASS_ABILITY', 2, false);
-      place(7, 2, 'SPLITTER', 2, false);
-      place(7, 3, 'CLASS_ABILITY', 2, false);
-      place(2, 4, 'KINETIC', 4, false);
-      place(6, 4, 'KINETIC', 4, false);
+      // Two diagonal domino chains (Left Fuse & Right Fuse)
+      place(0, 3, 'CLASS_ABILITY', 3, false);
+      place(1, 2, 'EXPLOSIVE', 3, false);
+      place(2, 2, 'CLASS_ABILITY', 3, false);
+
+      place(7, 3, 'CLASS_ABILITY', 3, false);
+      place(6, 2, 'EXPLOSIVE', 3, false);
+      place(5, 2, 'CLASS_ABILITY', 3, false);
+
+      place(3, 3, 'KINETIC', 5, false);
+      place(4, 3, 'KINETIC', 5, false);
       return true;
     }
 
@@ -1167,23 +1193,25 @@ export class GameEngine {
     let baseDamage = this.getEffectiveBaseDamage();
     let isElectrified = this.isNextBallElectrified;
     if (isElectrified) {
-      baseDamage += 2;
+      baseDamage += 1;
       this.isNextBallElectrified = false;
     }
 
-    // Option C: Overcharge Carry-Over on the first shot of the sector
+    // Rebalanced Overcharge Carry-Over: focused +1/+1.5 DMG boost & 1 companion mini-ball (never auto-clears the next sector!)
     let overchargeMinis = 0;
     if (this.nextSectorOverchargeStacks > 0) {
       const stacks = this.nextSectorOverchargeStacks;
       this.nextSectorOverchargeStacks = 0;
-      const bonusDmg = Math.max(1, Math.round(baseDamage * 0.25 * stacks * 10) / 10);
+      const bonusDmg = stacks >= 4 ? 1.5 : 1;
       baseDamage += bonusDmg;
       isElectrified = true;
-      overchargeMinis = Math.min(3, Math.ceil(stacks / 2));
+      overchargeMinis = stacks >= 3 ? Math.min(2, Math.floor(stacks / 2)) : 0;
       this.addFloatingText(
         CANNON_X,
         CANNON_Y + 95,
-        `⚡ OVERCHARGE +${bonusDmg} DMG & +${overchargeMinis} SFERE!`,
+        overchargeMinis > 0
+          ? `⚡ TIRO POTENZIATO +${bonusDmg} DMG & +${overchargeMinis} SFERA!`
+          : `⚡ TIRO POTENZIATO +${bonusDmg} DMG!`,
         '#d4b483'
       );
       this.spawnSparks(CANNON_X, CANNON_Y + 25, '#d4b483', 14);
@@ -1398,12 +1426,12 @@ export class GameEngine {
 
     this.feverCapsules.push({
       id: this.nextCapsuleId++,
-      x: Math.max(90, Math.min(VIRTUAL_WIDTH - 90, x)),
-      y: Math.max(220, Math.min(950, y)),
+      x: Math.max(100, Math.min(VIRTUAL_WIDTH - 100, x)),
+      y: Math.max(540, Math.min(960, y)),
       vx: ((this.nextCapsuleId % 3) - 1) * 35,
-      vy: 260 + (this.nextCapsuleId % 3) * 40,
-      width: 124,
-      height: 46,
+      vy: 500 + (this.nextCapsuleId % 3) * 50,
+      width: 140,
+      height: 50,
       type,
       label,
       color,
@@ -1413,10 +1441,11 @@ export class GameEngine {
 
   private updateFever(dt: number) {
     this.feverTimer -= dt;
+    this.feverElapsed += dt;
     this.feverExplosionTimer -= dt;
 
     if (this.feverExplosionTimer <= 0) {
-      this.feverExplosionTimer = 0.07;
+      this.feverExplosionTimer = 0.06;
       for (const c of this.cubes) {
         if (c.isAlive) {
           c.isAlive = false;
@@ -1426,9 +1455,8 @@ export class GameEngine {
           const cy = c.y + c.height / 2;
           this.spawnCubeShards(c);
           this.spawnSparks(cx, cy, '#d4b483', 14);
-          this.addFloatingText(cx, cy, 'FEVER +500', '#d4b483');
-          if (this.feverCapsules.length < 5 && this.feverTimer > 0.8) {
-            this.spawnFeverCapsule(cx, cy);
+          if (this.feverCapsules.length < 5 && this.feverElapsed < 0.7) {
+            this.spawnFeverCapsule(cx, Math.max(600, cy));
           }
           this.screenShake = 6;
           soundEngine.playCubeShatter();
@@ -1443,30 +1471,30 @@ export class GameEngine {
     for (const cap of this.feverCapsules) {
       if (!cap.isAlive) continue;
 
-      cap.vy += 150 * dt;
+      cap.vy += 280 * dt;
       cap.x += cap.vx * dt;
       cap.y += cap.vy * dt;
 
-      if (cap.x < 70) {
-        cap.x = 70;
+      if (cap.x < 80) {
+        cap.x = 80;
         cap.vx = Math.abs(cap.vx);
-      } else if (cap.x > VIRTUAL_WIDTH - 70) {
-        cap.x = VIRTUAL_WIDTH - 70;
+      } else if (cap.x > VIRTUAL_WIDTH - 80) {
+        cap.x = VIRTUAL_WIDTH - 80;
         cap.vx = -Math.abs(cap.vx);
       }
 
       // Strong magnetic pull into the basket when capsules approach the bottom
-      if (cap.y >= this.basket.y - 320 && cap.y <= this.basket.y + 60) {
+      if (cap.y >= this.basket.y - 360 && cap.y <= this.basket.y + 70) {
         const dx = basketCenterX - cap.x;
-        if (Math.abs(dx) < this.basket.width * 1.15) {
-          cap.x += dx * 4.2 * dt;
+        if (Math.abs(dx) < this.basket.width * 1.35) {
+          cap.x += dx * 4.8 * dt;
         }
       }
 
       // Check collision with basket
       const hitX =
-        Math.abs(cap.x - basketCenterX) <= this.basket.width * 0.62 + cap.width * 0.4;
-      const hitY = Math.abs(cap.y - basketCenterY) <= this.basket.height * 0.9 + cap.height * 0.5;
+        Math.abs(cap.x - basketCenterX) <= this.basket.width * 0.68 + cap.width * 0.44;
+      const hitY = Math.abs(cap.y - basketCenterY) <= this.basket.height * 1.0 + cap.height * 0.55;
       if (hitX && hitY) {
         cap.isAlive = false;
         if (!this.lastFeverSummary) {
@@ -1481,34 +1509,40 @@ export class GameEngine {
         if (cap.type === 'BALL') {
           this.ballsRemaining++;
           this.lastFeverSummary.ballsCaught++;
-          this.addFloatingText(cap.x, this.basket.y - 40, '★ CAPSULA: +1 SFERA!', '#e4e4e7');
+          this.addFloatingText(cap.x, this.basket.y - 44, '★ CAPSULA: +1 SFERA!', '#e4e4e7');
           soundEngine.playFreeBall();
         } else if (cap.type === 'OVERCHARGE') {
           this.feverOverchargeCaught++;
           this.lastFeverSummary.overchargeCaught++;
-          this.addFloatingText(cap.x, this.basket.y - 40, '◇ CAPSULA: +1 OVERCHARGE!', cap.color);
+          this.addFloatingText(cap.x, this.basket.y - 44, '◇ CAPSULA: +1 OVERCHARGE!', cap.color);
           soundEngine.playRelicSelect();
         } else {
           this.addQuantumShards(8);
           this.lastFeverSummary.shardsCaught += 8;
-          this.addFloatingText(cap.x, this.basket.y - 40, '◆ CAPSULA: +8 SCHEGGE!', '#7c9cb4');
+          this.addFloatingText(cap.x, this.basket.y - 44, '◆ CAPSULA: +8 SCHEGGE!', '#7c9cb4');
           soundEngine.playShardCollect();
         }
         this.spawnSparks(cap.x, this.basket.y, cap.color, 12);
         soundEngine.triggerHaptic(25);
-      } else if (cap.y > VIRTUAL_HEIGHT + 60) {
+      } else if (cap.y > this.basket.y + 95) {
+        // Capsule has passed below the basket capture zone
         cap.isAlive = false;
       }
     }
 
-    if (this.feverTimer <= 0) {
+    const anyActiveCapsule = this.feverCapsules.some((c) => c.isAlive);
+    const anyAliveCube = this.cubes.some((c) => c.isAlive);
+    const allCapsulesResolved =
+      this.feverElapsed >= 1.2 && !anyActiveCapsule && !anyAliveCube;
+
+    if (allCapsulesResolved || this.feverTimer <= 0) {
       const ballBonus = this.ballsRemaining * 2000;
       this.score += ballBonus;
       const isBossSector = this.currentLevel % 5 === 0;
       const shardReward = isBossSector ? 45 : this.currentNodeType === 'ELITE' ? 35 : 15;
       this.addQuantumShards(shardReward);
 
-      // Option C: Convert remaining balls + caught overcharge capsules into First-Shot Overcharge for next sector
+      // Convert remaining balls + caught overcharge capsules into First-Shot Overcharge for next sector
       const leftoverConverted = Math.min(4, Math.max(1, this.ballsRemaining));
       this.nextSectorOverchargeStacks = Math.min(
         6,
@@ -1527,7 +1561,7 @@ export class GameEngine {
         this.lastFeverSummary.totalOverchargeStacks = this.nextSectorOverchargeStacks;
       }
 
-      // Option C: Generous ball recovery (+2 on Normal, +3 on Elite/Boss) & guaranteed minimum 4 balls
+      // Generous ball recovery (+2 on Normal, +3 on Elite/Boss) & guaranteed minimum 4 balls
       const maxCap = 9 + this.progression.getData().upgradeExtraBalls;
       const recovered = isBossSector || this.currentNodeType === 'ELITE' ? 3 : 2;
       this.ballsRemaining = Math.max(4, Math.min(maxCap, this.ballsRemaining + recovered));
@@ -1554,7 +1588,6 @@ export class GameEngine {
         if (unlocks.length > 0 && this.listener.onNewUnlock) {
           this.listener.onNewUnlock(unlocks[0]);
         }
-        // Option C: Draft Relic on EVERY sector in Chapter 1 (Sectors 1-5), plus even/Elite/Boss sectors afterwards
         const shouldDraft =
           this.currentLevel <= 5 ||
           this.currentLevel % 2 === 0 ||
@@ -1576,6 +1609,14 @@ export class GameEngine {
     for (let i = this.balls.length - 1; i >= 0; i--) {
       const b = this.balls[i];
       if (!b.isAlive) {
+        this.balls.splice(i, 1);
+        continue;
+      }
+
+      // Cap mini-ball bounces at 10 so Swarm flurries are crisp and readable without infinite loops
+      if (b.isMini && b.bounces >= 10) {
+        b.isAlive = false;
+        this.spawnSparks(b.x, b.y, '#9b95b8', 6);
         this.balls.splice(i, 1);
         continue;
       }
@@ -1610,19 +1651,19 @@ export class GameEngine {
         }
       }
 
-      // Calm second-skill window: gently damp downward velocity below y=1280 so player has time to react
-      if (!b.isMini && b.y > 1280 && b.vy > 460) {
-        b.vy *= Math.max(0.86, 1 - 0.42 * dt);
+      // Calm second-skill window: gently damp downward velocity below y=1120 so player has time to react
+      if (!b.isMini && b.y > 1120 && b.vy > 440) {
+        b.vy *= Math.max(0.85, 1 - 0.45 * dt);
       }
 
       const magnetLvl = this.progression.getData().upgradeBasketMagnet || 0;
-      const magnetHeight = 160 + magnetLvl * 35;
-      if (!b.isMini && b.y >= this.basket.y - magnetHeight && b.y <= this.basket.y + 35 && b.vy > 0) {
+      const magnetHeight = 175 + magnetLvl * 35;
+      if (!b.isMini && b.y >= this.basket.y - magnetHeight && b.y <= this.basket.y + 38 && b.vy > 0) {
         const basketCenterX = this.basket.x + this.basket.width / 2;
         const distToCenter = basketCenterX - b.x;
-        const reachRatio = 0.78 + magnetLvl * 0.18;
+        const reachRatio = 0.82 + magnetLvl * 0.18;
         if (Math.abs(distToCenter) < this.basket.width * reachRatio) {
-          const basePull = this.activeRelics.includes('MAGNETIC_BASKET') ? 2.8 : 1.15;
+          const basePull = this.activeRelics.includes('MAGNETIC_BASKET') ? 2.9 : 1.25;
           const pullFactor = basePull + magnetLvl * 0.55;
           b.vx += distToCenter * pullFactor * dt;
         }
@@ -2003,12 +2044,22 @@ export class GameEngine {
           }
 
           if (c.type === 'EXPLOSIVE') {
-            const rExp = 220 * (this.currentArchetype === 'PYRO_DETONATOR' ? 1.25 : 1.0);
-            this.triggerExplosion(c.x + c.width / 2, c.y + c.height / 2, rExp, 5);
+            const rExp = 225 * (this.currentArchetype === 'PYRO_DETONATOR' ? 1.18 : 1.0);
+            this.addVisualEffect('ORIGIN', c.x, c.y, '#c87d65', {
+              w: c.width,
+              h: c.height,
+              duration: 0.6,
+            });
+            this.triggerExplosion(c.x + c.width / 2, c.y + c.height / 2, rExp, 3);
             this.screenShake = 14;
           }
 
           if (c.type === 'SPLITTER') {
+            this.addVisualEffect('ORIGIN', c.x, c.y, '#9b95b8', {
+              w: c.width,
+              h: c.height,
+              duration: 0.55,
+            });
             this.spawnMiniBalls(
               c.x + c.width / 2,
               c.y + c.height / 2,
@@ -2072,6 +2123,13 @@ export class GameEngine {
     const cy = c.y + c.height / 2;
     const archColor = ARCHETYPES_DATA[arch]?.color || '#e4e4e7';
 
+    // Highlight the exact ◇ Class Block that triggered this chain reaction (Cause visibility!)
+    this.addVisualEffect('ORIGIN', c.x, c.y, archColor, {
+      w: c.width,
+      h: c.height,
+      duration: 0.65,
+    });
+
     // Boss Relay Mechanic: hitting/shattering any ◇ Class Block while a Boss is alive fires a direct energy beam into the Boss and disables its frontal shield!
     if (this.activeBoss && this.activeBoss.isAlive) {
       const bx = this.activeBoss.x + this.activeBoss.width / 2;
@@ -2081,7 +2139,12 @@ export class GameEngine {
       this.activeBoss.hitFlash = 1;
       this.activeBoss.wobble = 1;
       this.bossFrontShieldBrokenThisShot = true;
-      this.addVisualEffect('BEAM', cx, cy, archColor, { x2: bx, y2: by, duration: 0.45 });
+      this.addVisualEffect('BEAM', cx, cy, archColor, { x2: bx, y2: by, duration: 0.55 });
+      this.addVisualEffect('TARGET', this.activeBoss.x, this.activeBoss.y, archColor, {
+        w: this.activeBoss.width,
+        h: this.activeBoss.height,
+        duration: 0.55,
+      });
       this.addFloatingText(
         bx,
         this.activeBoss.y + this.activeBoss.height + 24,
@@ -2099,15 +2162,20 @@ export class GameEngine {
       case 'PROTO_CORE': {
         if (!isShatter) {
           this.addScore(300);
-          this.addVisualEffect('RING', cx, cy, archColor, { radius: 190, duration: 0.38 });
+          this.addVisualEffect('RING', cx, cy, archColor, { radius: 210, duration: 0.45 });
           for (const other of this.cubes) {
             if (other.isAlive && other !== c) {
               const dx = other.x + other.width / 2 - cx;
               const dy = other.y + other.height / 2 - cy;
-              if (dx * dx + dy * dy <= 190 * 190) {
+              if (dx * dx + dy * dy <= 210 * 210) {
                 other.hp -= 1;
                 other.hitFlash = 0.8;
                 other.wobble = 0.7;
+                this.addVisualEffect('TARGET', other.x, other.y, archColor, {
+                  w: other.width,
+                  h: other.height,
+                  duration: 0.48,
+                });
                 if (other.hp <= 0) {
                   other.isAlive = false;
                   this.spawnCubeShards(other);
@@ -2115,13 +2183,13 @@ export class GameEngine {
               }
             }
           }
-          this.addFloatingText(cx, cy - 34, '◇ ONDA ARMONICA', archColor);
+          this.addFloatingText(cx, cy - 38, '◇ ONDA ARMONICA', archColor);
           this.spawnSparks(cx, cy, archColor, 8);
         } else {
-          this.addVisualEffect('RING', cx, cy, archColor, { radius: 220, duration: 0.42 });
+          this.addVisualEffect('RING', cx, cy, archColor, { radius: 240, duration: 0.5 });
           this.spawnMiniBalls(cx, cy, newBalls, 1);
           this.addQuantumShards(2);
-          this.addFloatingText(cx, cy - 42, '◇ IMPULSO ARMONICO! +2◆', archColor);
+          this.addFloatingText(cx, cy - 44, '◇ IMPULSO ARMONICO! +2◆', archColor);
           this.spawnSparks(cx, cy, archColor, 14);
         }
         break;
@@ -2130,11 +2198,11 @@ export class GameEngine {
       case 'VOLT_OVERCHARGE': {
         if (!isShatter) {
           this.triggerChainLightning(c, 0);
-          this.addFloatingText(cx, cy - 34, '◇ SCARICA VOLT!', archColor);
+          this.addFloatingText(cx, cy - 38, '◇ SCARICA VOLT!', archColor);
         } else {
-          this.triggerChainLightning(c, 2);
+          this.triggerChainLightning(c, 1);
           this.isNextBallElectrified = true;
-          this.addFloatingText(cx, cy - 42, '◇ TEMPESTA VOLT!', archColor);
+          this.addFloatingText(cx, cy - 44, '◇ TEMPESTA VOLT!', archColor);
           this.screenShake = Math.max(this.screenShake, 10);
         }
         break;
@@ -2142,11 +2210,11 @@ export class GameEngine {
 
       case 'PYRO_DETONATOR': {
         if (!isShatter) {
-          this.triggerExplosion(cx, cy, 150, 2);
-          this.addFloatingText(cx, cy - 34, '◇ FIAMMATA SOLARE!', archColor);
+          this.triggerExplosion(cx, cy, 175, 1);
+          this.addFloatingText(cx, cy - 38, '◇ FIAMMATA SOLARE!', archColor);
         } else {
-          this.triggerExplosion(cx, cy, 260, 6);
-          this.addFloatingText(cx, cy - 42, '◇ DETONAZIONE SOLARE!', archColor);
+          this.triggerExplosion(cx, cy, 240, 3);
+          this.addFloatingText(cx, cy - 44, '◇ DETONAZIONE SOLARE!', archColor);
           this.screenShake = Math.max(this.screenShake, 15);
         }
         break;
@@ -2157,24 +2225,29 @@ export class GameEngine {
           b.vx *= 1.25;
           b.vy *= 1.25;
           b.baseDamage += 1;
-          this.addVisualEffect('RING', cx, cy, archColor, { radius: 140, duration: 0.32 });
-          this.addFloatingText(cx, cy - 34, '◇ URTO TITANICO +1 DMG!', archColor);
+          this.addVisualEffect('RING', cx, cy, archColor, { radius: 150, duration: 0.36 });
+          this.addFloatingText(cx, cy - 38, '◇ URTO TITANICO +1 DMG!', archColor);
           this.spawnSparks(cx, cy, archColor, 10);
         } else {
           this.screenShake = Math.max(this.screenShake, 14);
-          this.addVisualEffect('RING', cx, cy, archColor, { radius: 220, duration: 0.45 });
-          this.addFloatingText(cx, cy - 42, '◇ SISMA TITANICO!', archColor);
+          this.addVisualEffect('RING', cx, cy, archColor, { radius: 240, duration: 0.5 });
+          this.addFloatingText(cx, cy - 44, '◇ SISMA TITANICO!', archColor);
           for (const other of this.cubes) {
             if (other.isAlive && other !== c) {
               const isHeavy =
                 other.type === 'ARMOR' || other.type === 'SHIELD' || other.type === 'BOSS';
               const dx = other.x + other.width / 2 - cx;
               const dy = other.y + other.height / 2 - cy;
-              if (isHeavy || dx * dx + dy * dy <= 220 * 220) {
+              if (isHeavy || dx * dx + dy * dy <= 240 * 240) {
                 const sismaDmg = isHeavy ? 3 : 2;
                 other.hp -= sismaDmg;
                 other.hitFlash = 1;
                 other.wobble = 1.1;
+                this.addVisualEffect('TARGET', other.x, other.y, archColor, {
+                  w: other.width,
+                  h: other.height,
+                  duration: 0.5,
+                });
                 if (other.hp <= 0) {
                   other.isAlive = false;
                   this.spawnCubeShards(other);
@@ -2190,11 +2263,11 @@ export class GameEngine {
       case 'SWARM_MATRIX': {
         if (!isShatter) {
           this.spawnMiniBalls(cx, cy, newBalls, 1);
-          this.addFloatingText(cx, cy - 34, '◇ SCIAME +1 SFERA!', archColor);
+          this.addFloatingText(cx, cy - 38, '◇ SCIAME +1 SFERA!', archColor);
           this.spawnSparks(cx, cy, archColor, 10);
         } else {
           this.spawnMiniBalls(cx, cy, newBalls, 3);
-          this.addFloatingText(cx, cy - 42, '◇ ERUZIONE SCIAME +3!', archColor);
+          this.addFloatingText(cx, cy - 44, '◇ ERUZIONE SCIAME +3!', archColor);
           this.spawnSparks(cx, cy, archColor, 18);
         }
         break;
@@ -2207,15 +2280,20 @@ export class GameEngine {
             if (other.isAlive && other !== c && !other.isFrozen) {
               const dx = other.x + other.width / 2 - cx;
               const dy = other.y + other.height / 2 - cy;
-              if (dx * dx + dy * dy <= 240 * 240) {
+              if (dx * dx + dy * dy <= 250 * 250) {
                 other.isFrozen = true;
                 other.hitFlash = 0.7;
+                this.addVisualEffect('TARGET', other.x, other.y, archColor, {
+                  w: other.width,
+                  h: other.height,
+                  duration: 0.5,
+                });
                 frozenCount++;
                 if (frozenCount >= 2) break;
               }
             }
           }
-          this.addFloatingText(cx, cy - 34, '◇ CRIO-ONDA!', archColor);
+          this.addFloatingText(cx, cy - 38, '◇ CRIO-ONDA!', archColor);
           this.spawnSparks(cx, cy, archColor, 10);
         } else {
           for (const other of this.cubes) {
@@ -2227,6 +2305,11 @@ export class GameEngine {
                 other.hp -= 3;
                 other.hitFlash = 1;
                 other.wobble = 1;
+                this.addVisualEffect('TARGET', other.x, other.y, archColor, {
+                  w: other.width,
+                  h: other.height,
+                  duration: 0.5,
+                });
                 if (other.hp <= 0) {
                   other.isAlive = false;
                   this.spawnCubeShards(other);
@@ -2234,7 +2317,7 @@ export class GameEngine {
               }
             }
           }
-          this.addFloatingText(cx, cy - 42, '◇ ZERO ASSOLUTO!', archColor);
+          this.addFloatingText(cx, cy - 44, '◇ ZERO ASSOLUTO!', archColor);
           this.spawnSparks(cx, cy, archColor, 18);
         }
         break;
@@ -2244,17 +2327,22 @@ export class GameEngine {
         if (!isShatter) {
           this.currentCombo += 3;
           this.addScore(400);
-          this.addFloatingText(cx, cy - 34, '◇ CRONO COMBO +3!', archColor);
+          this.addFloatingText(cx, cy - 38, '◇ CRONO COMBO +3!', archColor);
           this.spawnSparks(cx, cy, archColor, 10);
         } else {
           for (const other of this.cubes) {
             if (other.isAlive && other !== c) {
-              const sameRow = Math.abs(other.y - c.y) < 42;
-              const sameCol = Math.abs(other.x - c.x) < 56;
+              const sameRow = Math.abs(other.y - c.y) < 48;
+              const sameCol = Math.abs(other.x - c.x) < 64;
               if (sameRow || sameCol) {
                 other.hp -= 3;
                 other.hitFlash = 1;
                 other.wobble = 1;
+                this.addVisualEffect('TARGET', other.x, other.y, archColor, {
+                  w: other.width,
+                  h: other.height,
+                  duration: 0.5,
+                });
                 if (other.hp <= 0) {
                   other.isAlive = false;
                   this.spawnCubeShards(other);
@@ -2263,7 +2351,7 @@ export class GameEngine {
             }
           }
           this.screenShake = Math.max(this.screenShake, 12);
-          this.addFloatingText(cx, cy - 42, '◇ RAGGIO A CROCE!', archColor);
+          this.addFloatingText(cx, cy - 44, '◇ RAGGIO A CROCE!', archColor);
           this.spawnSparks(cx, cy, archColor, 18);
         }
         break;
@@ -2288,12 +2376,17 @@ export class GameEngine {
             targetCore.hp -= 2;
             targetCore.hitFlash = 1;
             targetCore.wobble = 1;
+            this.addVisualEffect('TARGET', targetCore.x, targetCore.y, archColor, {
+              w: targetCore.width,
+              h: targetCore.height,
+              duration: 0.5,
+            });
             if (targetCore.hp <= 0) {
               targetCore.isAlive = false;
               this.spawnCubeShards(targetCore);
             }
           }
-          this.addFloatingText(cx, cy - 34, '◇ IMPULSO SINGOLARITÀ!', archColor);
+          this.addFloatingText(cx, cy - 38, '◇ IMPULSO SINGOLARITÀ!', archColor);
           this.spawnSparks(cx, cy, archColor, 10);
         } else {
           for (const other of this.cubes) {
@@ -2301,6 +2394,11 @@ export class GameEngine {
               other.hp -= 2;
               other.hitFlash = 1;
               other.wobble = 1;
+              this.addVisualEffect('TARGET', other.x, other.y, archColor, {
+                w: other.width,
+                h: other.height,
+                duration: 0.5,
+              });
               if (other.hp <= 0) {
                 other.isAlive = false;
                 this.spawnCubeShards(other);
@@ -2309,7 +2407,7 @@ export class GameEngine {
           }
           this.spawnMiniBalls(cx, cy, newBalls, 2);
           this.screenShake = Math.max(this.screenShake, 14);
-          this.addFloatingText(cx, cy - 42, '◇ COLLASSO QUANTICO!', archColor);
+          this.addFloatingText(cx, cy - 44, '◇ COLLASSO QUANTICO!', archColor);
           this.spawnSparks(cx, cy, archColor, 18);
         }
         break;
@@ -2337,8 +2435,12 @@ export class GameEngine {
       bestCube.wobble = 0.8;
       const cx = bestCube.x + bestCube.width / 2;
       const cy = bestCube.y + bestCube.height / 2;
-      this.addVisualEffect('LIGHTNING', ox, oy, '#7c9cb4', { x2: cx, y2: cy, duration: 0.32 });
-      this.addFloatingText(cx, cy, `⚡-${dmg}`, '#e4e4e7');
+      this.addVisualEffect('LIGHTNING', ox, oy, '#7c9cb4', { x2: cx, y2: cy, duration: 0.4 });
+      this.addVisualEffect('TARGET', bestCube.x, bestCube.y, '#7c9cb4', {
+        w: bestCube.width,
+        h: bestCube.height,
+        duration: 0.4,
+      });
       this.spawnSparks(cx, cy, '#e4e4e7', 5);
       if (bestCube.hp <= 0) {
         bestCube.isAlive = false;
@@ -2352,7 +2454,8 @@ export class GameEngine {
 
   private triggerFeverMode() {
     this.setState('FEVER');
-    this.feverTimer = 2.1;
+    this.feverTimer = 3.8;
+    this.feverElapsed = 0;
     this.feverExplosionTimer = 0.05;
     this.feverCapsules = [];
     this.feverOverchargeCaught = 0;
@@ -2364,15 +2467,15 @@ export class GameEngine {
       totalOverchargeStacks: 0,
     };
 
-    // Option B: Immediately drop 4 guaranteed Supply Capsules across the arena
+    // Spawn 4 guaranteed Supply Capsules in the mid-field so they reach the basket in ~1.2s
     const presetColumns = [230, 430, 650, 850];
     const presetTypes: FeverCapsuleType[] = ['BALL', 'OVERCHARGE', 'BALL', 'SHARDS'];
     for (let i = 0; i < presetColumns.length; i++) {
-      this.spawnFeverCapsule(presetColumns[i], 280 + i * 75, presetTypes[i]);
+      this.spawnFeverCapsule(presetColumns[i], 640 + i * 65, presetTypes[i]);
     }
 
     this.screenShake = 18;
-    this.addFloatingText(CANNON_X, 350, '★ PIOGGIA DI CAPSULE FEVER! ★', '#d4b483');
+    this.addFloatingText(CANNON_X, 350, '★ RACCOGLI LE CAPSULE COL CESTELLO! ★', '#d4b483');
     soundEngine.playFeverFanfare();
     soundEngine.triggerHaptic(80);
     if (this.listener.onFever) this.listener.onFever();
@@ -2396,12 +2499,20 @@ export class GameEngine {
 
   private triggerChainLightning(origin: Cube, extraTargets: number) {
     let zaps = 0;
-    const maxZaps = 2 + extraTargets;
+    const maxZaps = 1 + extraTargets;
     const dmg = this.currentArchetype === 'VOLT_OVERCHARGE' ? 3 : 2;
     const ox = origin.x + origin.width / 2;
     const oy = origin.y + origin.height / 2;
 
-    // Sort candidates so Cores and closest targets within range are prioritized clearly
+    if (origin.id > 0) {
+      this.addVisualEffect('ORIGIN', origin.x, origin.y, '#7c9cb4', {
+        w: origin.width,
+        h: origin.height,
+        duration: 0.6,
+      });
+    }
+
+    // Sort candidates so Cores and closest targets within localized range (380px) are prioritized clearly
     const candidates = this.cubes
       .filter((c) => c.isAlive && c !== origin)
       .map((c) => {
@@ -2410,7 +2521,7 @@ export class GameEngine {
         const distSq = (cx - ox) * (cx - ox) + (cy - oy) * (cy - oy);
         return { cube: c, cx, cy, distSq };
       })
-      .filter((item) => item.distSq < 460 * 460)
+      .filter((item) => item.distSq < 380 * 380)
       .sort((a, b) => (a.cube.isCore === b.cube.isCore ? a.distSq - b.distSq : a.cube.isCore ? -1 : 1));
 
     for (const item of candidates) {
@@ -2423,16 +2534,18 @@ export class GameEngine {
       c.hp -= zapDmg;
       c.hitFlash = 1;
       c.wobble = 1;
-      this.addVisualEffect('LIGHTNING', ox, oy, '#7c9cb4', { x2: cx, y2: cy, duration: 0.42 });
-      this.addFloatingText(cx, cy, `⚡ ZAP -${zapDmg}`, '#7c9cb4');
+      // Clear cause-to-effect lightning arc & target highlight without overlapping text clutter
+      this.addVisualEffect('LIGHTNING', ox, oy, '#7c9cb4', { x2: cx, y2: cy, duration: 0.52 });
+      this.addVisualEffect('TARGET', c.x, c.y, '#7c9cb4', {
+        w: c.width,
+        h: c.height,
+        duration: 0.52,
+      });
       this.spawnSparks(cx, cy, '#7c9cb4', 7);
       zaps++;
       if (c.hp <= 0) {
         c.isAlive = false;
         this.spawnCubeShards(c);
-        if (c.type === 'CLASS_ABILITY') {
-          this.triggerClassAbilityBlock(c, this.balls[0] || ({ vx: 0, vy: 0, baseDamage: 1 } as Ball), this.balls, true);
-        }
         if (this.getRemainingCoreCubes() === 0) {
           this.triggerFeverMode();
           return;
@@ -2455,10 +2568,9 @@ export class GameEngine {
       finalDamage += 2;
     }
 
-    this.addVisualEffect('RING', ex, ey, '#c87d65', { radius: finalRadius, duration: 0.44 });
+    this.addVisualEffect('RING', ex, ey, '#c87d65', { radius: finalRadius, duration: 0.52 });
 
     const chainDetonations: Array<{ x: number; y: number; r: number; dmg: number }> = [];
-    const chainClassCubes: Cube[] = [];
 
     for (const c of this.cubes) {
       if (c.isAlive) {
@@ -2470,19 +2582,27 @@ export class GameEngine {
           c.hp -= finalDamage;
           c.hitFlash = 1;
           c.wobble = 1.2;
-          this.addFloatingText(cx, cy, `BOOM -${finalDamage}`, '#c87d65');
+          // Highlight every affected cube & connect it to the blast origin instead of spamming overlapping "BOOM" text
+          this.addVisualEffect('TARGET', c.x, c.y, '#c87d65', {
+            w: c.width,
+            h: c.height,
+            duration: 0.52,
+          });
           if (c.hp <= 0) {
             c.isAlive = false;
             this.spawnCubeShards(c);
             if (c.type === 'EXPLOSIVE') {
+              this.addVisualEffect('ORIGIN', c.x, c.y, '#c87d65', {
+                w: c.width,
+                h: c.height,
+                duration: 0.6,
+              });
               chainDetonations.push({
                 x: cx,
                 y: cy,
-                r: 210 * (this.currentArchetype === 'PYRO_DETONATOR' ? 1.2 : 1.0),
-                dmg: 4,
+                r: 215,
+                dmg: 3,
               });
-            } else if (c.type === 'CLASS_ABILITY') {
-              chainClassCubes.push(c);
             }
             if (this.getRemainingCoreCubes() === 0) {
               this.triggerFeverMode();
@@ -2493,17 +2613,9 @@ export class GameEngine {
       }
     }
 
-    // Trigger chained Explosive and ◇ Class cubes destroyed by this blast!
+    // Trigger chained Explosive cubes destroyed by this blast!
     for (const det of chainDetonations) {
       this.triggerExplosion(det.x, det.y, det.r, det.dmg);
-    }
-    for (const cc of chainClassCubes) {
-      this.triggerClassAbilityBlock(
-        cc,
-        this.balls[0] || ({ vx: 0, vy: 0, baseDamage: 1 } as Ball),
-        this.balls,
-        true
-      );
     }
 
     if (this.activeRelics.includes('CLUSTER_CHARGE')) {
@@ -2711,14 +2823,24 @@ export class GameEngine {
   }
 
   public addFloatingText(x: number, y: number, text: string, color: string) {
+    // Anti-overlap stagger: if another floating text is nearby, offset y upward so callouts never pile on top of each other
+    let finalY = y;
+    for (const ft of this.floatingTexts) {
+      if (Math.abs(ft.x - x) < 110 && Math.abs(ft.y - finalY) < 30) {
+        finalY = ft.y - 32;
+      }
+    }
+    if (this.floatingTexts.length >= 14) {
+      this.floatingTexts.shift();
+    }
     this.floatingTexts.push({
       id: this.nextTextId++,
       x,
-      y,
+      y: finalY,
       text,
       color,
-      life: 1.1,
-      vy: -70,
+      life: 1.0,
+      vy: -65,
     });
   }
 

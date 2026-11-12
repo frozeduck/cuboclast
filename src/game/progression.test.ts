@@ -298,7 +298,7 @@ test('Option B + C (v0.13.0): Fever drops playable Supply Capsules, triggers Rel
   assert.equal(engine.currentLevel, 2);
   assert.equal(engine.ballsRemaining >= 4, true);
 
-  // Firing the first shot consumes Overcharge stacks, boosts damage, electrifies main ball, and spawns companion mini-balls
+  // Firing the first shot consumes Overcharge stacks, boosts damage, electrifies main ball, and spawns focused companion mini-ball
   const fired = engine.shoot();
   assert.equal(fired, true);
   assert.equal(engine.nextSectorOverchargeStacks, 0);
@@ -307,10 +307,10 @@ test('Option B + C (v0.13.0): Fever drops playable Supply Capsules, triggers Rel
   assert.ok(mainBall);
   assert.equal(mainBall.isElectrified, true);
   assert.equal(mainBall.baseDamage >= 2, true);
-  assert.equal(companionMinis.length, 2);
+  assert.equal(companionMinis.length, 1);
 });
 
-test('v0.15.0 Chapter 1 Redesign: Pyro, Volt, Swarm handcrafted arenas, chain VisualEffects, and Monolith Frontal Shield + ◇ Relay Nodes', () => {
+test('v0.16.0 Playtest Rebalance: 2-Pocket Tactical Split prevents 1-shot center auto-clear, emits ORIGIN/TARGET effects, and Fever waits until Supply Capsules reach the basket', () => {
   const pm = new ProgressionManager();
   pm.resetProgression();
   const engine = new GameEngine(pm);
@@ -321,15 +321,15 @@ test('v0.15.0 Chapter 1 Redesign: Pyro, Volt, Swarm handcrafted arenas, chain Vi
   assert.equal(engine.isArchetypeAvailable('SWARM_MATRIX'), true);
   assert.equal(engine.isArchetypeAvailable('KINETIC_TITAN'), true);
 
-  // 2. Pyro Handcrafted Arena ("Campo Pyro · Innesco a Grappolo") triggers chained explosions and RING visual effects
+  // 2. Pyro Handcrafted Arena ("Campo Pyro · Innesco a Grappolo"): triggering Left pocket ◇ fuse damages Left pocket Cores and emits RING + ORIGIN + TARGET effects, while Right pocket Cores stay intact (requires >= 2 tactical shots)
   engine.selectArchetype('PYRO_DETONATOR', 'STORY', 1, true);
   assert.equal(engine.currentPatternName, 'Campo Pyro · Innesco a Grappolo');
-  const upperPyroFuse = engine.cubes.find((c) => c.type === 'CLASS_ABILITY');
-  assert.ok(upperPyroFuse);
+  const leftPyroFuse = engine.cubes.find((c) => c.type === 'CLASS_ABILITY' && c.x < 500);
+  assert.ok(leftPyroFuse);
   engine.balls = [
     {
-      x: upperPyroFuse.x + upperPyroFuse.width / 2,
-      y: upperPyroFuse.y + upperPyroFuse.height / 2,
+      x: leftPyroFuse.x + leftPyroFuse.width / 2,
+      y: leftPyroFuse.y + leftPyroFuse.height / 2,
       vx: 0,
       vy: 400,
       radius: 18,
@@ -347,11 +347,21 @@ test('v0.15.0 Chapter 1 Redesign: Pyro, Volt, Swarm handcrafted arenas, chain Vi
     engine.visualEffects.some((fx) => fx.type === 'RING'),
     true
   );
+  assert.equal(
+    engine.visualEffects.some((fx) => fx.type === 'ORIGIN'),
+    true
+  );
+  assert.equal(
+    engine.visualEffects.some((fx) => fx.type === 'TARGET'),
+    true
+  );
+  const survivingRightCores = engine.cubes.filter((c) => c.isCore && c.isAlive && c.x > 540);
+  assert.equal(survivingRightCores.length, 3);
 
-  // 3. Volt Handcrafted Arena ("Campo Volt · Ponte Elettrostatico") arcs LIGHTNING across the gap into armored Cores
+  // 3. Volt Handcrafted Arena ("Campo Volt · Ponte Elettrostatico"): triggering Left ◇ relay arcs LIGHTNING into Left armored Cores while Right bunker Cores remain alive
   engine.selectArchetype('VOLT_OVERCHARGE', 'STORY', 1, true);
   assert.equal(engine.currentPatternName, 'Campo Volt · Ponte Elettrostatico');
-  const voltRelay = engine.cubes.find((c) => c.type === 'CLASS_ABILITY');
+  const voltRelay = engine.cubes.find((c) => c.type === 'CLASS_ABILITY' && c.x < 500);
   assert.ok(voltRelay);
   engine.balls = [
     {
@@ -374,8 +384,40 @@ test('v0.15.0 Chapter 1 Redesign: Pyro, Volt, Swarm handcrafted arenas, chain Vi
     engine.visualEffects.some((fx) => fx.type === 'LIGHTNING'),
     true
   );
+  assert.equal(
+    engine.cubes.filter((c) => c.isCore && c.isAlive && c.x > 540).length,
+    3
+  );
 
-  // 4. Sector 5 Boss (The Monolith): Frontal Shield blocks direct bottom hits until a ◇ Relay Node is hit
+  // 4. Condition-Based Fever Mode: Supply Capsules ALWAYS reach the basket y-zone (y=1580) before Fever ends
+  for (const c of engine.cubes) {
+    c.isAlive = false;
+  }
+  engine.balls = [];
+  engine.setState('BALL_IN_PLAY');
+  engine.update(0.016);
+  assert.equal(engine.state, 'FEVER');
+  assert.equal(engine.feverCapsules.length >= 4, true);
+
+  // Simulate 1.3s of Fever while holding capsules in mid-air: Fever MUST NOT close prematurely while capsules are still falling above the basket
+  let elapsed = 0;
+  while (elapsed < 1.3 && engine.state === 'FEVER') {
+    engine.update(0.05);
+    elapsed += 0.05;
+  }
+  // Now let capsules continue falling naturally until they cross the basket (y = 1580)
+  let caughtOrPassedBasket = false;
+  while (engine.state === 'FEVER' && elapsed < 3.8) {
+    if (engine.feverCapsules.some((cap) => !cap.isAlive || cap.y >= engine.basket.y - 20)) {
+      caughtOrPassedBasket = true;
+    }
+    engine.update(0.05);
+    elapsed += 0.05;
+  }
+  assert.equal(caughtOrPassedBasket, true);
+  assert.equal(engine.state, 'RELIC_DRAFT');
+
+  // 5. Sector 5 Boss (The Monolith): Frontal Shield blocks direct bottom hits until a ◇ Relay Node is hit
   engine.initLevel(5, 'BOSS', false);
   const boss = engine.activeBoss;
   assert.ok(boss);

@@ -736,7 +736,7 @@ export interface FloatingText {
   vy: number;
 }
 
-export type VisualEffectType = 'LIGHTNING' | 'RING' | 'BEAM';
+export type VisualEffectType = 'LIGHTNING' | 'RING' | 'BEAM' | 'ORIGIN' | 'TARGET';
 
 export interface VisualEffect {
   id: number;
@@ -745,6 +745,8 @@ export interface VisualEffect {
   y1: number;
   x2?: number;
   y2?: number;
+  w?: number;
+  h?: number;
   radius?: number;
   color: string;
   life: number;

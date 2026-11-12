@@ -189,7 +189,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine, disabled = false
         const { scale, offsetY } = getScaleInfo();
         const vy = (e.clientY - rect.top - offsetY) / scale;
         // If user dragged the bottom basket slider track while aiming, steer basket without firing
-        if (vy > 1680) {
+        if (vy > 1540) {
           return;
         }
       }
@@ -219,7 +219,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine, disabled = false
     }
 
     if (engine.state === 'AIMING') {
-      if (vy > 1680) {
+      if (vy > 1540) {
         engine.steerBasketTo(vx);
       } else if (vy > 100) {
         engine.setAimAngle(vx, vy);
@@ -644,21 +644,21 @@ function drawCubes(ctx: CanvasRenderingContext2D, engine: GameEngine) {
     ctx.fill();
     ctx.stroke();
 
-    // Distinct Geometric Signature per Cube Family (instant visual readability without text)
+    // Distinct Geometric Signature per Cube Family (instant visual readability on mobile without text)
     if (c.isCore && c.type !== 'BOSS') {
-      const pulse = 0.4 + Math.sin(c.shieldPulse) * 0.2;
+      const pulse = 0.45 + Math.sin(c.shieldPulse) * 0.22;
       ctx.strokeStyle = `rgba(212, 180, 131, ${pulse.toFixed(2)})`;
-      ctx.lineWidth = 1.8;
+      ctx.lineWidth = 2.4;
       ctx.beginPath();
-      ctx.arc(centerX, centerY, (drawH / 2) * 0.7, 0, Math.PI * 2);
+      ctx.arc(centerX, centerY, (drawH / 2) * 0.72, 0, Math.PI * 2);
       ctx.stroke();
     } else if (c.type === 'CLASS_ABILITY') {
       // Unmistakable rotated diamond (◇) + 4 corner ticks in active class color
-      const dw = drawW * 0.44;
+      const dw = drawW * 0.45;
       const dh = drawH * 0.46;
       ctx.strokeStyle = strokeColor;
-      ctx.globalAlpha = 0.72;
-      ctx.lineWidth = 2.0;
+      ctx.globalAlpha = 0.85;
+      ctx.lineWidth = 2.6;
       ctx.beginPath();
       ctx.moveTo(centerX, centerY - dh);
       ctx.lineTo(centerX + dw, centerY);
@@ -667,57 +667,57 @@ function drawCubes(ctx: CanvasRenderingContext2D, engine: GameEngine) {
       ctx.closePath();
       ctx.stroke();
 
-      // Small corner accent ticks so ◇ blocks pop immediately on mobile without obscuring the HP number
+      // Corner accent ticks so ◇ blocks pop immediately on mobile without obscuring the HP number
       ctx.fillStyle = strokeColor;
-      ctx.fillRect(rx + 6, ry + 6, 4, 4);
-      ctx.fillRect(rx + drawW - 10, ry + 6, 4, 4);
-      ctx.fillRect(rx + 6, ry + drawH - 10, 4, 4);
-      ctx.fillRect(rx + drawW - 10, ry + drawH - 10, 4, 4);
+      ctx.fillRect(rx + 6, ry + 6, 5, 5);
+      ctx.fillRect(rx + drawW - 11, ry + 6, 5, 5);
+      ctx.fillRect(rx + 6, ry + drawH - 11, 5, 5);
+      ctx.fillRect(rx + drawW - 11, ry + drawH - 11, 5, 5);
       ctx.globalAlpha = 1.0;
     } else if (c.type === 'EXPLOSIVE') {
       // Diagonal X cross for Explosive cubes
-      ctx.strokeStyle = 'rgba(200, 125, 101, 0.42)';
-      ctx.lineWidth = 1.8;
+      ctx.strokeStyle = 'rgba(200, 125, 101, 0.5)';
+      ctx.lineWidth = 2.2;
       ctx.beginPath();
-      ctx.moveTo(rx + 12, ry + 10);
-      ctx.lineTo(rx + drawW - 12, ry + drawH - 10);
-      ctx.moveTo(rx + drawW - 12, ry + 10);
-      ctx.lineTo(rx + 12, ry + drawH - 10);
+      ctx.moveTo(rx + 14, ry + 12);
+      ctx.lineTo(rx + drawW - 14, ry + drawH - 12);
+      ctx.moveTo(rx + drawW - 14, ry + 12);
+      ctx.lineTo(rx + 14, ry + drawH - 12);
       ctx.stroke();
     } else if (c.type === 'SPLITTER') {
       // Triad dots (∴) on left/right flanks for Splitter cubes
-      ctx.fillStyle = 'rgba(155, 149, 184, 0.55)';
+      ctx.fillStyle = 'rgba(155, 149, 184, 0.65)';
       ctx.beginPath();
-      ctx.arc(rx + 13, centerY - 6, 2.6, 0, Math.PI * 2);
-      ctx.arc(rx + 13, centerY + 6, 2.6, 0, Math.PI * 2);
-      ctx.arc(rx + drawW - 13, centerY - 6, 2.6, 0, Math.PI * 2);
-      ctx.arc(rx + drawW - 13, centerY + 6, 2.6, 0, Math.PI * 2);
+      ctx.arc(rx + 15, centerY - 7, 3.2, 0, Math.PI * 2);
+      ctx.arc(rx + 15, centerY + 7, 3.2, 0, Math.PI * 2);
+      ctx.arc(rx + drawW - 15, centerY - 7, 3.2, 0, Math.PI * 2);
+      ctx.arc(rx + drawW - 15, centerY + 7, 3.2, 0, Math.PI * 2);
       ctx.fill();
     } else if (c.type === 'KINETIC') {
       // Double bounce chevrons on left & right of Kinetic bumpers
-      ctx.strokeStyle = 'rgba(212, 180, 131, 0.45)';
-      ctx.lineWidth = 1.8;
+      ctx.strokeStyle = 'rgba(212, 180, 131, 0.55)';
+      ctx.lineWidth = 2.2;
       ctx.beginPath();
-      ctx.moveTo(rx + 10, centerY - 7);
-      ctx.lineTo(rx + 16, centerY);
-      ctx.lineTo(rx + 10, centerY + 7);
-      ctx.moveTo(rx + drawW - 10, centerY - 7);
-      ctx.lineTo(rx + drawW - 16, centerY);
-      ctx.lineTo(rx + drawW - 10, centerY + 7);
+      ctx.moveTo(rx + 12, centerY - 9);
+      ctx.lineTo(rx + 19, centerY);
+      ctx.lineTo(rx + 12, centerY + 9);
+      ctx.moveTo(rx + drawW - 12, centerY - 9);
+      ctx.lineTo(rx + drawW - 19, centerY);
+      ctx.lineTo(rx + drawW - 12, centerY + 9);
       ctx.stroke();
     } else if (c.type === 'ARMOR') {
       // Reinforced double inner frame + rivets for Armor walls
-      ctx.strokeStyle = 'rgba(124, 156, 180, 0.42)';
-      ctx.lineWidth = 1.8;
-      roundRect(ctx, rx + 5, ry + 5, drawW - 10, drawH - 10, 6);
+      ctx.strokeStyle = 'rgba(124, 156, 180, 0.5)';
+      ctx.lineWidth = 2.2;
+      roundRect(ctx, rx + 6, ry + 6, drawW - 12, drawH - 12, 6);
       ctx.stroke();
     }
 
     // Subtle shield frame for SHIELD cubes
     if (c.type === 'SHIELD') {
       const pulseR = 10 + Math.sin(c.shieldPulse) * 3;
-      ctx.strokeStyle = 'rgba(127, 166, 142, 0.3)';
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(127, 166, 142, 0.35)';
+      ctx.lineWidth = 1.8;
       roundRect(ctx, rx - pulseR / 2, ry - pulseR / 2, drawW + pulseR, drawH + pulseR, 12);
       ctx.stroke();
     }
@@ -729,7 +729,7 @@ function drawCubes(ctx: CanvasRenderingContext2D, engine: GameEngine) {
       ctx.fill();
     }
 
-    // Clean numeric HP only
+    // Clean numeric HP only (28px bold for enlarged 112x76 mobile blocks)
     ctx.fillStyle =
       c.isCore && c.type !== 'BOSS'
         ? '#e6cfa0'
@@ -740,8 +740,8 @@ function drawCubes(ctx: CanvasRenderingContext2D, engine: GameEngine) {
     ctx.textBaseline = 'middle';
     ctx.font =
       c.type === 'BOSS'
-        ? 'bold 42px "Chakra Petch", sans-serif'
-        : 'bold 23px "Chakra Petch", sans-serif';
+        ? 'bold 44px "Chakra Petch", sans-serif'
+        : 'bold 28px "Chakra Petch", sans-serif';
     ctx.fillText(String(c.hp), centerX, centerY);
 
     // Boss HP bar & Frontal Shield Indicator for The Monolith
@@ -868,6 +868,32 @@ function drawVisualEffects(ctx: CanvasRenderingContext2D, engine: GameEngine) {
       ctx.moveTo(fx.x1, fx.y1);
       ctx.lineTo(fx.x2, fx.y2);
       ctx.stroke();
+    } else if (fx.type === 'ORIGIN' && fx.w && fx.h) {
+      // Unmistakable Cause Highlight: expanding double outer frame around the triggered ◇ / Explosive block
+      const expand = 5 + progress * 8;
+      ctx.strokeStyle = fx.color;
+      ctx.globalAlpha = alpha * 0.95;
+      ctx.lineWidth = 3.5;
+      roundRect(ctx, fx.x1 - expand, fx.y1 - expand, fx.w + expand * 2, fx.h + expand * 2, 13);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#f4f4f5';
+      ctx.globalAlpha = alpha * 0.75;
+      ctx.lineWidth = 1.5;
+      roundRect(ctx, fx.x1 - 2, fx.y1 - 2, fx.w + 4, fx.h + 4, 10);
+      ctx.stroke();
+    } else if (fx.type === 'TARGET' && fx.w && fx.h) {
+      // Unmistakable Effect Highlight: colored impact outline around each affected cube
+      ctx.strokeStyle = fx.color;
+      ctx.globalAlpha = alpha * 0.9;
+      ctx.lineWidth = 3.2;
+      roundRect(ctx, fx.x1 - 3, fx.y1 - 3, fx.w + 6, fx.h + 6, 11);
+      ctx.stroke();
+
+      ctx.fillStyle = fx.color;
+      ctx.globalAlpha = alpha * 0.16;
+      roundRect(ctx, fx.x1, fx.y1, fx.w, fx.h, 10);
+      ctx.fill();
     }
 
     ctx.restore();
@@ -968,7 +994,7 @@ function drawBasket(ctx: CanvasRenderingContext2D, engine: GameEngine) {
     }
   }
 
-  // 2. Main Basket Body (at y = 1710, above the thumb zone)
+  // 2. Main Basket Body (at y = 1580, eliminating dead mobile space above the thumb zone)
   ctx.fillStyle = '#14171f';
   ctx.strokeStyle = '#d4d4d8';
   ctx.lineWidth = 2.8;
@@ -998,8 +1024,8 @@ function drawBasket(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   );
   ctx.stroke();
 
-  // 3. Ergonomic Mobile Thumb Slider Track below the basket (y = 1815) so player's finger never covers the basket
-  const trackY = 1815;
+  // 3. Ergonomic Mobile Thumb Slider Track below the basket (y = 1695) so player's finger never covers the basket
+  const trackY = 1695;
   const basketCenter = b.x + b.width / 2;
   ctx.strokeStyle = 'rgba(161, 161, 170, 0.18)';
   ctx.lineWidth = 2;

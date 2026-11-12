@@ -62,6 +62,18 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
     );
   };
 
+  const handleStartBossMonolith = () => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    const archId = engine.isArchetypeAvailable(selectedArch.id)
+      ? selectedArch.id
+      : 'PYRO_DETONATOR';
+    engine.initGame('STORY');
+    engine.selectArchetype(archId, 'STORY', 1, true);
+    engine.initLevel(5, 'BOSS', false);
+  };
+
   const handleUnlockWithShards = (id: ArchetypeId, e: React.MouseEvent) => {
     e.stopPropagation();
     if (engine.progression.unlockArchetypeWithShards(id)) {
@@ -123,7 +135,7 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
                   CUBOCLAST
                 </h1>
                 <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#161922] border border-[#2d323e] text-zinc-300 leading-none">
-                  v0.15.0
+                  v0.16.0
                 </span>
               </div>
               <p className="text-[10px] text-zinc-400 mt-0.5 truncate">
@@ -162,28 +174,28 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
           data-testid="archetype-scroll-body"
           className="flex-1 min-h-0 modal-scroll px-4 py-3 space-y-3"
         >
-          {/* 1-Tap Experimental Hand-Crafted Arenas Bar (Pyro, Volt, Swarm) */}
+          {/* 1-Tap Experimental Hand-Crafted Arenas & Boss Monolith Bar */}
           <div className="rounded-xl bg-[#11141c] border border-[#2d3342] p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#d4b483]">
-                ◇ PROVA SUBITO I 3 CAMPI SU MISURA (1-TAP)
+                ◇ PROVA SUBITO CAMPI &amp; BOSS (1-TAP)
               </span>
               <span className="text-[10px] font-mono text-zinc-400">
                 CAP. 1 · ZERO POPUP
               </span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
                 type="button"
                 data-testid="quick-arena-pyro"
                 onClick={() => handleStartWithArchetype('PYRO_DETONATOR', true)}
-                className="min-h-[54px] px-2 py-2 rounded-lg bg-[#1c1412] border border-[#c87d65] text-left cursor-pointer active:scale-95 transition"
+                className="min-h-[52px] px-2.5 py-1.5 rounded-lg bg-[#1c1412] border border-[#c87d65] text-left cursor-pointer active:scale-95 transition"
               >
                 <div className="text-xs font-bold text-[#c87d65] uppercase tracking-wide">
                   ◇ PYRO
                 </div>
                 <div className="text-[10px] text-zinc-300 leading-tight mt-0.5">
-                  Innesco a Grappolo
+                  2 Sacche Esplosive
                 </div>
               </button>
 
@@ -191,13 +203,13 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
                 type="button"
                 data-testid="quick-arena-volt"
                 onClick={() => handleStartWithArchetype('VOLT_OVERCHARGE', true)}
-                className="min-h-[54px] px-2 py-2 rounded-lg bg-[#141922] border border-[#7c9cb4] text-left cursor-pointer active:scale-95 transition"
+                className="min-h-[52px] px-2.5 py-1.5 rounded-lg bg-[#141922] border border-[#7c9cb4] text-left cursor-pointer active:scale-95 transition"
               >
                 <div className="text-xs font-bold text-[#7c9cb4] uppercase tracking-wide">
                   ◇ VOLT
                 </div>
                 <div className="text-[10px] text-zinc-300 leading-tight mt-0.5">
-                  Ponte Fulmini
+                  2 Bunker Corazzati
                 </div>
               </button>
 
@@ -205,13 +217,27 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
                 type="button"
                 data-testid="quick-arena-swarm"
                 onClick={() => handleStartWithArchetype('SWARM_MATRIX', true)}
-                className="min-h-[54px] px-2 py-2 rounded-lg bg-[#171521] border border-[#9b95b8] text-left cursor-pointer active:scale-95 transition"
+                className="min-h-[52px] px-2.5 py-1.5 rounded-lg bg-[#171521] border border-[#9b95b8] text-left cursor-pointer active:scale-95 transition"
               >
                 <div className="text-xs font-bold text-[#9b95b8] uppercase tracking-wide">
                   ◇ SWARM
                 </div>
                 <div className="text-[10px] text-zinc-300 leading-tight mt-0.5">
-                  Camera Scissione
+                  2 Camere Scissione
+                </div>
+              </button>
+
+              <button
+                type="button"
+                data-testid="quick-boss-monolith"
+                onClick={handleStartBossMonolith}
+                className="min-h-[52px] px-2.5 py-1.5 rounded-lg bg-[#1c1316] border border-[#c46d75] text-left cursor-pointer active:scale-95 transition"
+              >
+                <div className="text-xs font-bold text-[#c46d75] uppercase tracking-wide">
+                  🛡️ MONOLITH
+                </div>
+                <div className="text-[10px] text-zinc-300 leading-tight mt-0.5">
+                  Boss Cap. 1 (Sett. 5)
                 </div>
               </button>
             </div>
