@@ -305,6 +305,7 @@ export class GameEngine {
     this.quantumShardsRun = 0;
     this.activeRelics = [];
     this.isEndless = false;
+    this.isNextBallElectrified = false;
     this.runBonusDamage = 0;
     this.runBonusBasketWidth = 0;
     this.nextSectorOverchargeStacks = 0;
@@ -821,7 +822,9 @@ export class GameEngine {
     }
 
     const guardHp = Math.max(4, Math.floor(level * 1.4));
-    for (const c of [1, 3, 4, 6]) {
+    // Outer top Kinetic bank reflectors (leave columns 3 & 4 open on Sector 5 so The Monolith's top frontal shield is clearly visible!)
+    const topCols = level === 5 ? [0, 7] : [1, 3, 4, 6];
+    for (const c of topCols) {
       const cx = startX + c * (cubeWidth + paddingX);
       const cy = startY;
       this.cubes.push({
@@ -842,41 +845,46 @@ export class GameEngine {
       });
     }
 
-    for (const c of [1, 3, 4, 6]) {
-      const cx = startX + c * (cubeWidth + paddingX);
-      const cy = bossY + bossH + 175;
-      const isOuterClassBlock = c === 1 || c === 6;
-      this.cubes.push({
-        id: this.nextCubeId++,
-        x: cx,
-        y: cy,
-        width: cubeWidth,
-        height: cubeHeight,
-        hp: level === 5 ? 3 : guardHp + 3,
-        maxHp: level === 5 ? 3 : guardHp + 3,
-        type: isOuterClassBlock ? 'CLASS_ABILITY' : level >= 15 ? 'ARMOR' : 'NORMAL',
-        isCore: false,
-        wobble: 0,
-        hitFlash: 0,
-        isAlive: true,
-        shieldPulse: 0,
-        isFrozen: false,
-      });
-    }
-
-    // Chapter 1 Boss (The Monolith): 2 additional flanking CLASS_ABILITY Relay Nodes (◇) on outer columns 0 & 7
     if (level === 5) {
-      const flankCols = [0, 7];
-      for (const fc of flankCols) {
+      // Chapter 1 Boss (The Monolith): 4 prominent flanking ◇ Class Relay Nodes (2 HP each) wired to its Frontal Shield
+      const relayPositions = [
+        { col: 1, y: bossY - 10 },
+        { col: 6, y: bossY - 10 },
+        { col: 1, y: bossY + 135 },
+        { col: 6, y: bossY + 135 },
+      ];
+      for (const pos of relayPositions) {
         this.cubes.push({
           id: this.nextCubeId++,
-          x: startX + fc * (cubeWidth + paddingX),
-          y: bossY + 60,
+          x: startX + pos.col * (cubeWidth + paddingX),
+          y: pos.y,
           width: cubeWidth,
           height: cubeHeight,
-          hp: 3,
-          maxHp: 3,
+          hp: 2,
+          maxHp: 2,
           type: 'CLASS_ABILITY',
+          isCore: false,
+          wobble: 0,
+          hitFlash: 0,
+          isAlive: true,
+          shieldPulse: 0,
+          isFrozen: false,
+        });
+      }
+    } else {
+      for (const c of [1, 3, 4, 6]) {
+        const cx = startX + c * (cubeWidth + paddingX);
+        const cy = bossY + bossH + 175;
+        const isOuterClassBlock = c === 1 || c === 6;
+        this.cubes.push({
+          id: this.nextCubeId++,
+          x: cx,
+          y: cy,
+          width: cubeWidth,
+          height: cubeHeight,
+          hp: guardHp + 3,
+          maxHp: guardHp + 3,
+          type: isOuterClassBlock ? 'CLASS_ABILITY' : level >= 15 ? 'ARMOR' : 'NORMAL',
           isCore: false,
           wobble: 0,
           hitFlash: 0,
@@ -931,107 +939,90 @@ export class GameEngine {
     if (level === 1) {
       if (arch === 'PYRO_DETONATOR') {
         this.currentPatternName = 'Campo Pyro · Innesco a Grappolo';
-        // Left & Right Core pockets separated by a central Kinetic baffle (requires 2-3 deliberate shots, never 1 blind center shot!)
-        // Left Pocket (Cols 0..2): 3 Cores (5 HP) + Explosive Barrel + Left Pyro ◇ Fuse
-        place(1, 0, 'EXPLOSIVE', 2, false);
-        place(0, 1, 'NORMAL', 5, true);
-        place(1, 1, 'NORMAL', 5, true);
-        place(1, 2, 'NORMAL', 5, true);
-        place(1, 3, 'CLASS_ABILITY', 2, false);
+        // First-Minute Promise: 2 clearly separated 3-Core clusters (Left & Right) isolated by a central divider spine.
+        // Hitting the exposed Left ◇ Fuse at (1,1) triggers a 2-stage chain explosion ((1,1) ◇ -> (1,2) ×) that destroys all 3 Left Cores while leaving all 3 Right Cores intact!
+        // Left Cluster (Cols 0..2)
+        place(1, 1, 'CLASS_ABILITY', 1, false);
+        place(1, 2, 'EXPLOSIVE', 1, false);
+        place(0, 1, 'NORMAL', 4, true);
+        place(0, 2, 'NORMAL', 4, true);
+        place(2, 2, 'NORMAL', 4, true);
 
-        // Right Pocket (Cols 5..7): 3 Cores (5 HP) + Explosive Barrel + Right Pyro ◇ Fuse
-        place(6, 0, 'EXPLOSIVE', 2, false);
-        place(6, 1, 'NORMAL', 5, true);
-        place(7, 1, 'NORMAL', 5, true);
-        place(6, 2, 'NORMAL', 5, true);
-        place(6, 3, 'CLASS_ABILITY', 2, false);
+        // Right Cluster (Cols 5..7)
+        place(6, 1, 'CLASS_ABILITY', 1, false);
+        place(6, 2, 'EXPLOSIVE', 1, false);
+        place(7, 1, 'NORMAL', 4, true);
+        place(7, 2, 'NORMAL', 4, true);
+        place(5, 2, 'NORMAL', 4, true);
 
-        // Center Divider & Lower Kinetic Bounce Shelves
-        place(3, 1, 'CLASS_ABILITY', 3, false);
-        place(3, 2, 'KINETIC', 4, false);
-        place(4, 2, 'KINETIC', 4, false);
-        place(2, 4, 'KINETIC', 4, false);
-        place(5, 4, 'KINETIC', 4, false);
+        // Center Divider Spine at col 3.5 (centered at x = 540, blocks blind center shots & ceiling arcs)
+        place(3.5, 0, 'ARMOR', 8, false);
+        place(3.5, 1, 'ARMOR', 8, false);
+        place(3.5, 2, 'KINETIC', 5, false);
         return true;
       }
 
       if (arch === 'VOLT_OVERCHARGE') {
         this.currentPatternName = 'Campo Volt · Ponte Elettrostatico';
-        // Left Armored Vault (Cols 0..1): 3 Cores (5 HP) behind heavy Armor (9 HP)
-        place(0, 1, 'NORMAL', 5, true);
-        place(1, 1, 'NORMAL', 5, true);
-        place(0, 2, 'NORMAL', 5, true);
-        place(0, 3, 'ARMOR', 9, false);
-        place(1, 3, 'ARMOR', 9, false);
+        // Left Bunker (Cols 0..2): Exposed Left ◇ Relay at (1,1) arcs 3 lightning bolts (4 DMG each) into the 3 Left Cores!
+        place(1, 1, 'CLASS_ABILITY', 1, false);
+        place(0, 1, 'NORMAL', 4, true);
+        place(0, 2, 'NORMAL', 4, true);
+        place(2, 2, 'NORMAL', 4, true);
 
-        // Right Armored Vault (Cols 6..7): 3 Cores (5 HP) behind heavy Armor (9 HP)
-        place(6, 1, 'NORMAL', 5, true);
-        place(7, 1, 'NORMAL', 5, true);
-        place(7, 2, 'NORMAL', 5, true);
-        place(6, 3, 'ARMOR', 9, false);
-        place(7, 3, 'ARMOR', 9, false);
+        // Right Bunker (Cols 5..7): Exposed Right ◇ Relay at (6,1) arcs 3 lightning bolts into the 3 Right Cores!
+        place(6, 1, 'CLASS_ABILITY', 1, false);
+        place(7, 1, 'NORMAL', 4, true);
+        place(7, 2, 'NORMAL', 4, true);
+        place(5, 2, 'NORMAL', 4, true);
 
-        // Left & Right ◇ Volt Relay Antennas (each side only reaches its own vault!)
-        place(2, 2, 'CLASS_ABILITY', 3, false);
-        place(2, 4, 'CLASS_ABILITY', 2, false);
-        place(5, 2, 'CLASS_ABILITY', 3, false);
-        place(5, 4, 'CLASS_ABILITY', 2, false);
-
-        // Center Guard Baffle
-        place(3, 2, 'KINETIC', 4, false);
-        place(4, 2, 'KINETIC', 4, false);
+        // Center Armored Divider Spine at col 3.5 (centered at x = 540)
+        place(3.5, 0, 'ARMOR', 8, false);
+        place(3.5, 1, 'ARMOR', 8, false);
+        place(3.5, 2, 'ARMOR', 8, false);
+        place(3.5, 3, 'KINETIC', 5, false);
         return true;
       }
 
       if (arch === 'SWARM_MATRIX') {
         this.currentPatternName = 'Campo Swarm · Camera di Scissione';
-        // Two Separate Pinball Chambers (Left Chamber & Right Chamber) divided by an Armor Spine
-        // Left Chamber (Cols 0..2)
-        place(0, 0, 'KINETIC', 6, false);
-        place(1, 0, 'KINETIC', 6, false);
-        place(2, 0, 'KINETIC', 6, false);
-        place(0, 1, 'KINETIC', 6, false);
-        place(0, 2, 'KINETIC', 6, false);
-        place(1, 1, 'NORMAL', 5, true);
-        place(2, 1, 'NORMAL', 5, true);
-        place(1, 2, 'NORMAL', 5, true);
-        place(1, 3, 'CLASS_ABILITY', 3, false);
-        place(2, 3, 'CLASS_ABILITY', 3, false);
+        // Two Pinball Fission Chambers (Left & Right) isolated by a centered Armor Spine at col 3.5.
+        // Left Chamber (Cols 0..2): hitting ◇ at (1,1) chains ◇ at (1,2), unleashing a localized Swarm that destroys all 3 Left Cores!
+        place(1, 1, 'CLASS_ABILITY', 1, false);
+        place(1, 2, 'CLASS_ABILITY', 1, false);
+        place(0, 1, 'NORMAL', 3, true);
+        place(0, 2, 'NORMAL', 3, true);
+        place(2, 2, 'NORMAL', 3, true);
 
-        // Center Armor Spine (Cols 3..4)
-        place(3, 1, 'ARMOR', 8, false);
-        place(4, 1, 'ARMOR', 8, false);
-        place(3, 2, 'ARMOR', 8, false);
-        place(4, 2, 'ARMOR', 8, false);
+        // Center Armor Spine at col 3.5 (centered at x = 540) isolates Left & Right Chambers
+        place(3.5, 0, 'ARMOR', 8, false);
+        place(3.5, 1, 'ARMOR', 8, false);
+        place(3.5, 2, 'ARMOR', 8, false);
+        place(3.5, 3, 'KINETIC', 5, false);
 
         // Right Chamber (Cols 5..7)
-        place(5, 0, 'KINETIC', 6, false);
-        place(6, 0, 'KINETIC', 6, false);
-        place(7, 0, 'KINETIC', 6, false);
-        place(7, 1, 'KINETIC', 6, false);
-        place(7, 2, 'KINETIC', 6, false);
-        place(5, 1, 'NORMAL', 5, true);
-        place(6, 1, 'NORMAL', 5, true);
-        place(6, 2, 'NORMAL', 5, true);
-        place(5, 3, 'CLASS_ABILITY', 3, false);
-        place(6, 3, 'CLASS_ABILITY', 3, false);
+        place(6, 1, 'CLASS_ABILITY', 1, false);
+        place(6, 2, 'CLASS_ABILITY', 1, false);
+        place(7, 1, 'NORMAL', 3, true);
+        place(7, 2, 'NORMAL', 3, true);
+        place(5, 2, 'NORMAL', 3, true);
         return true;
       }
 
       if (arch === 'KINETIC_TITAN') {
         this.currentPatternName = 'Campo Kinetic · Slalom Acceleratore';
-        place(1, 0, 'NORMAL', 5, true);
-        place(2, 0, 'NORMAL', 5, true);
-        place(5, 0, 'NORMAL', 5, true);
-        place(6, 0, 'NORMAL', 5, true);
-        place(2, 1, 'NORMAL', 5, true);
-        place(5, 1, 'NORMAL', 5, true);
-        place(1, 2, 'CLASS_ABILITY', 3, false);
-        place(6, 2, 'CLASS_ABILITY', 3, false);
-        place(3, 2, 'KINETIC', 4, false);
-        place(4, 2, 'KINETIC', 4, false);
-        place(2, 4, 'CLASS_ABILITY', 3, false);
-        place(5, 4, 'CLASS_ABILITY', 3, false);
+        place(1, 0, 'CLASS_ABILITY', 1, false);
+        place(6, 0, 'CLASS_ABILITY', 1, false);
+        place(0, 1, 'NORMAL', 4, true);
+        place(1, 1, 'NORMAL', 4, true);
+        place(2, 1, 'NORMAL', 4, true);
+        place(5, 1, 'NORMAL', 4, true);
+        place(6, 1, 'NORMAL', 4, true);
+        place(7, 1, 'NORMAL', 4, true);
+        place(3, 2, 'KINETIC', 5, false);
+        place(4, 2, 'KINETIC', 5, false);
+        place(2, 3, 'CLASS_ABILITY', 2, false);
+        place(5, 3, 'CLASS_ABILITY', 2, false);
         return true;
       }
 
@@ -1041,26 +1032,27 @@ export class GameEngine {
 
     if (level === 2) {
       this.currentPatternName = 'Settore 2 · Il Bivio Balistico';
-      // 6 Cores (6 HP) split between Left & Right upper wings
-      place(1, 0, 'NORMAL', 6, true);
-      place(2, 0, 'NORMAL', 6, true);
-      place(1, 1, 'NORMAL', 6, true);
+      // 6 Cores (5 HP) split between Left & Right wings with exposed ◇ triggers (1-2 HP)
+      place(0, 1, 'NORMAL', 5, true);
+      place(1, 1, 'NORMAL', 5, true);
+      place(1, 2, 'NORMAL', 5, true);
 
-      place(5, 0, 'NORMAL', 6, true);
-      place(6, 0, 'NORMAL', 6, true);
-      place(6, 1, 'NORMAL', 6, true);
+      place(6, 1, 'NORMAL', 5, true);
+      place(7, 1, 'NORMAL', 5, true);
+      place(6, 2, 'NORMAL', 5, true);
 
-      // Left Wing: Explosive cube sits above a helpful Kinetic bounce shelf (detonating it damages Left Cores but destroys the shelf!)
-      place(1, 2, 'EXPLOSIVE', 3, false);
+      // Left Wing: ◇ Trigger + Explosive barrel above a Kinetic bounce shelf
+      place(1, 0, 'CLASS_ABILITY', 1, false);
+      place(2, 1, 'EXPLOSIVE', 2, false);
       place(0, 3, 'KINETIC', 4, false);
       place(1, 3, 'KINETIC', 4, false);
 
-      // Center & Right Wing: Class Ability ◇ blocks above a right-side Kinetic bounce shelf
+      // Center & Right Wing: ◇ Triggers + Explosive barrel above Right Kinetic shelf
       place(3, 2, 'ARMOR', 8, false);
       place(4, 2, 'ARMOR', 8, false);
-      place(2, 2, 'CLASS_ABILITY', 3, false);
-      place(5, 2, 'CLASS_ABILITY', 3, false);
-      place(6, 2, 'CLASS_ABILITY', 3, false);
+      place(6, 0, 'CLASS_ABILITY', 1, false);
+      place(5, 1, 'EXPLOSIVE', 2, false);
+      place(5, 2, 'CLASS_ABILITY', 2, false);
       place(6, 3, 'KINETIC', 4, false);
       place(7, 3, 'KINETIC', 4, false);
       return true;
@@ -1068,56 +1060,53 @@ export class GameEngine {
 
     if (level === 3) {
       this.currentPatternName = 'Settore 3 · La Barriera e il Passaggio';
-      // 6 Cores (6 HP) protected behind a front Armor wall
-      place(1, 0, 'NORMAL', 6, true);
-      place(2, 0, 'NORMAL', 6, true);
-      place(3, 0, 'NORMAL', 6, true);
-      place(4, 0, 'NORMAL', 6, true);
-      place(5, 0, 'NORMAL', 6, true);
-      place(6, 0, 'NORMAL', 6, true);
+      // 6 Cores (5 HP) in 2 pockets behind Armor shields, with side ◇ Relays (1 HP) on the outer corridors
+      place(1, 1, 'NORMAL', 5, true);
+      place(2, 1, 'NORMAL', 5, true);
+      place(1, 2, 'NORMAL', 5, true);
+      place(5, 1, 'NORMAL', 5, true);
+      place(6, 1, 'NORMAL', 5, true);
+      place(6, 2, 'NORMAL', 5, true);
 
-      // 3 Class Ability ◇ blocks tucked behind the barrier
-      place(2, 1, 'CLASS_ABILITY', 3, false);
-      place(5, 1, 'CLASS_ABILITY', 3, false);
-      place(3, 2, 'CLASS_ABILITY', 3, false);
+      // Exposed outer ◇ Class Triggers (Cols 0 & 7) and inner ◇ Relays (Cols 2 & 5)
+      place(0, 1, 'CLASS_ABILITY', 1, false);
+      place(2, 0, 'CLASS_ABILITY', 2, false);
+      place(5, 0, 'CLASS_ABILITY', 2, false);
+      place(7, 1, 'CLASS_ABILITY', 1, false);
 
-      // Front Armor Barrier (Cols 1..6 at Row 3, with bank corridors on Cols 0 & 7)
-      place(1, 3, 'ARMOR', 9, false);
-      place(2, 3, 'ARMOR', 9, false);
-      place(3, 3, 'ARMOR', 9, false);
-      place(4, 3, 'ARMOR', 9, false);
-      place(5, 3, 'ARMOR', 9, false);
-      place(6, 3, 'ARMOR', 9, false);
+      // Central Armor Barrier
+      place(2, 2, 'ARMOR', 8, false);
+      place(3, 2, 'ARMOR', 8, false);
+      place(4, 2, 'ARMOR', 8, false);
+      place(5, 2, 'ARMOR', 8, false);
 
-      // Outer Kinetic Bank Reflectors on Cols 0 & 7 to angle shots behind the wall
-      place(0, 1, 'KINETIC', 5, false);
-      place(0, 2, 'KINETIC', 5, false);
-      place(7, 1, 'KINETIC', 5, false);
-      place(7, 2, 'KINETIC', 5, false);
+      place(0, 3, 'KINETIC', 5, false);
+      place(7, 3, 'KINETIC', 5, false);
       return true;
     }
 
     if (level === 4) {
       this.currentPatternName = 'Settore 4 · Domino a Cascata';
-      // 6 Cores (7 HP) split between Upper Left & Upper Right bastions
-      place(1, 0, 'NORMAL', 7, true);
-      place(2, 0, 'NORMAL', 7, true);
-      place(1, 1, 'NORMAL', 7, true);
-      place(5, 0, 'NORMAL', 7, true);
-      place(6, 0, 'NORMAL', 7, true);
-      place(6, 1, 'NORMAL', 7, true);
+      // 6 Cores (5 HP) split between Left & Right bastions, each wired to a 2-step ◇ -> × Domino fuse
+      place(0, 1, 'NORMAL', 5, true);
+      place(1, 1, 'NORMAL', 5, true);
+      place(0, 2, 'NORMAL', 5, true);
+      place(6, 1, 'NORMAL', 5, true);
+      place(7, 1, 'NORMAL', 5, true);
+      place(7, 2, 'NORMAL', 5, true);
 
-      // Two diagonal domino chains (Left Fuse & Right Fuse)
-      place(0, 3, 'CLASS_ABILITY', 3, false);
-      place(1, 2, 'EXPLOSIVE', 3, false);
-      place(2, 2, 'CLASS_ABILITY', 3, false);
+      // Left Domino Chain: top ◇ (1 HP) -> middle × Explosive (1 HP) -> inner ◇ (1 HP)
+      place(2, 0, 'CLASS_ABILITY', 1, false);
+      place(2, 1, 'EXPLOSIVE', 1, false);
+      place(1, 2, 'CLASS_ABILITY', 1, false);
 
-      place(7, 3, 'CLASS_ABILITY', 3, false);
-      place(6, 2, 'EXPLOSIVE', 3, false);
-      place(5, 2, 'CLASS_ABILITY', 3, false);
+      // Right Domino Chain: top ◇ (1 HP) -> middle × Explosive (1 HP) -> inner ◇ (1 HP)
+      place(5, 0, 'CLASS_ABILITY', 1, false);
+      place(5, 1, 'EXPLOSIVE', 1, false);
+      place(6, 2, 'CLASS_ABILITY', 1, false);
 
-      place(3, 3, 'KINETIC', 5, false);
-      place(4, 3, 'KINETIC', 5, false);
+      place(3, 2, 'KINETIC', 5, false);
+      place(4, 2, 'KINETIC', 5, false);
       return true;
     }
 
@@ -1362,10 +1351,24 @@ export class GameEngine {
     if (newPhase !== this.bossPhase) {
       this.bossPhase = newPhase;
       this.screenShake = 16;
+      // Re-energize flanking ◇ Relay Nodes on Boss phase change so the player always has tactical triggers!
+      for (const c of this.cubes) {
+        if (c.type === 'CLASS_ABILITY' && !c.isAlive) {
+          c.isAlive = true;
+          c.hp = 2;
+          c.maxHp = 2;
+          c.hitFlash = 1;
+          this.addVisualEffect('ORIGIN', c.x, c.y, '#7fa68e', {
+            w: c.width,
+            h: c.height,
+            duration: 0.65,
+          });
+        }
+      }
       this.addFloatingText(
         this.activeBoss.x + this.activeBoss.width / 2,
         this.activeBoss.y - 70,
-        `FASE BOSS ${this.bossPhase}!`,
+        `FASE BOSS ${this.bossPhase}! NODI ◇ RICARICATI!`,
         '#c46d75'
       );
       soundEngine.playBossAlert();
@@ -1669,7 +1672,7 @@ export class GameEngine {
         }
       }
 
-      b.vy += GRAVITY * dt;
+      b.vy += (b.isMini && b.y < 950 ? GRAVITY * 0.45 : GRAVITY) * dt;
       b.x += b.vx * dt;
       b.y += b.vy * dt;
 
@@ -1706,20 +1709,12 @@ export class GameEngine {
       if (b.y + b.radius >= this.basket.y && b.y - b.radius <= this.basket.y + this.basket.height) {
         if (b.x >= this.basket.x - 10 && b.x <= this.basket.x + this.basket.width + 10) {
           if (b.isMini) {
-            if (!b.hasSavedOnce) {
-              b.hasSavedOnce = true;
-              b.y = this.basket.y - b.radius;
-              b.vy = -Math.abs(b.vy) * 0.92;
-              this.addScore(250);
-              this.addFloatingText(b.x, this.basket.y - 40, 'MINI RIMBALZO +250', '#9b95b8');
-              soundEngine.playBounceHit(this.currentCombo);
-              continue;
-            } else {
-              b.isAlive = false;
-              this.balls.splice(i, 1);
-              this.addScore(250);
-              continue;
-            }
+            b.isAlive = false;
+            this.balls.splice(i, 1);
+            this.addScore(350);
+            this.addFloatingText(b.x, this.basket.y - 40, 'MINI CATTURA +350', '#9b95b8');
+            soundEngine.playCatch();
+            continue;
           }
 
           b.isAlive = false;
@@ -1743,18 +1738,6 @@ export class GameEngine {
           soundEngine.triggerHaptic(40);
           continue;
         }
-      }
-
-      if (
-        b.isMini &&
-        this.currentArchetype === 'SWARM_MATRIX' &&
-        !b.hasSavedOnce &&
-        b.y + b.radius >= 1860
-      ) {
-        b.hasSavedOnce = true;
-        b.vy = -Math.abs(b.vy) * 0.95;
-        this.addFloatingText(b.x, b.y - 30, 'SWARM RESCUE!', '#9b95b8');
-        continue;
       }
 
       if (b.y - b.radius > VIRTUAL_HEIGHT + 20) {
@@ -1861,31 +1844,48 @@ export class GameEngine {
             b.y = c.y + c.height + b.radius;
             b.vy = Math.abs(b.vy);
           }
-          if (Math.abs(b.vx) < 25) {
-            b.vx += b.x < VIRTUAL_WIDTH / 2 ? 45 : -45;
+          if (Math.abs(b.vx) < 110) {
+            b.vx += b.x <= c.x + c.width / 2 ? -165 : 165;
           }
         }
 
-        // Chapter 1 Boss (The Monolith): Frontal Shield blocks direct bottom hits until a ◇ Relay Node is hit or ball banks from side/top
+        // Chapter 1 Boss (The Monolith): Frontal Shield blocks direct top/bottom hits until a ◇ Relay Node is hit
         if (
           c.type === 'BOSS' &&
           this.currentLevel === 5 &&
           !this.bossFrontShieldBrokenThisShot &&
-          minOverlap === overlapBottom
+          (minOverlap === overlapTop || minOverlap === overlapBottom)
         ) {
           c.shieldPulse = Math.PI;
+          const shieldY = minOverlap === overlapTop ? c.y : c.y + c.height;
+          this.addVisualEffect('ORIGIN', c.x, c.y, '#7c9cb4', {
+            w: c.width,
+            h: c.height,
+            duration: 0.45,
+          });
+          this.addVisualEffect('RING', b.x, shieldY, '#7c9cb4', { radius: 95, duration: 0.4 });
           this.addVisualEffect(
             'BEAM',
-            c.x + 12,
-            c.y + c.height,
+            c.x + 8,
+            shieldY,
             '#7c9cb4',
-            { x2: c.x + c.width - 12, y2: c.y + c.height, duration: 0.35 }
+            { x2: c.x + c.width - 8, y2: shieldY, duration: 0.45 }
           );
-          this.spawnSparks(b.x, c.y + c.height, '#7c9cb4', 10);
+          // Highlight the flanking ◇ Relay Nodes so the player immediately sees what to hit instead!
+          for (const relay of this.cubes) {
+            if (relay.isAlive && relay.type === 'CLASS_ABILITY') {
+              this.addVisualEffect('TARGET', relay.x, relay.y, '#d4b483', {
+                w: relay.width,
+                h: relay.height,
+                duration: 0.55,
+              });
+            }
+          }
+          this.spawnSparks(b.x, shieldY, '#7c9cb4', 14);
           this.addFloatingText(
             c.x + c.width / 2,
-            c.y + c.height + 28,
-            '🛡️ SCUDO FRONTALE! COLPISCI I NODI ◇ O I LATI',
+            shieldY + (minOverlap === overlapTop ? -36 : 36),
+            '🛡️ SCUDO ATTIVO! COLPISCI I NODI ◇',
             '#7c9cb4'
           );
           soundEngine.playBounceHit(this.currentCombo);
@@ -2130,25 +2130,25 @@ export class GameEngine {
       duration: 0.65,
     });
 
-    // Boss Relay Mechanic: hitting/shattering any ◇ Class Block while a Boss is alive fires a direct energy beam into the Boss and disables its frontal shield!
+    // Boss Relay Mechanic: hitting/shattering any ◇ Class Block while a Boss is alive fires a high-impact energy beam into the Boss and disables its frontal shield!
     if (this.activeBoss && this.activeBoss.isAlive) {
       const bx = this.activeBoss.x + this.activeBoss.width / 2;
       const by = this.activeBoss.y + this.activeBoss.height / 2;
-      const relayDmg = isShatter ? 10 : 5;
+      const relayDmg = isShatter ? 14 : 8;
       this.activeBoss.hp -= relayDmg;
       this.activeBoss.hitFlash = 1;
-      this.activeBoss.wobble = 1;
+      this.activeBoss.wobble = 1.2;
       this.bossFrontShieldBrokenThisShot = true;
-      this.addVisualEffect('BEAM', cx, cy, archColor, { x2: bx, y2: by, duration: 0.55 });
+      this.addVisualEffect('BEAM', cx, cy, archColor, { x2: bx, y2: by, duration: 0.65 });
       this.addVisualEffect('TARGET', this.activeBoss.x, this.activeBoss.y, archColor, {
         w: this.activeBoss.width,
         h: this.activeBoss.height,
-        duration: 0.55,
+        duration: 0.65,
       });
       this.addFloatingText(
         bx,
-        this.activeBoss.y + this.activeBoss.height + 24,
-        `⚡ NODO ◇ -${relayDmg} HP (SCUDO APERTO!)`,
+        this.activeBoss.y + this.activeBoss.height + 28,
+        `⚡ SCUDO APERTO! -${relayDmg} HP`,
         archColor
       );
       if (this.activeBoss.hp <= 0) {
@@ -2197,20 +2197,20 @@ export class GameEngine {
 
       case 'VOLT_OVERCHARGE': {
         if (!isShatter) {
-          this.triggerChainLightning(c, 0);
+          this.triggerChainLightning(c, 1, 3);
           this.addFloatingText(cx, cy - 38, '◇ SCARICA VOLT!', archColor);
         } else {
-          this.triggerChainLightning(c, 1);
+          this.triggerChainLightning(c, 2, 4);
           this.isNextBallElectrified = true;
           this.addFloatingText(cx, cy - 44, '◇ TEMPESTA VOLT!', archColor);
-          this.screenShake = Math.max(this.screenShake, 10);
+          this.screenShake = Math.max(this.screenShake, 12);
         }
         break;
       }
 
       case 'PYRO_DETONATOR': {
         if (!isShatter) {
-          this.triggerExplosion(cx, cy, 175, 1);
+          this.triggerExplosion(cx, cy, 185, 2);
           this.addFloatingText(cx, cy - 38, '◇ FIAMMATA SOLARE!', archColor);
         } else {
           this.triggerExplosion(cx, cy, 240, 3);
@@ -2225,12 +2225,12 @@ export class GameEngine {
           b.vx *= 1.25;
           b.vy *= 1.25;
           b.baseDamage += 1;
-          this.addVisualEffect('RING', cx, cy, archColor, { radius: 150, duration: 0.36 });
+          this.addVisualEffect('RING', cx, cy, archColor, { radius: 160, duration: 0.36 });
           this.addFloatingText(cx, cy - 38, '◇ URTO TITANICO +1 DMG!', archColor);
           this.spawnSparks(cx, cy, archColor, 10);
         } else {
           this.screenShake = Math.max(this.screenShake, 14);
-          this.addVisualEffect('RING', cx, cy, archColor, { radius: 240, duration: 0.5 });
+          this.addVisualEffect('RING', cx, cy, archColor, { radius: 250, duration: 0.5 });
           this.addFloatingText(cx, cy - 44, '◇ SISMA TITANICO!', archColor);
           for (const other of this.cubes) {
             if (other.isAlive && other !== c) {
@@ -2238,8 +2238,8 @@ export class GameEngine {
                 other.type === 'ARMOR' || other.type === 'SHIELD' || other.type === 'BOSS';
               const dx = other.x + other.width / 2 - cx;
               const dy = other.y + other.height / 2 - cy;
-              if (isHeavy || dx * dx + dy * dy <= 240 * 240) {
-                const sismaDmg = isHeavy ? 3 : 2;
+              if (isHeavy || dx * dx + dy * dy <= 250 * 250) {
+                const sismaDmg = isHeavy ? 4 : 3;
                 other.hp -= sismaDmg;
                 other.hitFlash = 1;
                 other.wobble = 1.1;
@@ -2266,9 +2266,41 @@ export class GameEngine {
           this.addFloatingText(cx, cy - 38, '◇ SCIAME +1 SFERA!', archColor);
           this.spawnSparks(cx, cy, archColor, 10);
         } else {
+          // Localized Swarm Resonance Pulse (185px, 3 DMG) + 3 Mini-Balls so hitting a chamber ◇ node chains its companion ◇ and clears that chamber's 3 Cores!
+          this.addVisualEffect('RING', cx, cy, archColor, { radius: 185, duration: 0.48 });
           this.spawnMiniBalls(cx, cy, newBalls, 3);
           this.addFloatingText(cx, cy - 44, '◇ ERUZIONE SCIAME +3!', archColor);
           this.spawnSparks(cx, cy, archColor, 18);
+          const chainedSwarmNodes: Cube[] = [];
+          for (const other of this.cubes) {
+            if (other.isAlive && other !== c && other.type !== 'BOSS') {
+              const dx = other.x + other.width / 2 - cx;
+              const dy = other.y + other.height / 2 - cy;
+              if (dx * dx + dy * dy <= 185 * 185) {
+                other.hp -= 3;
+                other.hitFlash = 1;
+                other.wobble = 1;
+                this.addVisualEffect('TARGET', other.x, other.y, archColor, {
+                  w: other.width,
+                  h: other.height,
+                  duration: 0.48,
+                });
+                if (other.hp <= 0) {
+                  other.isAlive = false;
+                  this.spawnCubeShards(other);
+                  if (other.type === 'CLASS_ABILITY') {
+                    chainedSwarmNodes.push(other);
+                  }
+                }
+              }
+            }
+          }
+          for (const node of chainedSwarmNodes) {
+            this.triggerClassAbilityBlock(node, b, newBalls, true);
+          }
+          if (this.getRemainingCoreCubes() === 0) {
+            this.triggerFeverMode();
+          }
         }
         break;
       }
@@ -2419,7 +2451,7 @@ export class GameEngine {
     let bestCube: Cube | null = null;
     let bestDistSq = 420 * 420;
     for (const c of this.cubes) {
-      if (c.isAlive && c !== exclude) {
+      if (c.isAlive && c !== exclude && c.type !== 'CLASS_ABILITY') {
         const cx = c.x + c.width / 2;
         const cy = c.y + c.height / 2;
         const dSq = (cx - ox) * (cx - ox) + (cy - oy) * (cy - oy);
@@ -2497,10 +2529,10 @@ export class GameEngine {
     return false;
   }
 
-  private triggerChainLightning(origin: Cube, extraTargets: number) {
+  private triggerChainLightning(origin: Cube, extraTargets: number, overrideDmg?: number) {
     let zaps = 0;
     const maxZaps = 1 + extraTargets;
-    const dmg = this.currentArchetype === 'VOLT_OVERCHARGE' ? 3 : 2;
+    const dmg = overrideDmg ?? (this.currentArchetype === 'VOLT_OVERCHARGE' ? 3 : 2);
     const ox = origin.x + origin.width / 2;
     const oy = origin.y + origin.height / 2;
 
@@ -2707,14 +2739,16 @@ export class GameEngine {
   }
 
   private spawnMiniBalls(x: number, y: number, outList: Ball[], count: number) {
-    const speed = 900;
+    const speed = 780;
     const multiballTier = this.getResonanceTier('MULTIBALL');
     const metaDmg = (this.progression.getData().upgradeBaseDamage || 0) * 0.5;
+    // Keep mini-balls focused in the pocket where they spawned (left pocket vs right pocket) so they don't fly over the ceiling to the opposite side
+    const baseAngle = x < 460 ? Math.PI * 0.62 : x > 620 ? Math.PI * 0.38 : -Math.PI / 2;
     for (let i = 0; i < count; i++) {
-      const angle = -Math.PI / 2 + (i - (count - 1) / 2) * 0.6;
+      const angle = baseAngle + (i - (count - 1) / 2) * 0.38;
       const b: Ball = {
         x,
-        y: y - 10,
+        y: y + 6,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         radius: 12,

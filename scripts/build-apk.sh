@@ -57,7 +57,7 @@ with zipfile.ZipFile(base_apk, "r") as zin, zipfile.ZipFile(unsigned_path, "w") 
         data = zin.read(name)
         if name == "AndroidManifest.xml":
             # Update UTF-16LE versionName string (same 6-char length X.YY.Z)
-            for old_v in ["0.15.0", "0.14.0", "0.13.0", "0.12.0", "0.11.0"]:
+            for old_v in ["0.16.0", "0.15.0", "0.14.0", "0.13.0", "0.12.0", "0.11.0"]:
                 old_b = old_v.encode("utf-16-le")
                 new_b = target_ver.encode("utf-16-le")
                 if len(old_b) == len(new_b) and old_b in data:
@@ -78,7 +78,7 @@ with zipfile.ZipFile(base_apk, "r") as zin, zipfile.ZipFile(unsigned_path, "w") 
                 if pos == -1:
                     break
                 val = struct.unpack_from("<I", mutable, pos + 4)[0]
-                if val in (7, 11, 12, 13, 14, 15):
+                if val in (7, 11, 12, 13, 14, 15, 16):
                     struct.pack_into("<I", mutable, pos + 4, target_code)
                     break
                 idx = pos + 4

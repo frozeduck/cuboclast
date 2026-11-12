@@ -347,6 +347,8 @@ function drawAimTrajectory(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   let hitY = y;
   let postVx = vx;
   let postVy = vy;
+  let hitCube: Cube | null = null;
+  let hitShieldedBossFace = false;
 
   const maxPrimarySteps = 95;
   for (let step = 0; step < maxPrimarySteps; step++) {
@@ -462,6 +464,15 @@ function drawAimTrajectory(ctx: CanvasRenderingContext2D, engine: GameEngine) {
         hitY = y;
         postVx = rvx;
         postVy = rvy;
+        hitCube = c;
+        if (
+          c.type === 'BOSS' &&
+          engine.currentLevel === 5 &&
+          !engine.bossFrontShieldBrokenThisShot &&
+          (minOverlap === overlapTop || minOverlap === overlapBottom)
+        ) {
+          hitShieldedBossFace = true;
+        }
         primaryPoints.push({ x, y });
         cubeHit = true;
         break;
@@ -549,8 +560,8 @@ function drawAimTrajectory(ctx: CanvasRenderingContext2D, engine: GameEngine) {
 
   // Draw minimal warm-sand target crosshair at true first hit point
   ctx.setLineDash([]);
-  ctx.strokeStyle = '#d4b483';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = hitShieldedBossFace ? '#7c9cb4' : '#d4b483';
+  ctx.lineWidth = 2.2;
   ctx.beginPath();
   ctx.arc(hitX, hitY, 14, 0, Math.PI * 2);
   ctx.stroke();
@@ -565,6 +576,151 @@ function drawAimTrajectory(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   ctx.moveTo(hitX, hitY + 9);
   ctx.lineTo(hitX, hitY + 20);
   ctx.stroke();
+
+  // Live Cause-and-Effect Chain Preview when aiming at a ◇ Class Block, × Explosive, or Shielded Boss
+  if (hitCube && hitCube.isAlive) {
+    const hcx = hitCube.x + hitCube.width / 2;
+    const hcy = hitCube.y + hitCube.height / 2;
+    const arch = engine.currentArchetype || 'PROTO_CORE';
+    const archColor = ARCHETYPES_DATA[arch]?.color || '#d4b483';
+
+    if (hitShieldedBossFace) {
+      // Visual warning cleanly above the Boss header + highlight the 4 ◇ Relay Nodes that unlock the shield!
+      const warnY = hitCube.y - 84;
+      ctx.fillStyle = 'rgba(14, 18, 26, 0.94)';
+      ctx.strokeStyle = '#7c9cb4';
+      ctx.lineWidth = 2.5;
+      roundRect(ctx, hitX - 128, warnY - 16, 256, 32, 8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#e0f2fe';
+      ctx.font = 'bold 16px "Chakra Petch", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🛡️ RESPINTO · MIRA AI NODI ◇', hitX, warnY);
+
+      for (const relay of engine.cubes) {
+        if (relay.isAlive && relay.type === 'CLASS_ABILITY') {
+          ctx.strokeStyle = '#d4b483';
+          ctx.lineWidth = 3;
+          roundRect(ctx, relay.x - 6, relay.y - 6, relay.width + 12, relay.height + 12, 12);
+          ctx.stroke();
+        }
+      }
+    } else if (hitCube.type === 'CLASS_ABILITY' || hitCube.type === 'EXPLOSIVE') {
+      const previewColor = hitCube.type === 'EXPLOSIVE' ? '#c87d65' : archColor;
+
+      // Highlight the targeted trigger block
+      ctx.strokeStyle = previewColor;
+      ctx.lineWidth = 3.2;
+      roundRect(ctx, hitCube.x - 5, hitCube.y - 5, hitCube.width + 10, hitCube.height + 10, 12);
+      ctx.stroke();
+
+      // If Boss is active and aiming at a ◇ Relay Node, preview the shield-breaking beam into the Boss!
+      if (hitCube.type === 'CLASS_ABILITY' && engine.activeBoss && engine.activeBoss.isAlive) {
+        const bx = engine.activeBoss.x + engine.activeBoss.width / 2;
+        const by = engine.activeBoss.y + engine.activeBoss.height / 2;
+        ctx.strokeStyle = previewColor;
+        ctx.lineWidth = 3.5;
+        ctx.setLineDash([10, 6]);
+        ctx.beginPath();
+        ctx.moveTo(hcx, hcy);
+        ctx.lineTo(bx, by);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = 'rgba(14, 18, 26, 0.92)';
+        ctx.strokeStyle = previewColor;
+        ctx.lineWidth = 2;
+        roundRect(ctx, hcx - 95, hitCube.y - 36, 190, 28, 8);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = previewColor;
+        ctx.font = 'bold 15px "Chakra Petch", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⚡ APRE SCUDO BOSS!', hcx, hitCube.y - 21);
+      } else {
+        // Preview affected cubes in the local pocket so the player sees the chain before shooting!
+        const previewTargets: Cube[] = [];
+        if (hitCube.type === 'EXPLOSIVE' || arch === 'PYRO_DETONATOR') {
+          const r1 = 240;
+          ctx.strokeStyle = previewColor;
+          ctx.globalAlpha = 0.35;
+          ctx.lineWidth = 2;
+          ctx.setLineDash([8, 6]);
+          ctx.beginPath();
+          ctx.arc(hcx, hcy, r1, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.globalAlpha = 1;
+
+          for (const other of engine.cubes) {
+            if (!other.isAlive || other === hitCube) continue;
+            const ocx = other.x + other.width / 2;
+            const ocy = other.y + other.height / 2;
+            if (Math.hypot(ocx - hcx, ocy - hcy) <= r1) {
+              previewTargets.push(other);
+              if (other.type === 'EXPLOSIVE') {
+                for (const sub of engine.cubes) {
+                  if (!sub.isAlive || sub === hitCube || sub === other) continue;
+                  const scx = sub.x + sub.width / 2;
+                  const scy = sub.y + sub.height / 2;
+                  if (Math.hypot(scx - ocx, scy - ocy) <= 260 && !previewTargets.includes(sub)) {
+                    previewTargets.push(sub);
+                  }
+                }
+              }
+            }
+          }
+        } else if (arch === 'VOLT_OVERCHARGE') {
+          const voltCandidates = engine.cubes
+            .filter((other) => other.isAlive && other !== hitCube)
+            .map((other) => ({
+              cube: other,
+              dist: Math.hypot(other.x + other.width / 2 - hcx, other.y + other.height / 2 - hcy),
+            }))
+            .filter((item) => item.dist <= 380)
+            .sort((a, b) =>
+              a.cube.isCore === b.cube.isCore ? a.dist - b.dist : a.cube.isCore ? -1 : 1
+            )
+            .slice(0, 3);
+          for (const item of voltCandidates) {
+            previewTargets.push(item.cube);
+          }
+        } else {
+          for (const other of engine.cubes) {
+            if (!other.isAlive || other === hitCube) continue;
+            const ocx = other.x + other.width / 2;
+            const ocy = other.y + other.height / 2;
+            if (Math.hypot(ocx - hcx, ocy - hcy) <= 200) {
+              previewTargets.push(other);
+            }
+          }
+        }
+
+        for (const t of previewTargets) {
+          const tcx = t.x + t.width / 2;
+          const tcy = t.y + t.height / 2;
+          ctx.strokeStyle = previewColor;
+          ctx.globalAlpha = 0.65;
+          ctx.lineWidth = 2.2;
+          ctx.setLineDash([6, 6]);
+          ctx.beginPath();
+          ctx.moveTo(hcx, hcy);
+          ctx.lineTo(tcx, tcy);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          ctx.globalAlpha = 0.85;
+          ctx.lineWidth = 2.5;
+          roundRect(ctx, t.x - 3, t.y - 3, t.width + 6, t.height + 6, 11);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      }
+    }
+  }
 
   ctx.restore();
 }
@@ -674,6 +830,29 @@ function drawCubes(ctx: CanvasRenderingContext2D, engine: GameEngine) {
       ctx.fillRect(rx + 6, ry + drawH - 11, 5, 5);
       ctx.fillRect(rx + drawW - 11, ry + drawH - 11, 5, 5);
       ctx.globalAlpha = 1.0;
+
+      // On Sector 1 during AIMING, add a crisp "◇ INNESCO" beacon above exposed 1-HP class triggers so beginners spot them immediately
+      if (engine.currentLevel === 1 && engine.state === 'AIMING' && c.hp === 1) {
+        ctx.strokeStyle = strokeColor;
+        ctx.globalAlpha = 0.45;
+        ctx.lineWidth = 2;
+        roundRect(ctx, rx - 4, ry - 4, drawW + 8, drawH + 8, 12);
+        ctx.stroke();
+        ctx.globalAlpha = 1.0;
+
+        ctx.fillStyle = 'rgba(12, 14, 19, 0.9)';
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 1.5;
+        roundRect(ctx, centerX - 48, ry - 26, 96, 20, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = strokeColor;
+        ctx.font = 'bold 13px "Chakra Petch", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('◇ INNESCO', centerX, ry - 15);
+      }
     } else if (c.type === 'EXPLOSIVE') {
       // Diagonal X cross for Explosive cubes
       ctx.strokeStyle = 'rgba(200, 125, 101, 0.5)';
@@ -769,23 +948,77 @@ function drawCubes(ctx: CanvasRenderingContext2D, engine: GameEngine) {
         barY - 12
       );
 
-      // Chapter 1 Boss Rule: Frontal Deflector Shield along the bottom edge
+      // Chapter 1 Boss Rule: High-Visibility Armored Frontal Shield + Power Conduits to the 4 ◇ Relay Nodes
       if (engine.currentLevel === 5) {
         if (!engine.bossFrontShieldBrokenThisShot) {
+          // 1. Dashed energy conduits visibly wiring the 4 flanking ◇ Relay Nodes to The Monolith's shield
+          ctx.save();
+          ctx.strokeStyle = 'rgba(124, 156, 180, 0.5)';
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([8, 6]);
+          for (const relay of engine.cubes) {
+            if (relay.isAlive && relay.type === 'CLASS_ABILITY') {
+              const rcx = relay.x + relay.width / 2;
+              const rcy = relay.y + relay.height / 2;
+              const targetX = rcx < centerX ? rx + 10 : rx + drawW - 10;
+              const targetY = rcy < centerY ? ry + 8 : ry + drawH - 8;
+              ctx.beginPath();
+              ctx.moveTo(rcx, rcy);
+              ctx.lineTo(targetX, targetY);
+              ctx.stroke();
+            }
+          }
+          ctx.setLineDash([]);
+          ctx.restore();
+
+          // 2. Heavy Top & Bottom Frontal Shield Barriers (blocks direct cannon & bounce hits)
           ctx.strokeStyle = '#7c9cb4';
-          ctx.lineWidth = 5;
+          ctx.lineWidth = 8;
           ctx.beginPath();
-          ctx.moveTo(rx + 8, ry + drawH + 5);
-          ctx.lineTo(rx + drawW - 8, ry + drawH + 5);
+          ctx.moveTo(rx + 6, ry - 6);
+          ctx.lineTo(rx + drawW - 6, ry - 6);
+          ctx.moveTo(rx + 6, ry + drawH + 6);
+          ctx.lineTo(rx + drawW - 6, ry + drawH + 6);
           ctx.stroke();
 
-          ctx.fillStyle = '#7c9cb4';
-          ctx.font = 'bold 14px "Chakra Petch", sans-serif';
-          ctx.fillText('🛡️ SCUDO FRONTALE · COLPISCI I NODI ◇ O I LATI', centerX, ry + drawH + 22);
+          ctx.strokeStyle = '#e0f2fe';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.moveTo(rx + 14, ry - 6);
+          ctx.lineTo(rx + drawW - 14, ry - 6);
+          ctx.moveTo(rx + 14, ry + drawH + 6);
+          ctx.lineTo(rx + drawW - 14, ry + drawH + 6);
+          ctx.stroke();
+
+          // 3. Large, unmistakable pill badge (20px bold) so players read the shield state immediately on mobile
+          ctx.fillStyle = 'rgba(14, 19, 28, 0.94)';
+          ctx.strokeStyle = '#7c9cb4';
+          ctx.lineWidth = 2.2;
+          roundRect(ctx, centerX - 165, ry + drawH + 14, 330, 34, 9);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#e0f2fe';
+          ctx.font = 'bold 19px "Chakra Petch", sans-serif';
+          ctx.fillText('🛡️ SCUDO ATTIVO · COLPISCI ◇', centerX, ry + drawH + 32);
         } else {
+          ctx.strokeStyle = '#7fa68e';
+          ctx.lineWidth = 4;
+          ctx.setLineDash([10, 8]);
+          roundRect(ctx, rx - 5, ry - 5, drawW + 10, drawH + 10, 12);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          ctx.fillStyle = 'rgba(14, 24, 19, 0.94)';
+          ctx.strokeStyle = '#7fa68e';
+          ctx.lineWidth = 2.2;
+          roundRect(ctx, centerX - 165, ry + drawH + 14, 330, 34, 9);
+          ctx.fill();
+          ctx.stroke();
+
           ctx.fillStyle = '#7fa68e';
-          ctx.font = 'bold 14px "Chakra Petch", sans-serif';
-          ctx.fillText('⚡ SCUDO FRONTALE DISATTIVATO!', centerX, ry + drawH + 22);
+          ctx.font = 'bold 19px "Chakra Petch", sans-serif';
+          ctx.fillText('⚡ SCUDO APERTO · VULNERABILE!', centerX, ry + drawH + 32);
         }
       }
     }

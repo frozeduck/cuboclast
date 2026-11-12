@@ -135,7 +135,7 @@ export const ArchetypeSelectModal: React.FC<ArchetypeSelectModalProps> = ({
                   CUBOCLAST
                 </h1>
                 <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#161922] border border-[#2d323e] text-zinc-300 leading-none">
-                  v0.16.0
+                  v0.17.0
                 </span>
               </div>
               <p className="text-[10px] text-zinc-400 mt-0.5 truncate">

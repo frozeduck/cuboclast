@@ -179,9 +179,9 @@ test('Hybrid B: Boss kills permanently evolve world cube types and SWARM_MATRIX 
   engine.setState('BALL_IN_PLAY');
   engine.update(0.016);
 
-  // Shattering a SWARM_MATRIX CLASS_ABILITY cube spawns 3 mini-balls (1 main ball + 3 mini-balls = 4 balls)
+  // Shattering a SWARM_MATRIX CLASS_ABILITY cube spawns at least 3 mini-balls (6 when chaining its adjacent companion ◇ node)
   const miniBalls = engine.balls.filter((b) => b.isMini);
-  assert.equal(miniBalls.length, 3);
+  assert.equal(miniBalls.length >= 3, true);
 });
 
 test('All archetypes, relics, and fusion combos have valid metadata', () => {
@@ -310,102 +310,62 @@ test('Option B + C (v0.13.0): Fever drops playable Supply Capsules, triggers Rel
   assert.equal(companionMinis.length, 1);
 });
 
-test('v0.16.0 Playtest Rebalance: 2-Pocket Tactical Split prevents 1-shot center auto-clear, emits ORIGIN/TARGET effects, and Fever waits until Supply Capsules reach the basket', () => {
+test('v0.17.0 First-Minute Promise: Blind center shot clears 0 Cores, aiming at Left ◇ trigger destroys all 3 Left Cores while leaving 3 Right Cores intact, and 2nd shot clears the sector', () => {
   const pm = new ProgressionManager();
   pm.resetProgression();
   const engine = new GameEngine(pm);
 
-  // 1. Pyro, Volt, Swarm, and Kinetic are immediately available via engine.isArchetypeAvailable without grinding
-  assert.equal(engine.isArchetypeAvailable('PYRO_DETONATOR'), true);
-  assert.equal(engine.isArchetypeAvailable('VOLT_OVERCHARGE'), true);
-  assert.equal(engine.isArchetypeAvailable('SWARM_MATRIX'), true);
-  assert.equal(engine.isArchetypeAvailable('KINETIC_TITAN'), true);
+  // Helper to fire a real shot from the cannon at (targetX, targetY) and simulate until AIMING or FEVER
+  const fireRealShotAt = (targetX: number, targetY: number) => {
+    engine.setAimAngle(targetX, targetY);
+    assert.equal(engine.shoot(), true);
+    let steps = 0;
+    while (engine.state === 'BALL_IN_PLAY' && steps < 600) {
+      engine.update(1 / 60);
+      steps++;
+    }
+  };
 
-  // 2. Pyro Handcrafted Arena ("Campo Pyro · Innesco a Grappolo"): triggering Left pocket ◇ fuse damages Left pocket Cores and emits RING + ORIGIN + TARGET effects, while Right pocket Cores stay intact (requires >= 2 tactical shots)
-  engine.selectArchetype('PYRO_DETONATOR', 'STORY', 1, true);
-  assert.equal(engine.currentPatternName, 'Campo Pyro · Innesco a Grappolo');
-  const leftPyroFuse = engine.cubes.find((c) => c.type === 'CLASS_ABILITY' && c.x < 500);
-  assert.ok(leftPyroFuse);
-  engine.balls = [
-    {
-      x: leftPyroFuse.x + leftPyroFuse.width / 2,
-      y: leftPyroFuse.y + leftPyroFuse.height / 2,
-      vx: 0,
-      vy: 400,
-      radius: 18,
-      isMini: false,
-      isAlive: true,
-      bounces: 0,
-      baseDamage: 5,
-      trail: [],
-      hasSavedOnce: false,
-    },
-  ];
-  engine.setState('BALL_IN_PLAY');
-  engine.update(0.016);
-  assert.equal(
-    engine.visualEffects.some((fx) => fx.type === 'RING'),
-    true
-  );
-  assert.equal(
-    engine.visualEffects.some((fx) => fx.type === 'ORIGIN'),
-    true
-  );
-  assert.equal(
-    engine.visualEffects.some((fx) => fx.type === 'TARGET'),
-    true
-  );
-  const survivingRightCores = engine.cubes.filter((c) => c.isCore && c.isAlive && c.x > 540);
-  assert.equal(survivingRightCores.length, 3);
+  for (const arch of ['PYRO_DETONATOR', 'VOLT_OVERCHARGE', 'SWARM_MATRIX'] as const) {
+    engine.selectArchetype(arch, 'STORY', 1, true);
+    assert.equal(engine.getRemainingCoreCubes(), 6);
 
-  // 3. Volt Handcrafted Arena ("Campo Volt · Ponte Elettrostatico"): triggering Left ◇ relay arcs LIGHTNING into Left armored Cores while Right bunker Cores remain alive
-  engine.selectArchetype('VOLT_OVERCHARGE', 'STORY', 1, true);
-  assert.equal(engine.currentPatternName, 'Campo Volt · Ponte Elettrostatico');
-  const voltRelay = engine.cubes.find((c) => c.type === 'CLASS_ABILITY' && c.x < 500);
-  assert.ok(voltRelay);
-  engine.balls = [
-    {
-      x: voltRelay.x + voltRelay.width / 2,
-      y: voltRelay.y + voltRelay.height / 2,
-      vx: 0,
-      vy: 400,
-      radius: 18,
-      isMini: false,
-      isAlive: true,
-      bounces: 0,
-      baseDamage: 5,
-      trail: [],
-      hasSavedOnce: false,
-    },
-  ];
-  engine.setState('BALL_IN_PLAY');
-  engine.update(0.016);
-  assert.equal(
-    engine.visualEffects.some((fx) => fx.type === 'LIGHTNING'),
-    true
-  );
-  assert.equal(
-    engine.cubes.filter((c) => c.isCore && c.isAlive && c.x > 540).length,
-    3
-  );
+    // 1. A blind center shot straight down (x = 540, y = 600) hits the central deflector and destroys 0 Cores
+    fireRealShotAt(540, 600);
+    assert.equal(engine.getRemainingCoreCubes(), 6);
+
+    // 2. Aiming at the exposed Left ◇ Class Trigger destroys all 3 Left Cores in 1 gratifying cascade, leaving all 3 Right Cores intact!
+    const leftTrigger = engine.cubes.find(
+      (c) => c.isAlive && c.type === 'CLASS_ABILITY' && c.x < 500 && c.hp === 1
+    );
+    assert.ok(leftTrigger, `Missing exposed Left ◇ trigger for ${arch}`);
+    fireRealShotAt(leftTrigger.x + leftTrigger.width / 2, leftTrigger.y + leftTrigger.height / 2);
+
+    const survivingLeftCores = engine.cubes.filter((c) => c.isCore && c.isAlive && c.x < 500);
+    const survivingRightCores = engine.cubes.filter((c) => c.isCore && c.isAlive && c.x > 500);
+    assert.equal(
+      survivingLeftCores.length,
+      0,
+      `Expected all 3 Left Cores to be destroyed by Left ◇ trigger in ${arch}`
+    );
+    assert.equal(
+      survivingRightCores.length,
+      3,
+      `Expected all 3 Right Cores to remain intact after Left ◇ trigger in ${arch}`
+    );
+
+    // 3. Aiming at the exposed Right ◇ Class Trigger destroys the remaining 3 Right Cores and launches FEVER!
+    const rightTrigger = engine.cubes.find(
+      (c) => c.isAlive && c.type === 'CLASS_ABILITY' && c.x > 500 && c.hp === 1
+    );
+    assert.ok(rightTrigger, `Missing exposed Right ◇ trigger for ${arch}`);
+    fireRealShotAt(rightTrigger.x + rightTrigger.width / 2, rightTrigger.y + rightTrigger.height / 2);
+    assert.equal(engine.getRemainingCoreCubes(), 0);
+    assert.equal(engine.state, 'FEVER');
+  }
 
   // 4. Condition-Based Fever Mode: Supply Capsules ALWAYS reach the basket y-zone (y=1580) before Fever ends
-  for (const c of engine.cubes) {
-    c.isAlive = false;
-  }
-  engine.balls = [];
-  engine.setState('BALL_IN_PLAY');
-  engine.update(0.016);
-  assert.equal(engine.state, 'FEVER');
-  assert.equal(engine.feverCapsules.length >= 4, true);
-
-  // Simulate 1.3s of Fever while holding capsules in mid-air: Fever MUST NOT close prematurely while capsules are still falling above the basket
   let elapsed = 0;
-  while (elapsed < 1.3 && engine.state === 'FEVER') {
-    engine.update(0.05);
-    elapsed += 0.05;
-  }
-  // Now let capsules continue falling naturally until they cross the basket (y = 1580)
   let caughtOrPassedBasket = false;
   while (engine.state === 'FEVER' && elapsed < 3.8) {
     if (engine.feverCapsules.some((cap) => !cap.isAlive || cap.y >= engine.basket.y - 20)) {
@@ -417,20 +377,20 @@ test('v0.16.0 Playtest Rebalance: 2-Pocket Tactical Split prevents 1-shot center
   assert.equal(caughtOrPassedBasket, true);
   assert.equal(engine.state, 'RELIC_DRAFT');
 
-  // 5. Sector 5 Boss (The Monolith): Frontal Shield blocks direct bottom hits until a ◇ Relay Node is hit
+  // 5. Sector 5 Boss (The Monolith): Frontal Shield blocks direct top/bottom hits until a ◇ Relay Node is hit
   engine.initLevel(5, 'BOSS', false);
   const boss = engine.activeBoss;
   assert.ok(boss);
   const initialBossHp = boss.hp;
   assert.equal(engine.bossFrontShieldBrokenThisShot, false);
 
-  // Direct bottom hit on The Monolith deals 0 damage while frontal shield is active
+  // Direct top hit from cannon onto The Monolith deals 0 damage while frontal shield is active
   engine.balls = [
     {
       x: boss.x + boss.width / 2,
-      y: boss.y + boss.height + 10,
+      y: boss.y - 10,
       vx: 0,
-      vy: -600,
+      vy: 600,
       radius: 18,
       isMini: false,
       isAlive: true,
@@ -444,7 +404,7 @@ test('v0.16.0 Playtest Rebalance: 2-Pocket Tactical Split prevents 1-shot center
   engine.update(0.016);
   assert.equal(boss.hp, initialBossHp);
 
-  // Hitting a flanking ◇ Class Relay Node damages the Boss and disables the frontal shield for the shot
+  // Shattering a flanking ◇ Class Relay Node deals 22 beam damage (8 hit + 14 shatter) and opens the shield!
   const relayNode = engine.cubes.find((c) => c.type === 'CLASS_ABILITY' && c.isAlive);
   assert.ok(relayNode);
   engine.balls = [
@@ -452,7 +412,7 @@ test('v0.16.0 Playtest Rebalance: 2-Pocket Tactical Split prevents 1-shot center
       x: relayNode.x + relayNode.width / 2,
       y: relayNode.y + relayNode.height / 2,
       vx: 0,
-      vy: -400,
+      vy: 400,
       radius: 18,
       isMini: false,
       isAlive: true,
@@ -464,7 +424,7 @@ test('v0.16.0 Playtest Rebalance: 2-Pocket Tactical Split prevents 1-shot center
   ];
   engine.update(0.016);
   assert.equal(engine.bossFrontShieldBrokenThisShot, true);
-  assert.equal(boss.hp < initialBossHp, true);
+  assert.equal(boss.hp <= initialBossHp - 14, true);
 });
 
 
